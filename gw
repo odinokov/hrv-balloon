@@ -1,0 +1,6 @@
+#!/bin/sh
+# Gradle launcher that keeps every tool home inside this folder.
+cd "$(dirname "$0")" || exit 1
+export HOME="$PWD/.home" GRADLE_USER_HOME="$PWD/.home/.gradle" ANDROID_USER_HOME="$PWD/.home/.android" ANDROID_HOME="$PWD/.sdk"
+export JAVA_TOOL_OPTIONS="-Duser.home=$PWD/.home"
+exec ./gradlew "$@"

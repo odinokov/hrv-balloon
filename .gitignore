@@ -1,0 +1,26 @@
+# build output
+build/
+.gradle/
+.kotlin/
+*.apk
+dist/
+
+# local toolchain: ./gw keeps every tool home inside the repo
+.home/
+.sdk/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# personal data and working notes
+*.csv
+HANDOFF.md
+docs/superpowers/
+
+# agent tooling
+.playwright-mcp/
+.superpowers/
+.impeccable/
+.code-review-graph/

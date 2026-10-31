@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Polar H10 Web Probe</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one column of panels for a phone held upright — verdict, browser checks, strap controls, live numbers, pixel trace, log. */
+:root{
+  --bg:#f1ecf4;--panel:#fbf9fd;--fg:#26213a;--muted:#6f6889;--line:#d6cfe3;
+  --accent:#c9632a;--good:#2e8b57;--bad:#b23b35;--warn:#a87f14;
+  --trace-bg:#2b2550;--trace-ink:#f6d9a0;--trace-band:#3c3566;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15112a;--panel:#1f1a36;--fg:#ebe5f4;--muted:#a199bb;--line:#342d50;--accent:#f0a35e;--good:#5fcd8e;--bad:#f0807a;--warn:#e3bb4f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15112a;--panel:#1f1a36;--fg:#ebe5f4;--muted:#a199bb;--line:#342d50;--accent:#f0a35e;--good:#5fcd8e;--bad:#f0807a;--warn:#e3bb4f;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--sans);margin:0;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:640px;margin:0 auto;display:grid;gap:16px}
+h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+p{margin:0}
+.lead,.note{color:var(--muted)}
+.note{font-size:13px;margin-top:10px;overflow-wrap:anywhere}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.verdict{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.verdict h2{margin:0}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font:600 12px/1.6 var(--sans);letter-spacing:.03em;background:var(--line);color:var(--fg)}
+.pill[data-state="good"]{background:var(--good);color:#fff}
+.pill[data-state="bad"]{background:var(--bad);color:#fff}
+.pill[data-state="warn"]{background:var(--warn);color:#fff}
+#verdictWhy{flex-basis:100%;color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td{padding:5px 0;border-top:1px solid var(--line);vertical-align:top}
+tr:first-child td{border-top:0}
+td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:12px}
+.ok{color:var(--good)} .no{color:var(--bad)} .hm{color:var(--warn)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{font:600 14px var(--sans);padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{margin-top:10px;color:var(--muted);font:13px/1.45 var(--mono);min-height:1.4em;overflow-wrap:anywhere}
+.big{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px}
+.big div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.big b{display:block;font:600 28px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.big span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+canvas{display:block;width:100%;max-width:100%;aspect-ratio:160/64;image-rendering:pixelated;border-radius:6px;background:var(--trace-bg)}
+.cap{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font:12px var(--mono);margin-top:6px}
+pre{margin:0;max-height:240px;overflow:auto;font:12px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+pre .t{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Polar H10 web probe</h1>
+    <p class="lead">Does this browser get what HRV Balloon needs from the strap: beat-to-beat RR intervals once a second, no missed beats, screen awake, a steady 60 fps canvas?</p>
+  </header>
+  <section class="verdict"><h2>Verdict</h2><span class="pill" id="verdict">Not tested</span><span id="verdictWhy">Connect the strap and breathe for a minute.</span></section>
+  <section>
+    <h2>Browser checks</h2>
+    <table id="checks"></table>
+    <p class="note" id="ua"></p>
+  </section>
+  <section>
+    <h2>Strap</h2>
+    <div class="row">
+      <button class="primary" id="btnConnect">Connect Polar H10</button>
+      <button id="btnDisconnect" disabled>Disconnect</button>
+      <button id="btnWake">Keep screen on</button>
+      <button id="btnVibe">Vibrate</button>
+      <button id="btnFull">Fullscreen</button>
+    </div>
+    <div class="status" id="status">Wet the strap, put it on, tap Connect. The chooser lists every heart-rate device in range.</div>
+    <p class="note">Background test: once streaming, switch to another app for 30 s and come back. The log then says how many packets arrived while the page was hidden.</p>
+  </section>
+  <section>
+    <h2>Live</h2>
+    <div class="big">
+      <div><b id="hr">--</b><span>HR bpm</span></div>
+      <div><b id="rr">--</b><span>last RR ms</span></div>
+      <div><b id="beats">0</b><span>beats</span></div>
+      <div><b id="packets">0</b><span>packets</span></div>
+    </div>
+    <table id="stats"></table>
+  </section>
+  <section>
+    <h2>Trace, last 60 s</h2>
+    <canvas id="trace" width="160" height="64"></canvas>
+    <div class="cap"><span>HR from RR, 30 bpm span · light bands = inhale at 5.5/min</span><span id="fps">-- fps</span></div>
+  </section>
+  <section>
+    <h2>Log</h2>
+    <div class="row" style="margin-bottom:10px"><button id="btnCopy">Copy log</button><button id="btnCsv">Download RR CSV</button></div>
+    <pre id="log"></pre>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const fmt = (x, d = 0) => Number.isFinite(x) ? x.toFixed(d) : '--';
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : NaN;
+  const sd = a => { const m = avg(a); return a.length > 1 ? Math.sqrt(avg(a.map(v => (v - m) * (v - m)))) : NaN; };
+
+  // ---- log
+  const lines = [];
+  function log(msg) {
+    lines.push(`${new Date().toTimeString().slice(0, 8)} ${msg}`);
+    if (lines.length > 500) lines.shift();
+    $('log').innerHTML = lines.slice().reverse().map(l => `<span class="t">${l.slice(0, 8)}</span> ${esc(l.slice(9))}`).join('\n');
+  }
+  const status = t => { $('status').textContent = t; };
+
+  // ---- browser checks
+  const checks = [];
+  function check(name, value, state) {
+    checks.push({ name, value, state });
+    $('checks').innerHTML = checks.map(c => `<tr><td>${c.name}</td><td class="${c.state}">${esc(c.value)}</td></tr>`).join('');
+  }
+  async function runChecks() {
+    const bt = 'bluetooth' in navigator;
+    check('Secure context', window.isSecureContext ? 'yes' : 'no', window.isSecureContext ? 'ok' : 'no');
+    check('Web Bluetooth API', bt ? 'present' : 'missing', bt ? 'ok' : 'no');
+    const policy = document.permissionsPolicy || document.featurePolicy;
+    let allowed = null;
+    try { allowed = policy ? policy.allowsFeature('bluetooth') : null; } catch (e) { allowed = null; }
+    check('Bluetooth allowed in this frame', allowed == null ? 'unknown' : allowed ? 'yes' : 'no, blocked by policy', allowed == null ? 'hm' : allowed ? 'ok' : 'no');
+    if (bt && navigator.bluetooth.getAvailability) {
+      try { const a = await navigator.bluetooth.getAvailability(); check('Bluetooth radio', a ? 'available' : 'off or absent', a ? 'ok' : 'no'); }
+      catch (e) { check('Bluetooth radio', e.name, 'hm'); }
+    }
+    const again = bt && !!navigator.bluetooth.getDevices;
+    check('Reconnect without chooser', again ? 'getDevices present' : 'missing', again ? 'ok' : 'hm');
+    const wl = 'wakeLock' in navigator;
+    check('Screen wake lock', wl ? 'API present' : 'missing', wl ? 'ok' : 'hm');
+    const vib = 'vibrate' in navigator;
+    check('Vibration', vib ? 'API present' : 'missing', vib ? 'ok' : 'hm');
+    const fs = !!document.documentElement.requestFullscreen;
+    check('Fullscreen', fs ? 'API present' : 'missing', fs ? 'ok' : 'hm');
+    const ol = !!(screen.orientation && screen.orientation.lock);
+    check('Orientation lock', ol ? 'API present' : 'missing', ol ? 'ok' : 'hm');
+    let n = 0; const t0 = performance.now();
+    await new Promise(res => { const f = t => { n++; if (t - t0 < 1000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+    check('Animation frame rate', `${n} Hz`, n >= 55 ? 'ok' : 'hm');
+    $('ua').textContent = navigator.userAgent;
+    setVerdict();
+  }
+
+  // ---- strap
+  const S = { device: null, chr: null, manual: false, packets: 0, hiddenPackets: 0, hiddenAt: 0, firstT: 0, lastT: 0, firstRrT: 0,
+    gaps: [], rrPackets: 0, beats: 0, rrSum: 0, repeats: 0, disconnects: 0, reconnects: 0, contact: '--', samples: [], pk: [], csv: [] };
+
+  /** BLE Heart Rate Measurement (0x2A37); RR comes in 1/1024 s and is returned in ms. */
+  function parseHrm(dv) {
+    const flags = dv.getUint8(0);
+    let i = 1;
+    const hr = flags & 1 ? dv.getUint16(i, true) : dv.getUint8(i);
+    i += flags & 1 ? 2 : 1;
+    const c = flags >> 1 & 3;
+    const contact = c === 3 ? 'on skin' : c === 2 ? 'NO contact' : 'not reported';
+    if (flags & 8) i += 2;
+    const rr = [];
+    if (flags & 16) for (; i + 1 < dv.byteLength; i += 2) rr.push(dv.getUint16(i, true) * 1000 / 1024);
+    return { hr, contact, rr };
+  }
+
+  function onValue(e) {
+    const now = performance.now();
+    const p = parseHrm(e.target.value);
+    S.packets++;
+    if (document.hidden) S.hiddenPackets++;
+    if (!S.firstT) S.firstT = now; else S.gaps.push(now - S.lastT);
+    if (S.gaps.length > 600) S.gaps.shift();
+    S.lastT = now;
+    S.contact = p.contact;
+    if (p.rr.length) {
+      const sum = p.rr.reduce((a, b) => a + b, 0), prev = S.pk[S.pk.length - 1];
+      if (prev && prev.rr.length === p.rr.length && prev.rr.every((v, k) => v === p.rr[k])) S.repeats++;
+      S.pk.push({ t: now, cum: (prev ? prev.cum : 0) + sum, rr: p.rr });
+      S.rrPackets++;
+      if (S.firstRrT) S.rrSum += sum; else S.firstRrT = now;
+      S.beats += p.rr.length;
+      // the newest beat ends at arrival; earlier ones are stepped back by the following RR
+      let t = now;
+      const stamped = [];
+      for (let k = p.rr.length - 1; k >= 0; k--) { stamped.unshift({ t, hr: 60000 / p.rr[k] }); t -= p.rr[k]; }
+      S.samples.push(...stamped);
+      for (const r of p.rr) S.csv.push([fmt(now - S.firstT), fmt(r, 1), fmt(60000 / r, 1)]);
+      $('rr').textContent = fmt(p.rr[p.rr.length - 1]);
+    }
+    while (S.samples.length && S.samples[0].t < now - 70000) S.samples.shift();
+    $('hr').textContent = p.hr || '--';
+    log(`#${S.packets} +${S.gaps.length ? fmt(S.gaps[S.gaps.length - 1]) : 0} ms HR ${p.hr} RR [${p.rr.map(r => fmt(r)).join(' ')}] ${p.contact}`);
+    updateStats();
+  }
+
+  function updateStats() {
+    $('beats').textContent = S.beats;
+    $('packets').textContent = S.packets;
+    const mean = avg(S.gaps), jitter = sd(S.gaps), worst = S.gaps.length ? Math.max(...S.gaps) : NaN;
+    const c = coverage();
+    const rows = [
+      ['Contact', S.contact],
+      ['Packet cadence', S.gaps.length ? `${fmt(mean)} ± ${fmt(jitter)} ms, worst ${fmt(worst)}` : '--'],
+      ['Packets carrying RR', S.packets ? `${S.rrPackets} of ${S.packets} (${fmt(100 * S.rrPackets / S.packets)}%)` : '--'],
+      ['RR coverage, whole run', Number.isFinite(c.total) ? `${fmt(100 * c.total, 1)}% (RR ${c.excess >= 0 ? '+' : ''}${fmt(c.excess / 1000, 1)} s vs clock)` : '--'],
+      ['RR coverage, last 60 s', Number.isFinite(c.recent) ? `${fmt(100 * c.recent, 1)}%` : '--'],
+      ['Packets repeating the previous RR list', S.repeats],
+      ['Packets while hidden', S.hiddenPackets],
+      ['Link lost / recovered', `${S.disconnects} / ${S.reconnects}`],
+      ['Streaming for', S.firstT ? `${fmt((S.lastT - S.firstT) / 1000)} s` : '--'],
+    ];
+    $('stats').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join('');
+    setVerdict();
+  }
+
+  /** RR time against the clock: the whole run since the first RR packet, and the last 60 s once 20 s of RR exist. */
+  function coverage() {
+    const total = S.firstRrT && S.lastT > S.firstRrT ? S.rrSum / (S.lastT - S.firstRrT) : NaN;
+    const excess = S.firstRrT ? S.rrSum - (S.lastT - S.firstRrT) : NaN;
+    const last = S.pk[S.pk.length - 1];
+    const old = last && S.pk.find(q => q.t >= last.t - 60000);
+    const recent = old && last.t - old.t >= 20000 ? (last.cum - old.cum) / (last.t - old.t) : NaN;
+    return { total, excess, recent };
+  }
+
+  function setVerdict() {
+    const set = (state, label, why) => { $('verdict').dataset.state = state; $('verdict').textContent = label; $('verdictWhy').textContent = why; };
+    if (!('bluetooth' in navigator)) return set('bad', 'Blocked', 'No Web Bluetooth here. Chrome or Edge on Android, Windows, macOS or ChromeOS have it; Safari and Firefox do not.');
+    if (!S.packets) return set('', 'Not tested', 'Connect the strap and breathe for a minute.');
+    if (S.packets < 30) return set('warn', 'Measuring', `${S.packets} of 30 packets`);
+    const mean = avg(S.gaps), worst = Math.max(...S.gaps);
+    const rrShare = S.rrPackets / S.packets, c = coverage();
+    const problems = [], notes = [];
+    if (rrShare < 0.8) problems.push(`RR in only ${fmt(100 * rrShare)}% of packets`);
+    if (mean < 850 || mean > 1150 || worst > 2500) problems.push(`cadence ${fmt(mean)} ms with a worst gap of ${fmt(worst)} ms`);
+    if (S.repeats > 2) problems.push(`${S.repeats} packets repeat the previous RR list, so beats arrive twice`);
+    if (!Number.isFinite(c.recent)) return set('warn', 'Measuring', 'Need 20 s of RR to judge coverage.');
+    if (Math.abs(c.recent - 1) > 0.03) problems.push(`over the last 60 s RR covers ${fmt(100 * c.recent, 1)}% of the clock, so beats are missing or doubled`);
+    else if (Math.abs(c.total - 1) > 0.03) notes.push(`the whole-run coverage of ${fmt(100 * c.total, 1)}% is a fixed ${fmt(c.excess / 1000, 1)} s offset from the first seconds (beats buffered before the subscription), not drift`);
+    if (S.disconnects > S.reconnects) problems.push('the link was lost and not recovered');
+    if (problems.length) return set('bad', 'Problems', problems.join('; ') + '.');
+    set('good', 'Feasible', `${S.packets} packets over ${fmt((S.lastT - S.firstT) / 1000)} s, cadence ${fmt(mean)} ms, RR coverage ${fmt(100 * c.recent, 1)}% over the last 60 s` + (notes.length ? `; ${notes.join('; ')}` : '') +
+      (S.hiddenPackets ? `, ${S.hiddenPackets} packets arrived while hidden.` : '. Background delivery not yet tested.'));
+  }
+
+  async function connect() {
+    $('btnConnect').disabled = true;
+    try {
+      status('Choosing a device…');
+      S.device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ['heart_rate'] }, { namePrefix: 'Polar' }],
+        optionalServices: ['heart_rate', 'battery_service'],
+      });
+      S.device.addEventListener('gattserverdisconnected', onDisconnected);
+      log(`Chosen: ${S.device.name || '(no name)'} ${S.device.id}`);
+      S.manual = false;
+      await link();
+      $('btnDisconnect').disabled = false;
+      wantLock = true; wake();
+    } catch (e) {
+      log(`Connect failed: ${e.name}: ${e.message}`);
+      status(e.name === 'NotFoundError' ? 'No device chosen.'
+        : e.name === 'SecurityError' ? 'Bluetooth is blocked in this frame. Open the page on its own (file:// or https), not embedded.'
+        : `${e.name}: ${e.message}`);
+      $('btnConnect').disabled = false;
+    }
+  }
+
+  async function link() {
+    const t0 = performance.now();
+    status('Connecting…');
+    const server = await S.device.gatt.connect();
+    const svc = await server.getPrimaryService('heart_rate');
+    S.chr = await svc.getCharacteristic('heart_rate_measurement');
+    await S.chr.startNotifications();
+    S.chr.addEventListener('characteristicvaluechanged', onValue);
+    log(`Streaming after ${fmt(performance.now() - t0)} ms`);
+    status(`Streaming from ${S.device.name || 'the strap'}.`);
+    try {
+      const b = await server.getPrimaryService('battery_service');
+      const v = await (await b.getCharacteristic('battery_level')).readValue();
+      log(`Battery ${v.getUint8(0)}%`);
+    } catch (e) { log(`Battery not read: ${e.name}`); }
+  }
+
+  async function onDisconnected() {
+    if (S.manual) { log('Disconnected'); return; }
+    S.disconnects++;
+    log('Link lost');
+    updateStats();
+    for (let i = 1; i <= 5; i++) {
+      status(`Reconnecting, try ${i} of 5…`);
+      await sleep(1500 * i);
+      if (S.manual) return;
+      try { await link(); S.reconnects++; log(`Recovered on try ${i}`); updateStats(); return; }
+      catch (e) { log(`Try ${i}: ${e.name}: ${e.message}`); }
+    }
+    status('Could not reconnect. Tap Connect again.');
+    $('btnConnect').disabled = false;
+  }
+
+  function disconnect() {
+    S.manual = true;
+    if (S.device && S.device.gatt.connected) S.device.gatt.disconnect();
+    $('btnDisconnect').disabled = true;
+    $('btnConnect').disabled = false;
+    wantLock = false; wake();
+    status('Disconnected.');
+  }
+
+  // ---- wake lock, vibration, fullscreen
+  let lock = null, wantLock = false;
+  async function wake() {
+    if (!('wakeLock' in navigator)) return log('No wake lock API');
+    if (!wantLock) { if (lock) { await lock.release(); lock = null; } $('btnWake').textContent = 'Keep screen on'; return; }
+    if (lock) return;
+    try {
+      lock = await navigator.wakeLock.request('screen');
+      lock.addEventListener('release', () => { lock = null; $('btnWake').textContent = 'Keep screen on'; log('Wake lock released'); });
+      $('btnWake').textContent = 'Screen stays on';
+      log('Wake lock held');
+    } catch (e) { log(`Wake lock refused: ${e.name}: ${e.message}`); }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { S.hiddenAt = S.packets; log('Page hidden'); }
+    else { log(`Page visible again; ${S.packets - S.hiddenAt} packets arrived while hidden`); wake(); }
+  });
+
+  // ---- pixel trace
+  const cv = $('trace'), ctx = cv.getContext('2d');
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const ink = css('--trace-ink'), band = css('--trace-band'), bg = css('--trace-bg');
+  let frames = 0, fpsT = performance.now();
+  function draw(now) {
+    frames++;
+    if (now - fpsT >= 1000) { $('fps').textContent = `${frames} fps`; frames = 0; fpsT = now; }
+    const W = cv.width, H = cv.height, win = 60000, msPerCol = win / W, period = 60000 / 5.5;
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = band;
+    for (let x = 0; x < W; x++) {
+      const t = now - win + x * msPerCol;
+      if (((t % period) + period) % period < 0.4 * period) ctx.fillRect(x, 0, 1, H);
+    }
+    const vis = S.samples.filter(s => s.t >= now - win - 2000).sort((a, b) => a.t - b.t);
+    if (vis.length > 1) {
+      const hrs = vis.map(s => s.hr).sort((a, b) => a - b), med = hrs[hrs.length >> 1];
+      ctx.fillStyle = ink;
+      let j = 0, prev = null;
+      for (let x = 0; x < W; x++) {
+        const t = now - win + x * msPerCol;
+        while (j + 1 < vis.length && vis[j + 1].t < t) j++;
+        if (vis[j].t > t || j + 1 >= vis.length) { prev = null; continue; }
+        const a = vis[j], b = vis[j + 1], hr = a.hr + (b.hr - a.hr) * (t - a.t) / (b.t - a.t);
+        const y = Math.max(0, Math.min(H - 1, Math.round(H / 2 - (hr - med) * (H - 8) / 30)));
+        if (prev == null) ctx.fillRect(x, y, 1, 1);
+        else ctx.fillRect(x, Math.min(prev, y), 1, Math.abs(prev - y) + 1);
+        prev = y;
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+
+  // ---- buttons
+  $('btnConnect').onclick = connect;
+  $('btnDisconnect').onclick = disconnect;
+  $('btnWake').onclick = () => { wantLock = !lock; wake(); };
+  $('btnVibe').onclick = () => log(`Vibrate: ${navigator.vibrate ? navigator.vibrate([60, 60, 60]) : 'no API'}`);
+  $('btnFull').onclick = async () => {
+    try { await document.documentElement.requestFullscreen(); log('Fullscreen on'); } catch (e) { return log(`Fullscreen refused: ${e.name}: ${e.message}`); }
+    try { await screen.orientation.lock('portrait'); log('Orientation locked to portrait'); } catch (e) { log(`Orientation lock refused: ${e.name}: ${e.message}`); }
+  };
+  $('btnCopy').onclick = async () => {
+    const text = lines.join('\n');
+    try { await navigator.clipboard.writeText(text); log('Log copied'); }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($('log')); getSelection().removeAllRanges(); getSelection().addRange(r); log('Clipboard refused; the log is selected, copy it by hand'); }
+  };
+  $('btnCsv').onclick = () => {
+    const blob = new Blob(['t_ms,rr_ms,hr_bpm\n' + S.csv.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `polar-h10-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+    a.click();
+    log(`CSV with ${S.csv.length} beats offered for download (a sandboxed frame drops it)`);
+  };
+
+  updateStats();
+  runChecks();
+  requestAnimationFrame(draw);
+  log('Probe loaded');
+})();
+</script>
+</body>
+</html>
