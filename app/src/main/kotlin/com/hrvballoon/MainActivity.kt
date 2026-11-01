@@ -594,9 +594,9 @@ class MainActivity : Activity(), HrmClient.Listener {
             addView(row("Vibration cues", onOff(settings.vibrate) { settings.vibrate = it }))
             addView(row("Find my resonance rate\n(next session only)", onOff(settings.rfSearch) { settings.rfSearch = it }))
             addView(header("Balloon"))
-            addView(row("Lift threshold, bpm", stepper("Lift threshold", { "${settings.floorBpm}" },
+            addView(row("Lift threshold\n(heart-rate swing, beats/min)", stepper("Lift threshold", { "${settings.floorBpm}" },
                 { settings.floorBpm = (settings.floorBpm - 1).coerceIn(0, settings.ceilingBpm - 5) }, { settings.floorBpm = (settings.floorBpm + 1).coerceIn(0, settings.ceilingBpm - 5) })))
-            addView(row("Sky ceiling, bpm", stepper("Sky ceiling", { "${settings.ceilingBpm}" },
+            addView(row("Sky ceiling\n(heart-rate swing, beats/min)", stepper("Sky ceiling", { "${settings.ceilingBpm}" },
                 { settings.ceilingBpm = (settings.ceilingBpm - 1).coerceIn(settings.floorBpm + 5, 40) }, { settings.ceilingBpm = (settings.ceilingBpm + 1).coerceIn(settings.floorBpm + 5, 40) })))
             addView(header("Data"))
             addView(row("Save CSV to Download/HRV", onOff(settings.saveCsv) { settings.saveCsv = it }))
@@ -631,7 +631,8 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private fun showHelp() {
         AlertDialog.Builder(this).setTitle("What the numbers mean").setMessage(
-            "P — peak-to-trough swing of your heart rate within each breath, in bpm. The resonance-breathing signal itself.\n\n" +
+            "P — how far your heart rate swings within one breath, peak minus trough, in beats per minute. A breath that takes you " +
+                "from 62 to 71 beats/min is a swing of 9. The resonance-breathing signal itself.\n\n" +
                 "Rhythm — how much of that swing is a clean sine at the pacer's rate (0–100 %). Depth without rhythm earns little lift.\n\n" +
                 "Lift — P between the lift threshold and the sky ceiling, scaled by rhythm. Stars fall each time the balloon touches the ceiling.\n\n" +
                 "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\n" +

@@ -6,9 +6,9 @@
 
 Android resonance-breathing and HRV-biofeedback trainer. A pixel-art hot-air balloon rises when your heart rate swings in time with your breath, read beat by beat from a Bluetooth chest strap.
 
-Breathe six times a minute and your nervous system handles stress better. That is the premise; the evidence, limits included, is [at the end](#why-slow-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party code.
+Breathe six times a minute and your nervous system handles stress better. That is the premise; the evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party code.
 
-- **Any strap with RR intervals.** Polar H10 or any Bluetooth LE strap exposing the standard Heart Rate Service with RR data. Optical wrist sensors are not supported: they do not deliver beat-accurate intervals.
+- **Any strap with RR intervals.** Polar H10 or any Bluetooth LE strap exposing the standard Heart Rate Service with RR data.
 - **Android 12+**, portrait, Kotlin, no dependencies beyond the Android SDK. Unit tests cover the whole signal path and the scene renderer.
 - **Personal project.** Not a medical device; see [the disclaimer](#not-a-medical-device).
 
@@ -23,7 +23,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 ## What a session looks like
 
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a long buzz the end.
-- **Balloon.** Lift is the peak-to-trough swing of heart rate within each breath, in bpm, mapped from the lift threshold (3 bpm, grounded) to the sky ceiling (9 bpm, top of the sky), then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
+- **Balloon.** Lift comes from how far heart rate swings within each breath, peak minus trough, in beats per minute: a breath from 62 to 71 is a swing of 9. Below the lift threshold of 3 the balloon stays on the ground; from the sky ceiling of 9 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Every breath the balloon spends touching the ceiling drops a star. Stars are the score; the Ranks screen orders past sessions by them.
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. Labels when they apply: `Settling` (window refilling), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales.
@@ -33,7 +33,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 
 Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet electrodes.
 
-1. Download `hrv-balloon-v1.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android warns because the build is debug-signed and there is no store listing. Or build it as [below](#building).
+1. Download `hrv-balloon-v1.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android warns because the build is debug-signed. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 6.0/min 15:00`, then tap **Start · 6.0/min** and breathe with the bar.
 4. Tap **Stop** or let the countdown run out. The results card opens; tap it for the Ranks table.
@@ -58,8 +58,8 @@ Settings → **Find my resonance rate (next session only)**. That session probes
 | Inhale : exhale | 40 : 60 | or 50 : 50 |
 | Vibration cues | on | |
 | Find my resonance rate | off | one session, then resets |
-| Lift threshold, bpm | 3 | swing below this stays grounded |
-| Sky ceiling, bpm | 9 | swing at or above this is at the top |
+| Lift threshold, HR swing in beats/min | 3 | swing below this stays grounded |
+| Sky ceiling, HR swing in beats/min | 9 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
 
 Session length is fixed at 15 minutes: long enough for a resonance search, short enough to do daily.
@@ -75,7 +75,7 @@ Nothing leaves the phone.
   type,t_ms,arrival_ms,rr_ms,accepted,hr_bpm,rate_bpm,pacer_phase,p2t_bpm,phase_deg,event
   ```
 
-  `beat` rows carry the interval, whether the filter accepted it, the pacer rate and phase at that moment and the current swing estimate. `event` rows mark `disconnect`, `reconnect`, `signal_lost`, `signal_back`, `star`, `pause` and `resume`.
+  `beat` rows carry the interval, whether the filter accepted it, the pacer rate and phase at that moment and the current swing estimate. `event` rows mark `disconnect`, `reconnect`, `signal_lost`, `signal_back`, `star`, `pause` and `resume`. `rate_bpm` is breaths per minute; every other `_bpm` column is beats per minute.
 
 ## Building
 
@@ -118,22 +118,22 @@ The app reads the heart only. If you have a blood-pressure cuff, the Kérdö veg
 VI = 100 × (1 − diastolic pressure / pulse)
 ```
 
-Diastolic pressure in mm Hg, pulse in beats per minute. Positive values are read as sympathetic predominance, negative values as parasympathetic predominance, zero as balance. Resonance breathing usually lowers the pulse for a while, so expect a dip after a session. Caveats: the index follows heart rate far more than diastolic pressure; it behaves reasonably in healthy and athletic people; and it misleads in hypertension, where a high diastolic pressure reads as vagal dominance ([overview](https://ru.wikipedia.org/wiki/Индекс_Кердо), in Russian). One pair of readings proves nothing; a trend across weeks may.
+Diastolic pressure in mm Hg, pulse in beats per minute. Positive values are read as sympathetic predominance, negative values as parasympathetic predominance, zero as balance. Resonance breathing usually lowers the pulse for a while, so expect a dip after a session. Caveats: the index follows heart rate far more than diastolic pressure; it behaves reasonably in healthy and athletic people; and it misleads in hypertension, where a high diastolic pressure reads as vagal dominance ([overview](https://ru.wikipedia.org/wiki/Индекс_Кердо), in Russian). A trend across weeks of paired readings carries far more weight than any single pair.
 
-## Why slow breathing
+## Why resonance breathing
 
 Heart rate usually rises during inhalation and falls during exhalation. This respiratory sinus arrhythmia partly reflects vagal modulation of the sinoatrial node. Breathing also moves blood pressure; stretch receptors in the carotid sinuses and aortic arch signal the brainstem, and the baroreflex adjusts heart rate and vascular tone to stabilise it. Near the cardiovascular system's resonance frequency, around 0.1 Hz, breathing amplifies these baroreflex-related heart-rate oscillations, and heart rate variability (HRV) rises. Individual resonance rates are usually assessed between 4.5 and 6.5 breaths per minute [1].
 
 What the trials show:
 
-- **Lehrer et al. 2003**, 54 healthy adults. Ten biofeedback sessions increased resting baroreflex gain, but did not produce sustained between-group differences in mean HRV [1].
-- **Lin et al. 2012**, 43 young adults with elevated blood pressure. After 10 sessions over five weeks, mean systolic pressure fell from 131.7 to 118.9 mm Hg and baroreflex sensitivity rose from 7.0 to 15.8 ms/mm Hg, more than with slow abdominal breathing alone, and the gains held at three months. The trial compared complete programmes, so it cannot isolate the contribution of an individualised breathing rate [2].
-- **Steffen et al. 2017**, 95 students randomised to breathing at their resonance frequency, one breath per minute faster, or quiet sitting. Fifteen minutes at resonance improved positive mood and lowered the systolic blood-pressure response to a subsequent mental stressor. Acute laboratory effects only [3].
-- **Szulczewski 2019**, 16 participants practising six breaths per minute for 10 minutes daily over seven days. End-tidal CO₂ initially fell, indicating over-breathing. The drop shrank with practice; reported hyperventilation symptoms did not [4].
-- **Minjoz et al. 2026**, 47 healthy adults, genuine versus sham biofeedback, three five-minute sessions daily for 24 days. Genuine biofeedback improved positive affect and reduced depressive symptoms more than sham, with no detectable change in HRV or electrodermal activity. This does not establish efficacy for clinical depression [5].
-- **Sumińska et al. 2026**, 88 participants, individualised resonance breathing versus a fixed six breaths per minute over four weeks. Both reduced self-reported stress, anxiety and depressive symptoms against a waitlist, with no meaningful difference between them and no change in resting HRV. The study leaves open both whether personalisation adds anything and whether the two methods are equivalent; the waitlist design cannot separate training from expectation and attention, and there was no follow-up [6].
+- **Lehrer et al. 2003**, 54 healthy adults. Ten biofeedback sessions raised resting baroreflex gain [1].
+- **Lin et al. 2012**, 43 college students with prehypertension, randomised to resonance biofeedback, paced breathing at 6/min without feedback, or a control group that sat breathing normally. Both breathing groups had ten 20-minute laboratory sessions over five weeks and practised at home for 20 minutes twice a day. <mark>With biofeedback, mean systolic pressure fell from 131.7 to 118.9 mm Hg</mark> and baroreflex sensitivity rose from 7.0 to 15.8 ms/mm Hg; paced breathing at 6/min gave smaller gains, 131.3 to 123.6 mm Hg and 7.8 to 11.0 ms/mm Hg. The blood-pressure drop held at three months while practice continued at 20 minutes a day [2].
+- **Steffen et al. 2017**, 95 students randomised to breathing at their resonance frequency, one breath per minute faster, or quiet sitting. <mark>Fifteen minutes at resonance improved positive mood and lowered the systolic blood-pressure response to a subsequent mental stressor.</mark> Both effects were measured once, in the laboratory, immediately after the breathing period [3].
+- **Szulczewski 2019**, 16 participants practising six breaths per minute for 10 minutes daily over seven days. End-tidal CO₂ initially fell, a sign of over-breathing. The fall shrank with practice, while reported hyperventilation symptoms persisted [4].
+- **Minjoz et al. 2026**, 47 healthy adults, genuine versus sham biofeedback, three five-minute sessions daily for 24 days. <mark>Genuine biofeedback improved positive affect and reduced depressive symptoms more than sham.</mark> HRV and electrodermal activity, at rest, under mental load and in recovery, showed no detectable difference between groups. In exploratory analyses, the size of the breathing-driven HRV swing during practice predicted psychological benefit poorly. Participants were healthy, so efficacy for clinical depression remains untested [5].
+- **Sumińska et al. 2026**, 88 participants, individualised resonance breathing versus a fixed six breaths per minute over four weeks. <mark>Both reduced self-reported stress, anxiety and depressive symptoms relative to a waitlist</mark>, by similar amounts, and resting HRV showed no significant change in either training group. Bayesian evidence for equal effects was only anecdotal, so the trial was too small to settle whether personalisation adds a small benefit [6].
 
-A high HRV reading during practice does not by itself show a lasting change in autonomic regulation. Slow breathing also moves respiration-driven oscillations into the low-frequency band, which complicates spectral HRV measures taken during or near practice [1].
+A high HRV reading during practice reflects the breathing of that moment. Evidence of lasting autonomic change has to come from resting measurements taken over weeks. Slow breathing also moves respiration-driven oscillations into the low-frequency band, which complicates spectral HRV measures taken during or near practice [1].
 
 On hardware: the Polar H10 agrees closely with ECG for RR intervals at rest and during exercise [7], and it keeps streaming for as long as it is worn.
 

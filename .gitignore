@@ -18,6 +18,7 @@ local.properties
 *.csv
 HANDOFF.md
 docs/superpowers/
+papers/
 
 # agent tooling
 .playwright-mcp/
