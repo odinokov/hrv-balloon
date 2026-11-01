@@ -13,7 +13,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 - **Personal project.** Not a medical device; see [the disclaimer](#not-a-medical-device).
 
 <p align="center">
-  <img src="docs/screenshots/session.png" width="200" alt="Mid-session: the balloon high in a golden-hour sky, a star falling, the heart-rate trace swinging with the breath bands">
+  <img src="docs/screenshots/session.png" width="200" alt="Mid-session: the balloon high in a golden-hour sky, a star falling, the heart-rate trace swinging with the breath bands, its last seconds forecast in dim dashes">
   <img src="docs/screenshots/dusk.png" width="200" alt="Late in the session at dusk: the balloon lower, stars out, 01:12 left on the countdown">
   <img src="docs/screenshots/ranks.png" width="200" alt="Best sessions table ranked by stars">
   <img src="docs/screenshots/result.png" width="200" alt="Results card: stars this session, rank among sessions, lifetime stars">
@@ -48,7 +48,7 @@ Settings → **Find my resonance rate (next session only)**. That session probes
 2. **Artifact filter.** RR outside 300–2000 ms, or more than 20% from the median of the centred five-beat window, is rejected. A beat is classified once two more have arrived; a trailing median would lag the steep part of large swings and reject real beats exactly when amplitude is high.
 3. **Amplitude.** Beat-to-beat heart rate, midpoint-stamped, is resampled at 4 Hz over two breath periods and fitted jointly to a linear trend plus a sinusoid at the pacer frequency. The swing `P` is twice the sinusoid's amplitude; `rhythm` is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint.
 4. **Lift.** `(P − threshold) / (ceiling − threshold)`, clamped to 0–1, times a rhythm gate that is 0 below R² 0.40 and full from 0.85. The balloon follows the target with a 1 s time constant.
-5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s. Tuned by replaying a recorded session, its error 1–6 s ahead averaged 1.9 bpm against a 13 bpm swing.
+5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s.
 6. **Summary.** RMSSD from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
 
 ## Settings

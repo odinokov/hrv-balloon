@@ -1,5 +1,6 @@
 package com.hrvballoon.ui
 
+import com.hrvballoon.core.HrKalman
 import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.rankSessions
 import java.io.File
@@ -17,29 +18,34 @@ class ScreenshotDump {
             for (p in px) out.write(byteArrayOf((p shr 16).toByte(), (p shr 8).toByte(), p.toByte()))
         }
         val period = 10_000.0   // 6.0 breaths/min
-        fun trace(nowMs: Long, mean: Double, swing: Double): Pair<DoubleArray, DoubleArray> {
-            val t = DoubleArray(34) { nowMs - 30_000.0 + it * 900 }
-            return t to DoubleArray(t.size) { mean + swing / 2 * cos(2 * PI * (t[it] / period - 0.4)) }
+        // Confirmed beats stop ~3 s before now (filter and notification lag), as on a phone; the real filter forecasts the rest.
+        fun trace(nowMs: Long, mean: Double, swing: Double): Triple<DoubleArray, DoubleArray, (Double) -> Double> {
+            val t = DoubleArray(34) { nowMs - 32_600.0 + it * 900 }
+            val hr = DoubleArray(t.size) { mean + swing / 2 * cos(2 * PI * (t[it] / period - 0.4)) }
+            val k = HrKalman()
+            for (i in t.indices) k.update(t[i], t[i] / period, hr[i])
+            val f = k.forecast()!!
+            return Triple(t, hr) { x -> f.at(x / period) }
         }
         val scene = PixelScene(W, H)
-        val (t1, hr1) = trace(450_000, 66.0, 12.0)
+        val (t1, hr1, f1) = trace(450_000, 66.0, 12.0)
         save(
             "session",
             scene.render(
                 SceneState(
                     0.82, true, 0.7, true, true, false, 12_345, stars = 24, falling = listOf(11_900),
-                    traceT = t1, traceHr = hr1, traceNowMs = 450_000, pacerPeriodMs = period, progress = 0.5,
+                    traceT = t1, traceHr = hr1, traceNowMs = 450_000, pacerPeriodMs = period, progress = 0.5, forecast = f1,
                     hud = Hud.session(PixelScene.DOT_GREEN, "", 68, 6.0, "07:30"),
                 ),
             ),
         )
-        val (t2, hr2) = trace(828_000, 63.0, 9.0)
+        val (t2, hr2, f2) = trace(828_000, 63.0, 9.0)
         save(
             "dusk",
             scene.render(
                 SceneState(
                     0.38, false, 0.25, false, true, false, 98_765, stars = 31,
-                    traceT = t2, traceHr = hr2, traceNowMs = 828_000, pacerPeriodMs = period, progress = 0.92,
+                    traceT = t2, traceHr = hr2, traceNowMs = 828_000, pacerPeriodMs = period, progress = 0.92, forecast = f2,
                     hud = Hud.session(PixelScene.DOT_GREEN, "", 63, 6.0, "01:12"),
                 ),
             ),
