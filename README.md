@@ -92,7 +92,6 @@ Layout:
 - `app/src/main/kotlin/com/hrvballoon/core` pure-Kotlin signal path: packet parsing, beat timeline, artifact filter, amplitude estimator, pacer, resonance search, session engine, trace forecast, summary, CSV. Unit-tested without Android.
 - `app/src/main/kotlin/com/hrvballoon/ble` Heart Rate Service client.
 - `app/src/main/kotlin/com/hrvballoon/ui` pixel scene, HUD font, balloon view, ranks.
-- `web/polar-h10-test.html` standalone Web Bluetooth probe used to check whether a browser port is feasible.
 - `scripts/make_icon.py` generates the adaptive launcher icon from a pixel map.
 
 The README frames are rendered by the scene itself:
