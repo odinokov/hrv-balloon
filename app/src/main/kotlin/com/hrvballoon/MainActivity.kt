@@ -328,6 +328,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         balloon.hud = Hud.session(hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
         balloon.traceT = s.traceT
         balloon.traceHr = s.traceHr
+        balloon.forecast = s.forecast?.let { f -> engine?.pacer?.let { p -> { t: Double -> f.at(p.cycles(t)) } } }
         describe((listOf(status) + lost).joinToString(". "))
     }
 
@@ -448,6 +449,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         balloon.falling = falling
         balloon.traceT = DoubleArray(0)
         balloon.traceHr = DoubleArray(0)
+        balloon.forecast = null
         balloon.pacerPeriodMs = 60_000 / settings.rateBpm
         balloon.inhaleFraction = settings.inhaleFraction
         target = 0.0

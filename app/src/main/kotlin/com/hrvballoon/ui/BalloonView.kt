@@ -26,6 +26,7 @@ class BalloonView(context: Context) : View(context) {
     var inhaleFraction = 0.4
     var pacerCycleOffset = 0.0
     var pacerPhaseAt: ((Double) -> Double)? = null
+    var forecast: ((Double) -> Double)? = null
     var hud: Hud? = null
     var reducedMotion = false
     /** Session progress 0..1 (the sunset); 0 while idle. */
@@ -65,7 +66,7 @@ class BalloonView(context: Context) : View(context) {
         val b = bitmap ?: return
         val state = SceneState(
             height01, rising, pacerLevel, inhale, running, frozen, timeMs, stars, falling,
-            traceT, traceHr, traceNowMs, pacerPeriodMs, inhaleFraction, pacerCycleOffset, pacerPhaseAt, hud, reducedMotion, progress, ceilingHitAtMs,
+            traceT, traceHr, traceNowMs, pacerPeriodMs, inhaleFraction, pacerCycleOffset, pacerPhaseAt, hud, reducedMotion, progress, ceilingHitAtMs, forecast,
         )
         b.setPixels(s.render(state), 0, s.w, 0, 0, s.w, s.h)
         c.drawColor(PixelScene.SKY[0])

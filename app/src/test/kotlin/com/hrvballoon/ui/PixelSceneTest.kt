@@ -528,4 +528,27 @@ class PixelSceneTest {
         assertArrayEquals(a, scene.render(state()))
         assertFalse(a.contentEquals(scene.render(state(timeMs = 60_000))))
     }
+
+    @Test fun forecastBridgesTheLineToTheEdgeInDimDashes() {
+        val period = 10_000.0
+        val t = DoubleArray(30) { 90_000.0 + it * 850 }
+        val hr = DoubleArray(30) { 68 + 5 * Math.sin(2 * Math.PI * t[it] / period) }
+        fun frame(f: ((Double) -> Double)?) = scene.render(state().copy(
+            traceT = t, traceHr = hr, traceNowMs = 118_000, pacerPeriodMs = period, pacerPhaseAt = { x -> (x / period) % 1.0 }, forecast = f,
+        )).copyOf()
+        val top = scene.groundY + 6
+        fun ys(px: IntArray, x: Int, c: Int) = (top until scene.h).filter { px[it * scene.w + x] == c }
+        fun cols(px: IntArray, c: Int) = (0 until scene.w).filter { ys(px, it, c).isNotEmpty() }
+        val plain = frame(null)
+        val lineEnd = cols(plain, PixelScene.TRACE).max()
+        assertTrue(cols(plain, PixelScene.TRACE_DIM).none { it > lineEnd })
+        val with = frame { x -> 68 + 5 * Math.sin(2 * Math.PI * x / period) }
+        val dim = cols(with, PixelScene.TRACE_DIM).filter { it > lineEnd }
+        assertTrue("dim=$dim", dim.size > 10)                                   // the gap is bridged, in dashes
+        assertTrue("dim=$dim", dim.max() >= scene.w - 8)                        // all the way to the right edge
+        assertTrue("dim=$dim", (lineEnd + 1..scene.w - 7).any { it !in dim })   // dashed, so it never passes for data
+        val joinGap = Math.abs(ys(with, dim.min(), PixelScene.TRACE_DIM).average() - ys(with, lineEnd, PixelScene.TRACE).average())
+        assertTrue("join=$joinGap", joinGap <= 3)                                // it starts where the real line stops
+        assertEquals(plain.indices.filter { plain[it] == PixelScene.TRACE }, with.indices.filter { with[it] == PixelScene.TRACE })
+    }
 }

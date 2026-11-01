@@ -259,4 +259,12 @@ class SessionEngineTest {
         assertNull(r.summary.rmssd); assertNull(r.summary.sdnn); assertNull(r.summary.meanHr); assertNull(r.summary.meanP)
         assertEquals(listOf(SessionCsvWriter.COLUMNS), r.rows().filter { !it.startsWith("event,") })
     }
+
+    @Test fun forecastOnlyWithAGoodSignalAndAFullBreathOfBeats() {
+        val r = run(clean, stopAtMs = 120_000, link = mapOf(60_000L to false, 62_000L to true))
+        org.junit.Assert.assertNull(r.at(5_000).forecast)        // under one breath of beats
+        org.junit.Assert.assertNotNull(r.at(55_000).forecast)
+        org.junit.Assert.assertNull(r.at(61_000).forecast)       // link down: the panel must not invent a heart rate
+        org.junit.Assert.assertNotNull(r.at(110_000).forecast)   // back after a fresh breath
+    }
 }

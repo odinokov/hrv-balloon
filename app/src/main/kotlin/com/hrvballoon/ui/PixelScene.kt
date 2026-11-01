@@ -28,6 +28,8 @@ data class SceneState(
     val progress: Double = 0.0,
     /** Scene-clock timestamp of the last ceiling contact; drives a short envelope squash and recoil. */
     val ceilingHitAtMs: Long? = null,
+    /** Projected HR at a session time (display only); bridges the trace line's end to the right edge in dim dashes. */
+    val forecast: ((Double) -> Double)? = null,
 )
 
 /** One status line; session headers include live HR and pacer rate, with loss guidance on its own plate. */
@@ -494,15 +496,31 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         traceCentre = if (traceCentre.isNaN() || now < traceCentreMs) med
         else traceCentre + (med - traceCentre) * (1 - exp(-(now - traceCentreMs) / CENTRE_TAU_MS))
         traceCentreMs = s.traceNowMs
+        fun row(v: Double) = (yBot - 1 - (v - (traceCentre - HR_SPAN / 2)) / HR_SPAN * (yBot - yTop - 2)).roundToInt().coerceIn(yTop + 1, yBot - 1)
         var py = -1
         for (x in x0 + 1 until x1) {
             val g = (tEdge - (x1 - x) * dt) / dt - k0   // position in the grid, fractional
             if (g < 0 || g > drawn - 1) { py = -1; continue }
             val i = g.toInt().coerceAtMost(drawn - 2)
             val v = smooth[i] + (g - i) * (smooth[i + 1] - smooth[i])
-            val y = (yBot - 1 - (v - (traceCentre - HR_SPAN / 2)) / HR_SPAN * (yBot - yTop - 2)).roundToInt().coerceIn(yTop + 1, yBot - 1)
+            val y = row(v)
             if (py >= 0) line(x - 1, py, x, y, TRACE) else put(x, y, TRACE)
             py = y
+        }
+        // Forecast: dim dashes from the line's end to the edge, joined by an offset that fades over JOIN_MS, so the
+        // projection starts where the data stops and never passes for data. Only columns past the line are touched.
+        val fc = s.forecast ?: return
+        val tEnd = (k0 + drawn - 1) * dt
+        val offset = smooth[drawn - 1] - fc(tEnd)
+        var xStart = -1
+        var fy = -1
+        for (x in x0 + 1 until x1) {
+            val t = tEdge - (x1 - x) * dt
+            if (t <= tEnd) continue
+            if (xStart < 0) xStart = x
+            val y = row(fc(t) + offset * exp(-(t - tEnd) / JOIN_MS))
+            if ((x - xStart) % 4 < 2) { if ((x - xStart) % 4 == 1) line(x, fy, x, y, TRACE_DIM) else put(x, y, TRACE_DIM) }
+            fy = y
         }
     }
 
@@ -720,6 +738,7 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         private const val TRACE_MS = 30_000
         /** Gaussian σ for the trace line, ms: well above a beat (~1 s), well below a breath (~11 s). */
         private const val SMOOTH_MS = 600.0
+        private const val JOIN_MS = 1000.0
         /** Time constant of the trace panel's vertical centre, ms. */
         private const val CENTRE_TAU_MS = 8_000.0
         private const val HR_SPAN = 30.0

@@ -20,14 +20,15 @@ class RfProbe(val rateBpm: Double, val index: Int, val bestBpm: Double?, val con
  * [lostReason] is set only while LOST; [warmupRemainingMs] counts down the two-period window (0 once an estimate exists).
  * The balloon target holds its last value through loss and warm-up — a sensor gap must not read as a failure.
  * [phaseLeadDeg]: HR phase relative to the pacer fundamental (> 0 = HR leads = breathing slower than resonance).
- * [rateBpm] is the pacer's current rate.
+ * [rateBpm] is the pacer's current rate. [forecast] projects HR ahead for the trace panel (display only); null unless the
+ * signal is good and a full breath has been seen since the last reset.
  */
 class UiState(
     val tMs: Long, val signal: Signal, val lostReason: LostReason?, val hrBpm: Int?, val p2tBpm: Double?, val phaseDeg: Double?,
     val shape: Double?, val warmingUp: Boolean, val warmupRemainingMs: Long, val balloonTarget: Double, val inhale: Boolean,
     val pacerLevel: Double, val elapsedMs: Long, val remainingMs: Long?, val finished: Boolean,
     val traceT: DoubleArray, val traceHr: DoubleArray, val rfProbe: RfProbe?,
-    val phaseLeadDeg: Double?, val rateBpm: Double,
+    val phaseLeadDeg: Double?, val rateBpm: Double, val forecast: HrForecast?,
 )
 
 /**
@@ -48,6 +49,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private val filter = ArtifactFilter()
     private val monitor = SignalMonitor(0)
     private val estimator = AmplitudeEstimator()
+    private val kalman = HrKalman()
     private val summary = SummaryAccumulator()
     private var hr: Int? = null
     private val trace = ArrayDeque<DoubleArray>()
@@ -68,6 +70,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             if (usable) {
                 val tMid = c.beat.tEndMs - c.beat.rrMs / 2
                 estimator.add(tMid, 60000 / c.beat.rrMs)
+                kalman.update(tMid, pacer.cycles(tMid), 60000 / c.beat.rrMs)
                 trace.addLast(doubleArrayOf(tMid, 60000 / c.beat.rrMs))
             }
             monitor.onClassified(c.accepted, nowMs)?.let { transition(it, nowMs) }
@@ -91,6 +94,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         paused = false
         csv.event(nowMs.toDouble(), CsvEvent.RESUME)
         estimator.reset()
+        kalman.reset()
         estimate = null
         summary.breakChain()
     }
@@ -131,6 +135,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 RfProbe(rate, probeIndex, it.best, it.converged, settling)
             },
             phaseLeadDeg = estimate?.let { lastLeadDeg }, rateBpm = rate,
+            forecast = if (monitor.state == Signal.OK && !paused) kalman.forecast() else null,
         )
     }
 
@@ -182,6 +187,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             csv.event(nowMs.toDouble(), CsvEvent.SIGNAL_BACK)
         }
         estimator.reset()
+        kalman.reset()
         estimate = null
         summary.breakChain()
     }
