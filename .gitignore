@@ -19,6 +19,7 @@ local.properties
 HANDOFF.md
 docs/superpowers/
 papers/
+rnd/
 
 # agent tooling
 .playwright-mcp/
