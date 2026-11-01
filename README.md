@@ -26,7 +26,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 - **Balloon.** Lift comes from how far heart rate swings within each breath, peak minus trough, in beats per minute: a breath from 62 to 71 is a swing of 9. Below the lift threshold of 3 the balloon stays on the ground; from the sky ceiling of 9 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Every breath the balloon spends touching the ceiling drops a star. Stars are the score; the Ranks screen orders past sessions by them.
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. Labels when they apply: `Settling` (window refilling), `Search` (resonance search), `No signal`, `Done`.
-- **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales.
+- **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
 - **Signal loss.** Link down, no skin contact, no RR for over 4 s, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
 
 ## Quick start
@@ -48,7 +48,8 @@ Settings → **Find my resonance rate (next session only)**. That session probes
 2. **Artifact filter.** RR outside 300–2000 ms, or more than 20% from the median of the centred five-beat window, is rejected. A beat is classified once two more have arrived; a trailing median would lag the steep part of large swings and reject real beats exactly when amplitude is high.
 3. **Amplitude.** Beat-to-beat heart rate, midpoint-stamped, is resampled at 4 Hz over two breath periods and fitted jointly to a linear trend plus a sinusoid at the pacer frequency. The swing `P` is twice the sinusoid's amplitude; `rhythm` is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint.
 4. **Lift.** `(P − threshold) / (ceiling − threshold)`, clamped to 0–1, times a rhythm gate that is 0 below R² 0.40 and full from 0.85. The balloon follows the target with a 1 s time constant.
-5. **Summary.** RMSSD from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
+5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s. Tuned by replaying a recorded session, its error 1–6 s ahead averaged 1.9 bpm against a 13 bpm swing.
+6. **Summary.** RMSSD from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
 
 ## Settings
 
@@ -88,7 +89,7 @@ Requires JDK 17 or newer and an Android SDK with `platforms;android-34` and `bui
 
 Layout:
 
-- `app/src/main/kotlin/com/hrvballoon/core` pure-Kotlin signal path: packet parsing, beat timeline, artifact filter, amplitude estimator, pacer, resonance search, session engine, summary, CSV. Unit-tested without Android.
+- `app/src/main/kotlin/com/hrvballoon/core` pure-Kotlin signal path: packet parsing, beat timeline, artifact filter, amplitude estimator, pacer, resonance search, session engine, trace forecast, summary, CSV. Unit-tested without Android.
 - `app/src/main/kotlin/com/hrvballoon/ble` Heart Rate Service client.
 - `app/src/main/kotlin/com/hrvballoon/ui` pixel scene, HUD font, balloon view, ranks.
 - `web/polar-h10-test.html` standalone Web Bluetooth probe used to check whether a browser port is feasible.
