@@ -67,4 +67,14 @@ class PacerTest {
         assertEquals(70, stepRateTenths(70, 1))
         assertEquals(56, stepRateTenths(55, 1))
     }
+
+    @Test fun rhythmLimitedHasHysteresis() {
+        org.junit.Assert.assertEquals(true, rhythmLimited(5.0, 0.50, 3.0, false))
+        org.junit.Assert.assertEquals(false, rhythmLimited(5.0, 0.60, 3.0, false))
+        org.junit.Assert.assertEquals(true, rhythmLimited(5.0, 0.60, 3.0, true))
+        org.junit.Assert.assertEquals(false, rhythmLimited(5.0, 0.70, 3.0, true))
+        org.junit.Assert.assertEquals(false, rhythmLimited(2.0, 0.30, 3.0, false))   // swing below the lift threshold
+        org.junit.Assert.assertEquals(false, rhythmLimited(null, 0.30, 3.0, false))
+        org.junit.Assert.assertEquals(false, rhythmLimited(5.0, null, 3.0, true))
+    }
 }

@@ -36,6 +36,15 @@ fun balloonTarget(p2tBpm: Double?, floorBpm: Double, ceilingBpm: Double) =
  */
 fun shapeGate(shape: Double) = ((shape - 0.40) / 0.45).coerceIn(0.0, 1.0)
 
+/**
+ * True while rhythm, not swing, limits lift: the swing is at or above the lift threshold, but the
+ * sinusoid fit is low. Hysteresis: on below 0.55, off above 0.65.
+ */
+fun rhythmLimited(p2tBpm: Double?, shape: Double?, floorBpm: Double, wasOn: Boolean): Boolean {
+    if (p2tBpm == null || shape == null || p2tBpm < floorBpm) return false
+    return if (wasOn) shape <= 0.65 else shape < 0.55
+}
+
 /** First-order smoothing independent of frame rate: value → target with time constant [tauMs]. */
 class Smoother(val tauMs: Double = 1000.0) {
     var value = 0.0

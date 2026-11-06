@@ -46,6 +46,7 @@ import com.hrvballoon.core.Signal
 import com.hrvballoon.core.Smoother
 import com.hrvballoon.core.Bounce
 import com.hrvballoon.core.StarCounter
+import com.hrvballoon.core.rhythmLimited
 import com.hrvballoon.core.starSlot
 import com.hrvballoon.core.UiState
 import com.hrvballoon.core.stepRateTenths
@@ -97,6 +98,8 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var lastInhale: Boolean? = null
     /** The engine has a live swing estimate; stars are paid only then, never for the height held while settling. */
     private var live = false
+    /** Rhythm, not swing, is holding the balloon down (with hysteresis); shown as the Steady label. */
+    private var steady = false
     private var pendingResult: Long? = null
     private var controlsUntil = 0L
     private var leftAtMs = 0L
@@ -322,11 +325,14 @@ class MainActivity : Activity(), HrmClient.Listener {
             null -> emptyList()
         }
         val probe = s.rfProbe
+        steady = settings.shapeGate && !s.warmingUp &&
+            rhythmLimited(s.p2tBpm, s.shape, settings.floorBpm.toDouble(), steady)
         val status = when {
             s.finished -> "Done"
             frozen -> "No signal"
             probe != null && !probe.converged -> "Search"
             s.warmingUp -> "Settling"
+            steady -> "Steady"
             else -> ""
         }
         balloon.hud = Hud.session(hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
@@ -448,6 +454,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         smoother = Smoother(settings.responseMs)
         starCounter = StarCounter()
         live = false
+        steady = false
         falling.clear()
         balloon.stars = 0
         balloon.ceilingHitAtMs = null
@@ -641,6 +648,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             "P — how far your heart rate swings within one breath, peak minus trough, in beats per minute. A breath that takes you " +
                 "from 62 to 71 beats/min is a swing of 9. The resonance-breathing signal itself.\n\n" +
                 "Rhythm — how much of that swing is a clean sine at the pacer's rate (0–100 %). Depth without rhythm earns little lift.\n\n" +
+                "Steady — the swing is there, but it does not follow the pacer. Breathe with the bar, at the same speed, with no pauses. Do not breathe deeper.\n\n" +
                 "Lift — P between the lift threshold and the sky ceiling, scaled by rhythm. A star falls for each 10 s that the balloon stays at the ceiling. Stars come only from a live estimate.\n\n" +
                 "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in. " +
                 "Small marks at the top show where the heart-rate peak falls at resonance. A peak before a mark: your resonance rate is faster than the pacer. A peak after a mark: it is slower.\n\n" +
