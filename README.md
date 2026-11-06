@@ -23,9 +23,10 @@ Breathe six times a minute and your nervous system handles stress better. That i
 ## What a session looks like
 
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
-- **Balloon.** Lift comes from how far heart rate swings within each breath, peak minus trough, in beats per minute: a breath from 62 to 71 is a swing of 9. Below the lift threshold of 3 the balloon stays on the ground; from the sky ceiling of 9 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
+- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is fitted over the last two breaths, not read off the single fastest and slowest beat. Below the lift threshold of 3 the balloon stays on the ground; from the sky ceiling of 9 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
-- **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
+- **Ranks.** Tap a row to open its results card, which shows mean swing (P, bpm) and mean rhythm (R², %) when both are available.
+- **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
 - **Signal loss.** Link down, no skin contact, no RR for over 4 s, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
 
@@ -40,16 +41,20 @@ Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet el
 
 ## Finding your resonance rate
 
-Settings → **Find my resonance rate (next session only)**. That session probes breathing rates between 4.0 and 7.0 /min, about five breaths each: one breath for the physiological transient, two to refill the measurement window, two measured. Each probe scores mean swing × mean rhythm. Rates are chosen by 1-D Bayesian optimisation (Gaussian process over the rate axis, upper-confidence-bound acquisition); the second probe steps 0.7 /min in the direction the heart-rate-to-pacer phase suggests. The search has converged after at least five probes once the model's best rate has stopped moving across two consecutive probes. The result is offered on the results card and under Settings as **Resonance found: 5.3 /min → Use**. An unfinished search records its best probe, never the rate it started from.
+Settings → **Find my resonance rate (next session only)**. That session probes breathing rates between 4.0 and 7.0 /min, about five breaths each: one breath for the physiological transient, two to refill the measurement window, two measured. Each probe scores the median of swing × rhythm over its two measured breaths. Rates are chosen by 1-D Bayesian optimisation (Gaussian process over the rate axis, upper-confidence-bound acquisition); the second probe steps 0.7 /min in the direction the heart-rate-to-pacer phase suggests. The search has converged after at least five probes once the model's best rate has stopped moving across two consecutive probes. The result is offered on the results card and under Settings as **Resonance found: 5.3 /min → Use**. An unfinished search records its best probe, never the rate it started from.
 
 ## How the measurement works
 
 1. **Beats.** Heart Rate Measurement packets (0x2A37) carry RR intervals in 1/1024 s units. Cumulative RR is mapped onto the phone clock with the lowest-latency envelope over the last 60 s of arrivals, so strap-vs-phone drift is tracked and no beat leads its own arrival.
 2. **Artifact filter.** RR outside 300–2000 ms, or more than 20% from the median of the centred five-beat window, is rejected. A beat is classified once two more have arrived; a trailing median would lag the steep part of large swings and reject real beats exactly when amplitude is high.
-3. **Amplitude.** Beat-to-beat heart rate, midpoint-stamped, is resampled at 4 Hz over two breath periods and fitted jointly to a linear trend plus a sinusoid at the pacer frequency. The swing `P` is twice the sinusoid's amplitude; `rhythm` is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint.
+3. **Amplitude.** Each accepted RR interval used by the estimator becomes an instantaneous heart rate, 60000 / RR (ms), stamped at the interval's midpoint. The most recent two breath periods of accepted data are resampled at 4 Hz and fitted by least squares, trend and sinusoid together: HR(t) ≈ a + b·t + c·cos(2πft) + d·sin(2πft), where f is the pacer frequency. Swing P = 2·√(c² + d²), the fitted peak-to-trough. `rhythm` is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint. The fit reruns approximately every 250 ms while the signal is usable. Fluctuations at other frequencies can lower `rhythm` and may also affect P over this finite window.
 4. **Lift.** `(P − threshold) / (ceiling − threshold)`, clamped to 0–1, times a rhythm gate that is 0 below R² 0.40 and full from 0.85. The balloon follows the target with a 1 s time constant. When the swing clears the lift threshold but rhythm falls below 0.55, the status line shows Steady until rhythm passes 0.65.
 5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s.
-6. **Summary.** RMSSD from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
+6. **Summary.** RMSSD (ms) from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN (ms) over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
+
+### Swing versus RMSSD
+
+HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency. Peak-to-trough heart-rate amplitude is one of the standard criteria in resonance-frequency assessment [11]. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 bpm, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
 
 ## Settings
 
@@ -62,6 +67,8 @@ Settings → **Find my resonance rate (next session only)**. That session probes
 | Lift threshold, HR swing in beats/min | 3 | swing below this stays grounded |
 | Sky ceiling, HR swing in beats/min | 9 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
+
+Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 3–9 bpm is about 50–150 ms of RR swing at 60 bpm, but 28–84 ms at 80 bpm.
 
 Session length is fixed at 15 minutes: long enough for a resonance search, short enough to do daily.
 
@@ -148,6 +155,7 @@ On hardware: the Polar H10 agrees closely with ECG for RR intervals at rest and 
 8. Kérdö I. Ein aus Daten der Blutzirkulation kalkulierter Index zur Beurteilung der vegetativen Tonuslage. *Acta Neuroveg (Wien).* 1966;29(2):250–268. [doi:10.1007/BF01269900](https://doi.org/10.1007/BF01269900)
 9. Lehrer P, Kaur K, Sharma A, et al. Heart rate variability biofeedback improves emotional and physical health and performance: a systematic review and meta analysis. *Appl Psychophysiol Biofeedback.* 2020;45(3):109–129. [doi:10.1007/s10484-020-09466-z](https://doi.org/10.1007/s10484-020-09466-z)
 10. Polar Electro. Polar H10 heart rate sensor user manual: technical specifications. Accessed 1 Nov 2026. https://support.polar.com/e_manuals/h10-heart-rate-sensor/polar-h10-user-manual-english/technical-specifications.htm
+11. Shaffer F, Meehan ZM. A practical guide to resonance frequency assessment for heart rate variability biofeedback. *Front Neurosci.* 2020;14:570400. [doi:10.3389/fnins.2020.570400](https://doi.org/10.3389/fnins.2020.570400)
 
 ## Not a medical device
 
