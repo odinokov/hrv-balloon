@@ -18,4 +18,11 @@ class StarCounterTest {
         assertFalse(c.update(0.99, 2))
         assertEquals(3, c.count)
     }
+
+    @Test fun noStarWithoutLiveEstimate() {
+        val c = StarCounter()
+        assertFalse(c.update(1.0, 5, live = false))   // settling: the held height earns nothing
+        assertEquals(0, c.count)
+        assertTrue(c.update(1.0, 5, live = true))     // the same slot still pays once the estimate is live
+    }
 }

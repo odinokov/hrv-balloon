@@ -6,8 +6,9 @@ class StarCounter(private val hit: Double = 0.985) {
         private set
     private var lastBreath = Int.MIN_VALUE
 
-    /** [breath] = index of the current pacer breath. */
-    fun update(height01: Double, breath: Int): Boolean {
+    /** [breath] = index of the current pacer breath. [live] false (settling: the height is held, not measured) never pays and changes nothing. */
+    fun update(height01: Double, breath: Int, live: Boolean = true): Boolean {
+        if (!live) return false
         if (height01 < hit || breath == lastBreath) return false
         lastBreath = breath
         count++
