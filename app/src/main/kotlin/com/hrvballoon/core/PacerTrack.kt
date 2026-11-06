@@ -60,6 +60,10 @@ class PacerTrack(rateBpm: Double, val inhaleFraction: Double) {
     }
 
     companion object {
+        /** Pacer phase (0..1) at the crest of the pacer curve's fundamental: where an in-phase HR peak lands. 0.45 at 40:60, 0.50 at 50:50. */
+        fun crestPhase(inhaleFraction: Double): Double =
+            ((90.0 - fundamentalPhaseDeg(inhaleFraction)) / 360.0).let { it - kotlin.math.floor(it) }
+
         /**
          * Phase φ of the pacer curve's own fundamental, A·sin(2πθ + φ) fitted over one cycle (θ = 0 at inhale start):
          * at resonance HR is in phase with breathing, so this is where [Estimate.phaseDeg] should sit. −90° for 50:50, −72° for 40:60.

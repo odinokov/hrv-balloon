@@ -536,7 +536,7 @@ class PixelSceneTest {
         fun frame(f: ((Double) -> Double)?) = scene.render(state().copy(
             traceT = t, traceHr = hr, traceNowMs = 118_000, pacerPeriodMs = period, pacerPhaseAt = { x -> (x / period) % 1.0 }, forecast = f,
         )).copyOf()
-        val top = scene.groundY + 6
+        val top = scene.groundY + 8   // below the phase tick marks
         fun ys(px: IntArray, x: Int, c: Int) = (top until scene.h).filter { px[it * scene.w + x] == c }
         fun cols(px: IntArray, c: Int) = (0 until scene.w).filter { ys(px, it, c).isNotEmpty() }
         val plain = frame(null)
@@ -550,5 +550,25 @@ class PixelSceneTest {
         val joinGap = Math.abs(ys(with, dim.min(), PixelScene.TRACE_DIM).average() - ys(with, lineEnd, PixelScene.TRACE).average())
         assertTrue("join=$joinGap", joinGap <= 3)                                // it starts where the real line stops
         assertEquals(plain.indices.filter { plain[it] == PixelScene.TRACE }, with.indices.filter { with[it] == PixelScene.TRACE })
+    }
+
+    @Test fun phaseTicksMarkTheCrest() {
+        val n = 36
+        val t = DoubleArray(n) { 90_000.0 + it * 850 }
+        val hr = DoubleArray(n) { 68 + 6 * Math.sin(it * 0.6) }
+        val tickRow = scene.groundY + 6
+        val bandRow = scene.groundY + 10
+        for ((inhale, gap) in listOf(0.4 to 2..3, 0.5 to 0..0)) {
+            val px = scene.render(state().copy(traceT = t, traceHr = hr, traceNowMs = 120_000, pacerPeriodMs = 10_000.0, inhaleFraction = inhale)).copyOf()
+            val ticks = (0 until scene.w).filter { px[tickRow * scene.w + it] == PixelScene.TRACE_DIM }
+            assertTrue("ticks=$ticks", ticks.size >= 2)
+            for (k in 1 until ticks.size) assertTrue("spacing ${ticks[k] - ticks[k - 1]}", ticks[k] - ticks[k - 1] in 49..51)   // 10 s at 200 ms a column
+            for (x in ticks.filter { it >= 10 }) {
+                val edge = (x downTo 1).first { px[bandRow * scene.w + it] == PixelScene.PANEL && px[bandRow * scene.w + it - 1] == PixelScene.PANEL_INHALE }
+                assertTrue("inhale=$inhale tick=$x edge=$edge", x - edge in gap)   // first dark column after a light band
+            }
+        }
+        val idle = scene.render(state(running = false).copy(traceT = t, traceHr = hr, traceNowMs = 120_000, pacerPeriodMs = 10_000.0))
+        assertTrue((0 until scene.w).none { idle[tickRow * scene.w + it] == PixelScene.TRACE_DIM })
     }
 }

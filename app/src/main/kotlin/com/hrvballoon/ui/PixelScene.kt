@@ -1,5 +1,6 @@
 package com.hrvballoon.ui
 
+import com.hrvballoon.core.PacerTrack
 import java.util.Locale
 import java.util.Random
 import kotlin.math.PI
@@ -429,6 +430,15 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
      * the new band was a one-pixel sliver that only grew over the breath, so the edge always read as the previous
      * phase; jumping the edge to the phase end fixed that but lurched by a band at every flip.)
      */
+    private var crestFor = Double.NaN
+    private var crest = 0.0
+
+    /** [PacerTrack.crestPhase] for [inhaleFraction], recomputed only when the ratio changes. */
+    private fun cachedCrest(inhaleFraction: Double): Double {
+        if (inhaleFraction != crestFor) { crest = PacerTrack.crestPhase(inhaleFraction); crestFor = inhaleFraction }
+        return crest
+    }
+
     private fun drawTrace(s: SceneState) {
         val x0 = 4
         val x1 = w - 5
@@ -450,8 +460,17 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
             now + ((1 - (1 - u) * (1 - u)) - u) * span * s.pacerPeriodMs
         }
         val tStart = tEdge - TRACE_MS
-        if (s.pacerPeriodMs > 0) for (x in x0 + 1 until x1) {
-            if (phaseAt(tEdge - (x1 - x) * dt) < s.inhaleFraction) for (y in yTop + 1 until yBot) put(x, y, PANEL_INHALE)
+        // Bands, and a tick mark at each crest of the pacer curve's fundamental: an in-phase HR peak lands on it.
+        if (s.pacerPeriodMs > 0) {
+            val crest = cachedCrest(s.inhaleFraction)
+            var prev = Double.NaN
+            for (x in x0 + 1 until x1) {
+                val ph = phaseAt(tEdge - (x1 - x) * dt)
+                if (ph < s.inhaleFraction) for (y in yTop + 1 until yBot) put(x, y, PANEL_INHALE)
+                val passes = !prev.isNaN() && (if (ph >= prev) crest > prev && crest <= ph else crest > prev || crest <= ph)
+                if (passes) { put(x, yTop + 1, TRACE_DIM); put(x, yTop + 2, TRACE_DIM) }
+                prev = ph
+            }
         }
         val bar = ((yBot - yTop - 2) * 10 / HR_SPAN).roundToInt()
         for (y in yBot - 2 - bar..yBot - 2) put(x0 + 2, y, TRACE_DIM)

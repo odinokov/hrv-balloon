@@ -48,4 +48,9 @@ class PacerTrackTest {
         assertEquals(30_000.0, at, 1e-6)
         assertEquals(7.0, track.rateAt(31_000.0), 1e-9)
     }
+
+    @Test fun crestPhaseMatchesThePacerCurve() {
+        assertEquals(0.45, PacerTrack.crestPhase(0.4), 0.001)
+        assertEquals(0.50, PacerTrack.crestPhase(0.5), 0.001)
+    }
 }
