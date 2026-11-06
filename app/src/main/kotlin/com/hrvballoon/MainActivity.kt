@@ -653,7 +653,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\n" +
                 "Stars — Ranks compare the number of stars earned in each session. Sessions rank after 2 min of valid signal; " +
                 "equal star totals are ordered newest first.\n\n" +
-                "Search score — mean P × mean rhythm, used to compare breathing rates during a resonance search.\n\n" +
+                "Search score — median of P × rhythm over the two measured breaths, used to compare breathing rates during a resonance search.\n\n" +
                 "Breathe gently and comfortably; do not force deeper breaths to lift the balloon. Stop pacing if you feel dizzy or " +
                 "uncomfortable. The strap does not measure breathing depth or carbon dioxide.\n\n" +
                 "Find my resonance rate — a separate search mode that tries rates between 4 and 7 /min " +
