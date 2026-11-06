@@ -119,11 +119,14 @@ class RankScene(val w: Int, val h: Int, seed: Long = 11) {
                 else -> "#$rankPos OF $total BY STARS"
             }
             text(centred(line), 38, line, if (!r.ranked) DIM else if (rankPos == 1) HIGHLIGHT else TEXT)
-            surface(4, 48, w - 4, 82, SURFACE)
+            val stats = if (r.meanP != null && r.meanShape != null)
+                String.format(Locale.ROOT, "P %.1f  RHYTHM %d%%", r.meanP, (r.meanShape * 100).roundToInt()) else null
+            surface(4, 48, w - 4, if (stats != null) 98 else 82, SURFACE)
             val lifetime = "LIFETIME *$lifetimeStars"
             text(centred(lifetime), 54, lifetime, TEXT)
             val whenAt = fullFmt.format(Instant.ofEpochMilli(r.startMs).atZone(ZoneId.systemDefault()))
             text(centred(whenAt), 70, whenAt, DIM)
+            stats?.let { text(centred(it), 86, it, TEXT) }
             text(centred("TAP FOR RANKS"), h - 20, "TAP FOR RANKS", DIM)
         }
         return frame

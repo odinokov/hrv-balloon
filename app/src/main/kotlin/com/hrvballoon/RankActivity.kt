@@ -11,6 +11,7 @@ import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.rankSessions
 import com.hrvballoon.ui.RankView
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Star-ranked table of past sessions. With [EXTRA_RESULT] it first shows the results card for the
@@ -83,8 +84,10 @@ class RankActivity : Activity() {
             r.kind == SessionRecord.KIND_RF_SEARCH -> String.format(Locale.ROOT, "Resonance search done: %.1f per minute. Double-tap to use it, Back to skip.", r.rateBpm)
             r.isSearch -> "Resonance search incomplete, ${r.probes.size} probes. Double-tap for the table."
             else -> String.format(
-                Locale.ROOT, "Session done. %d stars, %s. %d lifetime stars. Double-tap for the table.",
+                Locale.ROOT, "Session done. %d stars, %s. %d lifetime stars.%s Double-tap for the table.",
                 r.stars, if (view.rankPos > 0) "number ${view.rankPos} of ${ranked.size} by stars" else "not ranked", view.lifetimeStars,
+                if (r.meanP != null && r.meanShape != null)
+                    String.format(Locale.ROOT, " P %.1f, rhythm %d percent.", r.meanP, (r.meanShape * 100).roundToInt()) else "",
             )
         }
     }

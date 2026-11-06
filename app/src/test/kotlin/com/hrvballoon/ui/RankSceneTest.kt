@@ -82,10 +82,10 @@ class RankSceneTest {
 
     @Test fun starResultIgnoresPhysiologyAndRate() {
         val a = rec(0, p = 10.0, stars = 12)
-        val b = SessionRecord(a.startMs, a.durationMs, 6.9, 25.0, 0.9, a.stars,
+        val b = SessionRecord(a.startMs, a.durationMs, 6.9, a.meanP, a.meanShape, a.stars,
             90.0, 3.0, a.validMs, 80.0, 100.0, 500)
         val first = scene.renderResult(a, 2, 3, records[0], 5_000, lifetimeStars = 12).copyOf()
-        assertArrayEquals("The normal result report should show stars and session identity only", first,
+        assertArrayEquals("The normal result report should show stars, session identity, P and rhythm only", first,
             scene.renderResult(b, 2, 3, records[0], 5_000, lifetimeStars = 12))
     }
 
@@ -141,5 +141,13 @@ class RankSceneTest {
             val c = frames.map { it[i] }
             assertFalse("star over the hills at ${i % 160},${i / 160}", c.any { it in stars } && c.any { it in hills })
         }
+    }
+
+    @Test fun resultCardShowsSwingAndRhythm() {
+        val a = rec(1)
+        val noP = SessionRecord(a.startMs, a.durationMs, a.rateBpm, null, a.meanShape, a.stars, a.meanHr, a.rejectedPct, a.validMs, a.rmssd, a.sdnn, a.beats)
+        val with = count(scene.renderResult(a, 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
+        val without = count(scene.renderResult(noP, 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
+        assertTrue("with=$with without=$without", with > without)
     }
 }

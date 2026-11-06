@@ -16,7 +16,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
   <img src="docs/screenshots/session.png" width="200" alt="Mid-session: the balloon high in a golden-hour sky, a star falling, the heart-rate trace swinging with the breath bands, its last seconds forecast in dim dashes">
   <img src="docs/screenshots/dusk.png" width="200" alt="Late in the session at dusk: the balloon lower, stars out, 01:12 left on the countdown">
   <img src="docs/screenshots/ranks.png" width="200" alt="Best sessions table ranked by stars">
-  <img src="docs/screenshots/result.png" width="200" alt="Results card: stars this session, rank among sessions, lifetime stars">
+  <img src="docs/screenshots/result.png" width="200" alt="Results card: stars this session, rank among sessions, lifetime stars, mean P and rhythm">
 </p>
 <p align="center"><sub>Frames rendered by the scene renderer at its native 160 × 284 px, scaled 3×.</sub></p>
 
