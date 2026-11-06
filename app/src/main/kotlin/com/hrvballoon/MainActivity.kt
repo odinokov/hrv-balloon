@@ -650,8 +650,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 "Rhythm — how much of that swing is a clean sine at the pacer's rate (0–100 %). Depth without rhythm earns little lift.\n\n" +
                 "Steady — the swing is there, but it does not follow the pacer. Breathe with the bar, at the same speed, with no pauses. Do not breathe deeper.\n\n" +
                 "Lift — P between the lift threshold and the sky ceiling, scaled by rhythm. A star falls for each 10 s that the balloon stays at the ceiling. Stars come only from a live estimate.\n\n" +
-                "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in. " +
-                "Small marks at the top show where the heart-rate peak falls at resonance. A peak before a mark: your resonance rate is faster than the pacer. A peak after a mark: it is slower.\n\n" +
+                "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\n" +
                 "Stars — Ranks compare the number of stars earned in each session. Sessions rank after 2 min of valid signal; " +
                 "equal star totals are ordered newest first.\n\n" +
                 "Search score — mean P × mean rhythm, used to compare breathing rates during a resonance search.\n\n" +
