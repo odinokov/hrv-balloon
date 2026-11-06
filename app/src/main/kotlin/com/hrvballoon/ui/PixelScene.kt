@@ -540,7 +540,6 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         val color = if (s.inhale) PACER_IN else PACER_OUT
         val fill = ((bottom - top - 1) * s.pacerLevel).roundToInt()
         for (y in bottom - fill until bottom) for (x in x0 + 1 until x0 + bw - 1) put(x, y, color)
-        for (q in 1..3) put(x0 + 1, top + (bottom - top) * q / 4, PACER_FRAME)
         val rows = if (s.inhale) intArrayOf(1, 3, 5) else intArrayOf(5, 3, 1)
         for (r in 0..2) {
             val sx = x0 + 3 - rows[r] / 2

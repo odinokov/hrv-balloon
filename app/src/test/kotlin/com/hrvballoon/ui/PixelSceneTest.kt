@@ -551,4 +551,11 @@ class PixelSceneTest {
         assertTrue("join=$joinGap", joinGap <= 3)                                // it starts where the real line stops
         assertEquals(plain.indices.filter { plain[it] == PixelScene.TRACE }, with.indices.filter { with[it] == PixelScene.TRACE })
     }
+
+    @Test fun pacerBarHasNoQuarterMarks() {
+        val px = scene.render(state(level = 0.0))   // empty bar: its inner column shows only the background
+        val x = scene.w - 10                         // first column inside the bar's frame
+        val frameRows = (0 until scene.groundY).count { px[it * scene.w + x] == PixelScene.PACER_FRAME }
+        assertEquals(2, frameRows)                   // the bar's top and bottom edges, nothing in between
+    }
 }
