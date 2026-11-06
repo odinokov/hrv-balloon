@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StarCounterTest {
-    @Test fun oneStarPerBreathAtTheCeiling() {
+    @Test fun oneStarPerSlotAtTheCeiling() {
         val c = StarCounter()
         assertFalse(c.update(0.5, 0))
         assertFalse(c.update(0.98, 0))
@@ -24,5 +24,20 @@ class StarCounterTest {
         assertFalse(c.update(1.0, 5, live = false))   // settling: the held height earns nothing
         assertEquals(0, c.count)
         assertTrue(c.update(1.0, 5, live = true))     // the same slot still pays once the estimate is live
+    }
+
+    @Test fun starSlotEdges() {
+        assertEquals(0, starSlot(0.0))
+        assertEquals(0, starSlot(7_499.0))
+        assertEquals(1, starSlot(7_500.0))
+        assertEquals(2, starSlot(17_500.0))
+        assertEquals(90, starSlot(900_000.0))
+    }
+
+    @Test fun fullSessionGives91Stars() {
+        val c = StarCounter()
+        var t = 0.0
+        while (t <= 900_000.0) { c.update(1.0, starSlot(t)); t += 16 }
+        assertEquals(91, c.count)   // slots 0..90, whatever the pacer rate
     }
 }

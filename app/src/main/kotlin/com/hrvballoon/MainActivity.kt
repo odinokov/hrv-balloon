@@ -46,6 +46,7 @@ import com.hrvballoon.core.Signal
 import com.hrvballoon.core.Smoother
 import com.hrvballoon.core.Bounce
 import com.hrvballoon.core.StarCounter
+import com.hrvballoon.core.starSlot
 import com.hrvballoon.core.UiState
 import com.hrvballoon.core.stepRateTenths
 import com.hrvballoon.ui.BalloonView
@@ -373,7 +374,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 balloon.rising = !frozen && target - balloon.height01 > 0.01
                 if (!frozen) {
                     val h = smoother.step(target, dt)
-                    if (starCounter.update(h, p.cycles(t).toInt(), live)) {
+                    if (starCounter.update(h, starSlot(t), live)) {
                         bounce.hit(now)
                         balloon.ceilingHitAtMs = now
                         earnStar(now)
@@ -640,7 +641,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             "P — how far your heart rate swings within one breath, peak minus trough, in beats per minute. A breath that takes you " +
                 "from 62 to 71 beats/min is a swing of 9. The resonance-breathing signal itself.\n\n" +
                 "Rhythm — how much of that swing is a clean sine at the pacer's rate (0–100 %). Depth without rhythm earns little lift.\n\n" +
-                "Lift — P between the lift threshold and the sky ceiling, scaled by rhythm. Stars fall each time the balloon touches the ceiling. Stars come only from a live estimate.\n\n" +
+                "Lift — P between the lift threshold and the sky ceiling, scaled by rhythm. A star falls for each 10 s that the balloon stays at the ceiling. Stars come only from a live estimate.\n\n" +
                 "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\n" +
                 "Stars — Ranks compare the number of stars earned in each session. Sessions rank after 2 min of valid signal; " +
                 "equal star totals are ordered newest first.\n\n" +
