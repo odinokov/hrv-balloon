@@ -34,7 +34,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 
 Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet electrodes.
 
-1. Download `hrv-balloon-v1.2.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android warns because the build is debug-signed. Or build it as [below](#building).
+1. Download `hrv-balloon-v1.3.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android warns because the build is debug-signed. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 6.0/min 15:00`, then tap **Start · 6.0/min** and breathe with the bar.
 4. Tap **Stop** or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
