@@ -41,29 +41,30 @@ Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet el
 
 ## Breathe gently
 
-Slow breathing at 5–6 breaths per minute should feel comfortable. If a session feels like effort, or you get light-headed, you are breathing too deeply and blowing off CO₂.
+Slow breathing at 5–6 breaths per minute should feel comfortable. If a session feels like effort, or you get light-headed, you are most likely breathing too deeply and blowing off CO₂.
 
 - Keep your normal resting breath volume. Do not fill or empty the lungs.
 - Inhale quietly through the nose into the belly. Let the exhale leave on its own.
 - Keep the breath flowing. No holds at the top or bottom.
 - Dizzy or tingling: make the breaths shallower and softer, and stop if it persists. The strap reports heartbeats only, so the balloon cannot warn you about depth or CO₂.
+- Short of air: the pace may be too slow for you; choose a faster rate in Settings.
 
 ## Finding your resonance rate
 
-Settings → **Find my resonance rate (next session only)**. That session probes breathing rates between 4.0 and 7.0 /min, about five breaths each: one breath for the physiological transient, two to refill the measurement window, two measured. Each probe scores the median of swing × rhythm over its two measured breaths. Rates are chosen by 1-D Bayesian optimisation (Gaussian process over the rate axis, upper-confidence-bound acquisition); the second probe steps 0.7 /min in the direction the heart-rate-to-pacer phase suggests. The search has converged after at least five probes once the model's best rate has stopped moving across two consecutive probes. The result is offered on the results card and under Settings as **Resonance found: 5.3 /min → Use**. An unfinished search records its best probe, never the rate it started from.
+Settings → **Find my resonance rate (next session only)**. That session probes breathing rates between 4.0 and 7.0 /min, about five breaths each: one breath for the physiological transient, two to refill the measurement window, two measured. Each probe scores the median of swing × rhythm over its two measured breaths. Rates are chosen by 1-D Bayesian optimisation (Gaussian process over the rate axis, upper-confidence-bound acquisition); the second probe steps 0.7 /min in the direction the heart-rate-to-pacer phase suggests. The search has converged after at least five probes once the model's best rate has stopped moving across two consecutive probes. The result is offered on the results card and under Settings as **Resonance found: 5.3 /min → Use**. An unfinished search records its best probe, never the rate it started from. Treat the result as a quick estimate. Published protocols hold each rate for about 2 minutes [1, 2, 3, 6], where the app measures two breaths, and the resonance rate drifts between sessions [2], so repeat the search on different days and treat about ±0.5/min as noise. The search also assumes you breathe exactly with the bar; the strap measures heartbeats only.
 
 ## How the measurement works
 
 1. **Beats.** Heart Rate Measurement packets (0x2A37) carry RR intervals in 1/1024 s units. Cumulative RR is mapped onto the phone clock with the lowest-latency envelope over the last 60 s of arrivals, so strap-vs-phone drift is tracked and no beat leads its own arrival.
 2. **Artifact filter.** RR outside 300–2000 ms, or more than 20% from the median of the centred five-beat window, is rejected. A beat is classified once two more have arrived; a trailing median would lag the steep part of large swings and reject real beats exactly when amplitude is high.
-3. **Amplitude.** Each accepted RR interval used by the estimator becomes an instantaneous heart rate, 60000 / RR (ms), stamped at the interval's midpoint. The most recent two breath periods of accepted data are resampled at 4 Hz and fitted by least squares, trend and sinusoid together: HR(t) ≈ a + b·t + c·cos(2πft) + d·sin(2πft), where f is the pacer frequency. Swing P = 2·√(c² + d²), the fitted peak-to-trough. Rhythm is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint. The fit reruns approximately every 250 ms while the signal is usable. Fluctuations at other frequencies can lower rhythm and may also affect P over this finite window.
+3. **Amplitude.** Each accepted RR interval used by the estimator becomes an instantaneous heart rate, 60000 / RR (ms), stamped at the interval's midpoint. The most recent two breath periods of accepted data are resampled at 4 Hz and fitted by least squares, trend and sinusoid together: HR(t) ≈ a + b·t + c·cos(2πft) + d·sin(2πft), where f is the pacer frequency. Swing P = 2·√(c² + d²), the fitted peak-to-trough. Rhythm is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint. The fit reruns approximately every 250 ms while the signal is usable. Fluctuations at other frequencies can lower rhythm and may also affect P over this finite window. Any heart-rate oscillation at the pacer rate counts, including spontaneous slow oscillations from the baroreflex loop near 0.1 Hz (Mayer waves), whether or not breathing drives it.
 4. **Lift.** `(P − threshold) / (ceiling − threshold)`, clamped to 0–1, times a rhythm gate that is 0 below R² 0.40 and full from 0.85. The balloon follows the target with a 1 s time constant. When the swing clears the lift threshold but rhythm falls below 0.55, the status line shows Steady until rhythm passes 0.65.
 5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s.
-6. **Summary.** RMSSD (ms) from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN (ms) over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
+6. **Summary.** RMSSD (ms) from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN (ms) over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked. These are during-practice values, dominated by the paced breathing, and are not comparable with resting HRV norms.
 
 ### Swing versus RMSSD
 
-HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency. Peak-to-trough heart-rate amplitude is one of the standard criteria in resonance-frequency assessment [11]. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 beats/min, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
+HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency, a sine-fit counterpart of the peak-to-trough criterion used in resonance-frequency assessment [11]. That criterion averages each breath's maximum minus minimum heart rate. The two agree only for a clean sine wave; the conventional value usually runs higher, because the 40 : 60 pacer gives an asymmetric wave and maximum minus minimum also picks up beat-to-beat noise. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 beats/min, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
 
 ## Settings
 
@@ -77,7 +78,7 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 | Sky ceiling, HR swing in beats/min | 6 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
 
-The defaults, 1 and 6, are an easy start. For a harder game, raise the sky ceiling first and the lift threshold after it, since the ceiling stays at least 5 above the threshold. Ranks compare star totals, so compare sessions played at the same limits.
+The defaults, 1 and 6, are an easy start. Swing falls steeply with age, so these limits suit older users and fill the sky quickly for fit young ones. For a harder game, raise the sky ceiling first and the lift threshold after it, since the ceiling stays at least 5 above the threshold. Ranks compare star totals, so compare sessions played at the same limits.
 
 Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 1–6 beats/min is about 17–100 ms of RR swing at 60 beats/min, but 9–56 ms at 80 beats/min.
 
@@ -129,7 +130,7 @@ The app reads the heart only. If you have a blood-pressure cuff, the Kérdö veg
 VI = 100 × (1 − diastolic pressure / pulse)
 ```
 
-Diastolic pressure in mm Hg, pulse in beats per minute. Positive values are read as sympathetic predominance, negative values as parasympathetic predominance, zero as balance. Resonance breathing usually lowers the pulse for a while, so expect a dip after a session. Caveats: the index follows heart rate far more than diastolic pressure; it behaves reasonably in healthy and athletic people; and it misleads in hypertension, where a high diastolic pressure reads as vagal dominance ([overview](https://ru.wikipedia.org/wiki/Индекс_Кердо), in Russian). A trend across weeks of paired readings carries far more weight than any single pair.
+Diastolic pressure in mm Hg, pulse in beats per minute. Positive values are read as sympathetic predominance, negative values as parasympathetic predominance, zero as balance. Caveats: the index follows heart rate far more than diastolic pressure; it behaves reasonably in healthy and athletic people; and it misleads in hypertension, where a high diastolic pressure reads as vagal dominance ([overview](https://ru.wikipedia.org/wiki/Индекс_Кердо), in Russian). Measure after at least 5 minutes seated, on the same arm, as the mean of two readings, at the same time of day. A single blood-pressure reading can vary by several mm Hg, enough to move the index by several points. A trend across weeks of paired readings carries far more weight than any single pair.
 
 ## Why resonance breathing
 
@@ -137,7 +138,7 @@ Heart rate usually rises during inhalation and falls during exhalation. This res
 
 What the trials show:
 
-- **Lehrer et al. 2020**, a meta-analysis of 58 randomised controlled studies. HRV biofeedback showed a small-to-moderate benefit, comparable to other effective treatments, and larger against inactive than active control conditions. <mark>Effects were largest for anxiety, depression, anger and athletic or artistic performance, and smallest for PTSD, sleep and quality of life</mark>, each resting on few studies [9].
+- **Lehrer et al. 2020**, a meta-analysis of 58 randomised controlled studies. HRV biofeedback showed a small-to-moderate benefit, comparable to other effective treatments, and larger against inactive than active control conditions. <mark>Effects were largest for anxiety, depression, anger and athletic or artistic performance, and smallest for PTSD, sleep and quality of life</mark>, each resting on few studies [9]. Its lead author co-developed the standard protocol, and blinding is hard in biofeedback trials, where participants see their own feedback.
 - **Lehrer et al. 2003**, 54 healthy adults. Ten biofeedback sessions raised resting baroreflex gain [1].
 - **Lin et al. 2012**, 43 college students with prehypertension, randomised to resonance biofeedback, paced breathing at 6/min without feedback, or a control group that sat breathing normally. Both breathing groups had ten 20-minute laboratory sessions over five weeks and practised at home for 20 minutes twice a day. <mark>With biofeedback, mean systolic pressure fell from 131.7 to 118.9 mm Hg</mark> and baroreflex sensitivity rose from 7.0 to 15.8 ms/mm Hg; paced breathing at 6/min gave smaller gains, 131.3 to 123.6 mm Hg and 7.8 to 11.0 ms/mm Hg. The blood-pressure drop held at three months while practice continued at 20 minutes a day [2].
 - **Steffen et al. 2017**, 95 students randomised to breathing at their resonance frequency, one breath per minute faster, or quiet sitting. <mark>After fifteen minutes at resonance, positive mood was higher than in both other groups, and systolic pressure during a subsequent mental stressor and recovery was lower than with quiet sitting.</mark> Both effects were measured in a single laboratory session [3].
@@ -163,7 +164,7 @@ On hardware: the Polar H10 agrees closely with ECG for RR intervals at rest and 
 
 ## Not a medical device
 
-HRV Balloon is for breathing practice and general wellness interest. It does not diagnose, treat, cure, mitigate or prevent any disease or condition, and it is no substitute for medical advice. Talk to a clinician before starting a breathing programme if you have a heart, lung or anxiety condition, or if practice ever brings on symptoms.
+HRV Balloon is for breathing practice and general wellness interest. The swing needs a regular sinus rhythm and intact vagal control of the heart. With atrial fibrillation, frequent ectopic beats, a pacemaker-driven rhythm, a heart transplant or autonomic neuropathy (for example from long-standing diabetes) it is absent or meaningless, and irregular rhythms mostly show as No signal. It does not diagnose, treat, cure, mitigate or prevent any disease or condition, and it is no substitute for medical advice. Talk to a clinician before starting a breathing programme if you have a heart, lung or anxiety condition, or if practice ever brings on symptoms.
 
 ## License
 
