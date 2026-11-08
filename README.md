@@ -16,7 +16,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
   <img src="docs/screenshots/session.png" width="200" alt="Mid-session: the balloon high in a golden-hour sky, a star falling, the heart-rate trace swinging with the breath bands, its last seconds forecast in dim dashes">
   <img src="docs/screenshots/dusk.png" width="200" alt="Late in the session at dusk: the balloon lower, stars out, 01:12 left on the countdown">
   <img src="docs/screenshots/ranks.png" width="200" alt="Best sessions table ranked by stars">
-  <img src="docs/screenshots/result.png" width="200" alt="Results card: stars this session, rank among sessions, lifetime stars, mean P and rhythm">
+  <img src="docs/screenshots/result.png" width="200" alt="Results card: stars this session, rank among sessions, lifetime stars, mean rhythm">
 </p>
 <p align="center"><sub>Frames rendered by the scene renderer at its native 160 × 284 px, scaled 3×.</sub></p>
 
@@ -25,7 +25,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
 - **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is fitted over the last two breaths, not read off the single fastest and slowest beat. Below the lift threshold of 1 the balloon stays on the ground; from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
-- **Ranks.** Tap a row to open its results card, which shows mean swing (P, beats/min) and mean rhythm (R², %) when both are available.
+- **Ranks.** Tap a row to open its results card, which shows the mean rhythm (R², %) when it is available.
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
 - **Signal loss.** Link down, no skin contact, no RR for over 4 s, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
@@ -37,7 +37,7 @@ Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet el
 1. Download `hrv-balloon-v1.2.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android warns because the build is debug-signed. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 6.0/min 15:00`, then tap **Start · 6.0/min** and breathe with the bar.
-4. Tap **Stop** or let the countdown run out. The results card shows your stars, your rank and the session's mean swing (P) and rhythm; tap it for the Ranks table.
+4. Tap **Stop** or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
 
 ## Finding your resonance rate
 

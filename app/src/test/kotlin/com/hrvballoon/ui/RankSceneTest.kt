@@ -82,10 +82,10 @@ class RankSceneTest {
 
     @Test fun starResultIgnoresPhysiologyAndRate() {
         val a = rec(0, p = 10.0, stars = 12)
-        val b = SessionRecord(a.startMs, a.durationMs, 6.9, a.meanP, a.meanShape, a.stars,
+        val b = SessionRecord(a.startMs, a.durationMs, 6.9, 25.0, a.meanShape, a.stars,
             90.0, 3.0, a.validMs, 80.0, 100.0, 500)
         val first = scene.renderResult(a, 2, 3, records[0], 5_000, lifetimeStars = 12).copyOf()
-        assertArrayEquals("The normal result report should show stars, session identity, P and rhythm only", first,
+        assertArrayEquals("The normal result report should show stars, session identity and rhythm only", first,
             scene.renderResult(b, 2, 3, records[0], 5_000, lifetimeStars = 12))
     }
 
@@ -143,11 +143,11 @@ class RankSceneTest {
         }
     }
 
-    @Test fun resultCardShowsSwingAndRhythm() {
+    @Test fun resultCardShowsRhythm() {
         val a = rec(1)
-        val noP = SessionRecord(a.startMs, a.durationMs, a.rateBpm, null, a.meanShape, a.stars, a.meanHr, a.rejectedPct, a.validMs, a.rmssd, a.sdnn, a.beats)
-        val with = count(scene.renderResult(a, 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
-        val without = count(scene.renderResult(noP, 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
-        assertTrue("with=$with without=$without", with > without)
+        fun copy(p: Double?, shape: Double?) = SessionRecord(a.startMs, a.durationMs, a.rateBpm, p, shape, a.stars, a.meanHr, a.rejectedPct, a.validMs, a.rmssd, a.sdnn, a.beats)
+        val with = count(scene.renderResult(copy(null, 0.8), 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
+        val without = count(scene.renderResult(copy(null, null), 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
+        assertTrue("with=$with without=$without", with > without)   // rhythm shows on its own, P is never needed
     }
 }

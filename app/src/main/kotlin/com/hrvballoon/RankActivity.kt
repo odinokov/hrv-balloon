@@ -86,8 +86,7 @@ class RankActivity : Activity() {
             else -> String.format(
                 Locale.ROOT, "Session done. %d stars, %s. %d lifetime stars.%s Double-tap for the table.",
                 r.stars, if (view.rankPos > 0) "number ${view.rankPos} of ${ranked.size} by stars" else "not ranked", view.lifetimeStars,
-                if (r.meanP != null && r.meanShape != null)
-                    String.format(Locale.ROOT, " P %.1f, rhythm %d percent.", r.meanP, (r.meanShape * 100).roundToInt()) else "",
+                r.meanShape?.let { String.format(Locale.ROOT, " Rhythm %d percent.", (it * 100).roundToInt()) } ?: "",
             )
         }
     }
