@@ -6,7 +6,7 @@
 
 Android resonance-breathing and HRV-biofeedback trainer. A pixel-art hot-air balloon rises when your heart rate swings in time with your breath, read beat by beat from a Bluetooth chest strap.
 
-Breathe six times a minute and your nervous system handles stress better. That is the premise; the evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party code.
+Slow breathing at about six breaths a minute is a well-studied way to ease stress. The evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party code.
 
 - **Any strap with RR intervals.** Polar H10 or any Bluetooth LE strap exposing the standard Heart Rate Service with RR data.
 - **Android 12+**, portrait, Kotlin, no dependencies beyond the Android SDK. Unit tests cover the whole signal path and the scene renderer.
@@ -23,21 +23,30 @@ Breathe six times a minute and your nervous system handles stress better. That i
 ## What a session looks like
 
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
-- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is fitted over the last two breaths, not read off the single fastest and slowest beat. Below the lift threshold of 1 the balloon stays on the ground; from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
+- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is the peak-to-trough of a wave fitted over the last two breaths, which smooths out single fast or slow beats. Below the lift threshold of 1 the balloon stays on the ground; from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
 - **Ranks.** Tap a row to open its results card, which shows the mean rhythm (R², %) when it is available.
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
-- **Signal loss.** Link down, no skin contact, no RR for over 4 s, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
+- **Signal loss.** Link down, no skin contact, no RR for over 4 s, a gap of over 3 s in the beats, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
 
 ## Quick start
 
 Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet electrodes.
 
-1. Download `hrv-balloon-v1.3.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android warns because the build is debug-signed. Or build it as [below](#building).
+1. Download `hrv-balloon-v1.3.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 6.0/min 15:00`, then tap **Start · 6.0/min** and breathe with the bar.
 4. Tap **Stop** or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
+
+## Breathe gently
+
+Slow breathing at 5–6 breaths per minute should feel comfortable. If a session feels like effort, or you get light-headed, you are breathing too deeply and blowing off CO₂.
+
+- Keep your normal resting breath volume. Do not fill or empty the lungs.
+- Inhale quietly through the nose into the belly. Let the exhale leave on its own.
+- Keep the breath flowing. No holds at the top or bottom.
+- Dizzy or tingling: make the breaths shallower and softer, and stop if it persists. The strap reports heartbeats only, so the balloon cannot warn you about depth or CO₂.
 
 ## Finding your resonance rate
 
@@ -47,7 +56,7 @@ Settings → **Find my resonance rate (next session only)**. That session probes
 
 1. **Beats.** Heart Rate Measurement packets (0x2A37) carry RR intervals in 1/1024 s units. Cumulative RR is mapped onto the phone clock with the lowest-latency envelope over the last 60 s of arrivals, so strap-vs-phone drift is tracked and no beat leads its own arrival.
 2. **Artifact filter.** RR outside 300–2000 ms, or more than 20% from the median of the centred five-beat window, is rejected. A beat is classified once two more have arrived; a trailing median would lag the steep part of large swings and reject real beats exactly when amplitude is high.
-3. **Amplitude.** Each accepted RR interval used by the estimator becomes an instantaneous heart rate, 60000 / RR (ms), stamped at the interval's midpoint. The most recent two breath periods of accepted data are resampled at 4 Hz and fitted by least squares, trend and sinusoid together: HR(t) ≈ a + b·t + c·cos(2πft) + d·sin(2πft), where f is the pacer frequency. Swing P = 2·√(c² + d²), the fitted peak-to-trough. `rhythm` is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint. The fit reruns approximately every 250 ms while the signal is usable. Fluctuations at other frequencies can lower `rhythm` and may also affect P over this finite window.
+3. **Amplitude.** Each accepted RR interval used by the estimator becomes an instantaneous heart rate, 60000 / RR (ms), stamped at the interval's midpoint. The most recent two breath periods of accepted data are resampled at 4 Hz and fitted by least squares, trend and sinusoid together: HR(t) ≈ a + b·t + c·cos(2πft) + d·sin(2πft), where f is the pacer frequency. Swing P = 2·√(c² + d²), the fitted peak-to-trough. Rhythm is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint. The fit reruns approximately every 250 ms while the signal is usable. Fluctuations at other frequencies can lower rhythm and may also affect P over this finite window.
 4. **Lift.** `(P − threshold) / (ceiling − threshold)`, clamped to 0–1, times a rhythm gate that is 0 below R² 0.40 and full from 0.85. The balloon follows the target with a 1 s time constant. When the swing clears the lift threshold but rhythm falls below 0.55, the status line shows Steady until rhythm passes 0.65.
 5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s.
 6. **Summary.** RMSSD (ms) from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN (ms) over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked.
@@ -60,7 +69,7 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 
 | Setting | Default | Notes |
 |---|---|---|
-| Rate, breaths/min | 6.0 | 0.1 steps |
+| Rate, breaths/min | 6.0 | 4.0–7.0, 0.1 steps |
 | Inhale : exhale | 40 : 60 | or 50 : 50 |
 | Vibration cues | on | |
 | Find my resonance rate | off | one session, then resets |
@@ -89,12 +98,14 @@ Nothing leaves the phone.
 
 ## Building
 
-Requires JDK 17 or newer and an Android SDK with `platforms;android-34` and `build-tools;34.0.0`. The SDK lives inside the repository at `.sdk/` (gitignored) and `local.properties` points `sdk.dir` at it. The `./gw` wrapper runs Gradle with every tool home inside the repository, so nothing is written to `~/.gradle` or `~/.android`.
+Requires JDK 17 or newer and an Android SDK with `platforms;android-34` and `build-tools;34.0.0`. With your own SDK, set `ANDROID_HOME` (or `sdk.dir` in `local.properties`) and run `./gradlew`, as CI does:
 
 ```sh
-./gw -q testDebugUnitTest    # unit tests
-./gw -q assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
+./gradlew -q testDebugUnitTest    # unit tests
+./gradlew -q assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
 ```
+
+`./gw` is a self-contained alternative: it expects the SDK in `.sdk/` inside the repository (gitignored, with `local.properties` pointing `sdk.dir` at it) and keeps every tool home inside the repository, so nothing is written to `~/.gradle` or `~/.android`.
 
 Layout:
 
@@ -106,18 +117,9 @@ Layout:
 The README frames are rendered by the scene itself:
 
 ```sh
-mkdir -p build/shots && SCENE_DUMP_DIR="$PWD/build/shots" ./gw -q testDebugUnitTest --tests '*ScreenshotDump*'
+mkdir -p build/shots && SCENE_DUMP_DIR="$PWD/build/shots" ./gradlew -q testDebugUnitTest --tests '*ScreenshotDump*'
 python3 scripts/ppm2png.py 3 build/shots docs/screenshots
 ```
-
-## Breathe gently
-
-Slow breathing at 5–6 breaths per minute should feel comfortable. If a session feels like effort, or you get light-headed, you are breathing too deeply and blowing off CO₂.
-
-- Keep your normal resting breath volume. Do not fill or empty the lungs.
-- Inhale quietly through the nose into the belly. Let the exhale leave on its own.
-- Keep the breath flowing. No holds at the top or bottom.
-- Dizzy or tingling: make the breaths shallower and softer, and stop if it persists. The strap reports heartbeats only, so the balloon cannot warn you about depth or CO₂.
 
 ## Before and after
 
