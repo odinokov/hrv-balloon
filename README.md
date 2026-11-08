@@ -23,7 +23,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 ## What a session looks like
 
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
-- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is fitted over the last two breaths, not read off the single fastest and slowest beat. Below the lift threshold of 3 the balloon stays on the ground; from the sky ceiling of 9 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
+- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is fitted over the last two breaths, not read off the single fastest and slowest beat. Below the lift threshold of 1 the balloon stays on the ground; from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
 - **Ranks.** Tap a row to open its results card, which shows mean swing (P, beats/min) and mean rhythm (R², %) when both are available.
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
@@ -64,11 +64,13 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 | Inhale : exhale | 40 : 60 | or 50 : 50 |
 | Vibration cues | on | |
 | Find my resonance rate | off | one session, then resets |
-| Lift threshold, HR swing in beats/min | 3 | swing below this stays grounded |
-| Sky ceiling, HR swing in beats/min | 9 | swing at or above this is at the top |
+| Lift threshold, HR swing in beats/min | 1 | swing below this stays grounded |
+| Sky ceiling, HR swing in beats/min | 6 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
 
-Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 3–9 beats/min is about 50–150 ms of RR swing at 60 beats/min, but 28–84 ms at 80 beats/min.
+The defaults, 1 and 6, are an easy start. For a harder game, raise the sky ceiling first and the lift threshold after it, since the ceiling stays at least 5 above the threshold. Ranks compare star totals, so compare sessions played at the same limits.
+
+Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 1–6 beats/min is about 17–100 ms of RR swing at 60 beats/min, but 9–56 ms at 80 beats/min.
 
 Session length is fixed at 15 minutes: long enough for a resonance search, short enough to do daily.
 

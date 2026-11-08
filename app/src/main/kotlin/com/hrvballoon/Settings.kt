@@ -19,11 +19,11 @@ class Settings(context: Context) {
 
     /** Peak-to-trough HR (bpm) below which the balloon stays on the ground. */
     var floorBpm: Int
-        get() = p.getInt("floorBpm", 3)
+        get() = p.getInt("floorBpm", 1)
         set(v) = p.edit().putInt("floorBpm", v).apply()
 
     var ceilingBpm: Int
-        get() = p.getInt("ceilingBpm", 9)
+        get() = p.getInt("ceilingBpm", 6)
         set(v) = p.edit().putInt("ceilingBpm", v).apply()
 
     /** Balloon smoothing time constant, tenths of a second. */
