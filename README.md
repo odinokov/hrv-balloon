@@ -25,7 +25,7 @@ Breathe six times a minute and your nervous system handles stress better. That i
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
 - **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is fitted over the last two breaths, not read off the single fastest and slowest beat. Below the lift threshold of 3 the balloon stays on the ground; from the sky ceiling of 9 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
-- **Ranks.** Tap a row to open its results card, which shows mean swing (P, bpm) and mean rhythm (R², %) when both are available.
+- **Ranks.** Tap a row to open its results card, which shows mean swing (P, beats/min) and mean rhythm (R², %) when both are available.
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
 - **Signal loss.** Link down, no skin contact, no RR for over 4 s, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
@@ -54,7 +54,7 @@ Settings → **Find my resonance rate (next session only)**. That session probes
 
 ### Swing versus RMSSD
 
-HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency. Peak-to-trough heart-rate amplitude is one of the standard criteria in resonance-frequency assessment [11]. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 bpm, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
+HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency. Peak-to-trough heart-rate amplitude is one of the standard criteria in resonance-frequency assessment [11]. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 beats/min, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
 
 ## Settings
 
@@ -68,7 +68,7 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 | Sky ceiling, HR swing in beats/min | 9 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
 
-Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 3–9 bpm is about 50–150 ms of RR swing at 60 bpm, but 28–84 ms at 80 bpm.
+Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 3–9 beats/min is about 50–150 ms of RR swing at 60 beats/min, but 28–84 ms at 80 beats/min.
 
 Session length is fixed at 15 minutes: long enough for a resonance search, short enough to do daily.
 
