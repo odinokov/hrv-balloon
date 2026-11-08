@@ -6,10 +6,10 @@
 
 Android resonance-breathing and HRV-biofeedback trainer. A pixel-art hot-air balloon rises when your heart rate swings in time with your breath, read beat by beat from a Bluetooth chest strap.
 
-Slow breathing at about six breaths a minute is a well-studied way to ease stress. The evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party code.
+Slow breathing at about six breaths a minute is a well-studied way to ease stress. The evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party libraries beyond the Kotlin standard library.
 
 - **Any strap with RR intervals.** Polar H10 or any Bluetooth LE strap exposing the standard Heart Rate Service with RR data.
-- **Android 12+**, portrait, Kotlin, no dependencies beyond the Android SDK. Unit tests cover the whole signal path and the scene renderer.
+- **Android 12+**, portrait, Kotlin, no libraries beyond the Android SDK and the Kotlin standard library. Unit tests cover the whole signal path and the scene renderer.
 - **Personal project.** Not a medical device; see [the disclaimer](#not-a-medical-device).
 
 <p align="center">
@@ -23,11 +23,11 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
 ## What a session looks like
 
 - **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
-- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is the peak-to-trough of a wave fitted over the last two breaths, which smooths out single fast or slow beats. Below the lift threshold of 1 the balloon stays on the ground; from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
+- **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is the peak-to-trough of a wave fitted over the last two breaths, which smooths out single fast or slow beats. With the default limits, below the lift threshold of 1 the balloon stays on the ground, and from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
-- **Ranks.** Tap a row to open its results card, which shows the mean rhythm (R², %) when it is available.
+- **Ranks.** Tap a row to open its results card; a training session's card shows the mean rhythm (R², %).
 - **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
-- **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
+- **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. They appear after one full breath of good signal, at the start and after a loss. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
 - **Signal loss.** Link down, no skin contact, no RR for over 4 s, a gap of over 3 s in the beats, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses statistics and cues; after a minute away the session ends.
 
 ## Quick start
@@ -37,7 +37,7 @@ Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet el
 1. Download `hrv-balloon-v1.3.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 6.0/min 15:00`, then tap **Start · 6.0/min** and breathe with the bar.
-4. Tap **Stop** or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
+4. Tap the screen to show **Stop**, then confirm **End**, or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
 
 ## Breathe gently
 
@@ -60,7 +60,7 @@ Settings → **Find my resonance rate (next session only)**. That session starts
 3. **Amplitude.** Each accepted RR interval used by the estimator becomes an instantaneous heart rate, 60000 / RR (ms), stamped at the interval's midpoint. The most recent two breath periods of accepted data are resampled at 4 Hz and fitted by least squares, trend and sinusoid together: HR(t) ≈ a + b·t + c·cos(2πft) + d·sin(2πft), where f is the pacer frequency. Swing P = 2·√(c² + d²), the fitted peak-to-trough. Rhythm is the share of detrended variance the sinusoid explains (R², 0–1); the phase relative to inhale start feeds the search's direction hint. The fit reruns approximately every 250 ms while the signal is usable. Fluctuations at other frequencies can lower rhythm and may also affect P over this finite window. Any heart-rate oscillation at the pacer rate counts, including spontaneous slow oscillations from the baroreflex loop near 0.1 Hz (Mayer waves), whether or not breathing drives it.
 4. **Lift.** `(P − threshold) / (ceiling − threshold)`, clamped to 0–1, times a rhythm gate that is 0 below R² 0.40 and full from 0.85. The balloon follows the target with a 1 s time constant. When the swing clears the lift threshold but rhythm falls below 0.55, the status line shows Steady until rhythm passes 0.65.
 5. **Forecast.** A Kalman filter tracks a heart-rate level plus one wave locked to the pacer cycle, stepped by pacer phase so it stays in step through rate changes, and is updated with every accepted beat. Its projection fills the trace from the line's end to the edge, joined to the line over 1 s.
-6. **Summary.** RMSSD (ms) from consecutive accepted beats only (the chain breaks at a rejection or signal loss), SDNN (ms) over accepted RR, mean HR, rejected share, and time with a live estimate. Sessions need 2 min of valid signal to be ranked. These are during-practice values, dominated by the paced breathing, and are not comparable with resting HRV norms.
+6. **Summary.** RMSSD (ms) from consecutive accepted beats only (the chain breaks at a rejection, a signal loss or a return to the app), SDNN (ms) over accepted RR, mean HR, the share of beats rejected by the filter or received while the signal was lost, and time with a live estimate. Sessions need 2 min of valid signal to be ranked. These are during-practice values, dominated by the paced breathing, and are not comparable with resting HRV norms.
 
 ### Swing versus RMSSD
 
