@@ -6,7 +6,7 @@
 
 Android resonance-breathing and HRV-biofeedback trainer. A pixel-art hot-air balloon rises when your heart rate swings in time with your breath, read beat by beat from a Bluetooth chest strap.
 
-Slow breathing at about six breaths a minute is a well-studied way to ease stress. The evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party libraries beyond the Kotlin standard library.
+Slow breathing at about six breaths a minute is a well-studied way to ease stress. The evidence, limits included, is [at the end](#why-resonance-breathing). HRV Balloon paces the breath with a visual bar and haptic cues, shows what the heart does with it, and turns the swing into lift. Fifteen minutes, one sunset, no account, no cloud, no third-party libraries beyond the Kotlin standard library.
 
 - **Any strap with RR intervals.** Polar H10 or any Bluetooth LE strap exposing the standard Heart Rate Service with RR data.
 - **Android 12+**, portrait, Kotlin, no libraries beyond the Android SDK and the Kotlin standard library. Unit tests cover the whole signal path and the scene renderer.
@@ -22,7 +22,7 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
 
 ## What a session looks like
 
-- **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. A short vibration marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
+- **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. Haptic cues follow it: a short pulse marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
 - **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is the peak-to-trough of a wave fitted over the last two breaths, which smooths out single fast or slow beats. With the default limits, below the lift threshold of 1 the balloon stays on the ground, and from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
 - **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
 - **Ranks.** Tap a row to open its results card; a training session's card shows the mean rhythm (R², %).
