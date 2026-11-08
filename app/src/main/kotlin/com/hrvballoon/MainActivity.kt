@@ -501,7 +501,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             if (summary.rfConverged && rfBest != null) settings.lastRfTenths = (rfBest * 10).toInt()
         }
         styleStart()
-        // An unfinished search records its best probe, never the rate it started from.
+        // An unfinished search records the model's best rate (from the third probe), else its best probe, else the start rate.
         val recordRate = if (!wasSearch) finalRate else rfBest ?: summary.rfProbes.maxByOrNull { it.second }?.first ?: settings.rateBpm
         SessionStore(this).append(
             SessionRecord(
