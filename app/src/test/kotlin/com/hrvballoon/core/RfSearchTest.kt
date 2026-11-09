@@ -1,6 +1,7 @@
 package com.hrvballoon.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,5 +49,16 @@ class RfSearchTest {
         }
         assertTrue(s.converged)
         assertEquals(6.0, s.best!!, 0.15)
+    }
+
+    @Test fun flatScoresNeverConvergeAndATieKeepsTheTopProbe() {
+        val s = RfSearch(6.0)
+        repeat(8) { s.report(s.next(phaseHint = 0.0), 5.0) }
+        assertFalse(s.converged)
+        assertEquals(6.0, s.best!!, 1e-9)   // equal scores: the best-scoring probe, the first, beats the edge of the grid
+        val n = RfSearch(6.0)
+        val rnd = Random(3)
+        repeat(8) { n.report(n.next(phaseHint = 0.0), 5.0 * (1 + 0.04 * rnd.nextGaussian())) }
+        assertFalse("differences within the measurement noise", n.converged)
     }
 }

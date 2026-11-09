@@ -22,7 +22,7 @@ class SessionEngineTest {
         s: SynthBeats, rate: Double = 5.5, durationMs: Long? = 300_000, stopAtMs: Long = Long.MAX_VALUE,
         suppress: (Long) -> Boolean = { false }, link: Map<Long, Boolean> = emptyMap(),
         contact: (Long) -> Contact = { Contact.DETECTED }, shapeGate: Boolean = true, rfSearch: Boolean = false,
-        lagMs: Long = 500,
+        lagMs: Long = 500, pause: LongRange? = null,
     ): Run {
         val out = ByteArrayOutputStream()
         val csv = SessionCsvWriter(out)
@@ -34,6 +34,8 @@ class SessionEngineTest {
         var t = 0L
         while (true) {
             link[t]?.let { engine.onLink(it, t) }
+            if (pause != null && t == pause.first) engine.pause(t)
+            if (pause != null && t == pause.last) engine.resume(t)
             while (bi < beats.size && beats[bi].arrivalMs <= t) {
                 engine.onPacket(beats[bi].arrivalMs, packet(beats[bi].rrMs, contact(beats[bi].arrivalMs)))
                 bi++
@@ -160,7 +162,8 @@ class SessionEngineTest {
         assertTrue("valid=${s.validMs}", s.validMs in 100_000..120_000)
         val rows = out.toString("UTF-8").lines().filter { it.startsWith("event,") }
         assertEquals(listOf("event,60000.0,,,,,,,,,pause", "event,100000.0,,,,,,,,,resume"), rows)
-        assertTrue(s.beats > 180)
+        assertTrue("summary beats=${s.beats}", s.beats in 150..170)   // the 40 s away stay out of the summary
+        assertTrue(out.toString("UTF-8").lines().count { it.startsWith("beat,") } > 190)   // but reach the CSV
     }
 
     @Test fun csvIntegrity() {
@@ -266,5 +269,31 @@ class SessionEngineTest {
         org.junit.Assert.assertNotNull(r.at(55_000).forecast)
         org.junit.Assert.assertNull(r.at(61_000).forecast)       // link down: the panel must not invent a heart rate
         org.junit.Assert.assertNotNull(r.at(110_000).forecast)   // back after a fresh breath
+    }
+
+    @Test fun searchFreezesOnceConverged() {
+        val r = run(synthBeats(60.0, 10.0, 5.5, 900.0), durationMs = 900_000, rfSearch = true)
+        val first = r.states.indexOfFirst { it.rfProbe?.converged == true }
+        assertTrue("never converged", first >= 0)
+        val after = r.states.drop(first)
+        assertTrue("converged status flipped back", after.all { it.rfProbe!!.converged })
+        val later = after.filter { it.tMs >= r.states[first].tMs + 60_000 }   // after the move to the found rate and one refill
+        assertTrue(later.isNotEmpty())
+        assertEquals(1, later.map { it.rateBpm }.distinct().size)
+        assertTrue("the swing estimate restarted after convergence", later.none { it.warmingUp })
+    }
+
+    @Test fun aSignalLossOrAReturnDiscardsTheProbesScores() {
+        // Probe 1 at 5.5 /min is scored from 32.7 s to 54.5 s.
+        val lost = run(clean, durationMs = 120_000, stopAtMs = 70_000, rfSearch = true, suppress = { it in 35_000L..60_000L })
+        assertEquals("scored from pre-loss data", 1, lost.at(56_000).rfProbe!!.index)
+        val away = run(clean, durationMs = 120_000, stopAtMs = 70_000, rfSearch = true, pause = 36_000L..58_000L)
+        assertEquals("scored from pre-pause data", 1, away.at(59_000).rfProbe!!.index)
+    }
+
+    @Test fun backgroundBeatsStayOutOfTheSummary() {
+        val base = run(clean, durationMs = 240_000)
+        val away = run(clean, durationMs = 240_000, pause = 60_000L..110_000L)
+        assertTrue("base=${base.summary.beats} away=${away.summary.beats}", away.summary.beats < base.summary.beats - 30)
     }
 }

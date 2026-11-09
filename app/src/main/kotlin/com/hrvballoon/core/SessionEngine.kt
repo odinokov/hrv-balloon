@@ -83,8 +83,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     }
 
     /**
-     * Away from the app: beats are still written to the CSV and still enter the beat-based summary (count, rejected share,
-     * mean HR, RMSSD, SDNN); the swing estimate, the time-based statistics and the resonance search pause until [resume].
+     * Away from the app: beats are still written to the CSV, but the summary, the swing estimate and the resonance search
+     * pause until [resume], which also discards the current probe's scores.
      */
     fun pause(nowMs: Long) {
         if (paused) return
@@ -100,6 +100,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         kalman.reset()
         estimate = null
         summary.breakChain()
+        probeScores.clear()
     }
 
     fun tick(nowMs: Long): UiState {
@@ -116,7 +117,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 shownP = it.p2tBpm
                 shownShape = it.shape
                 lastLeadDeg = wrapDeg(it.phaseDeg - phaseRef)
-                if (rf != null && t - probeStartMs >= 3 * pacer.periodMs(t)) probeScores += it.p2tBpm * it.shape
+                if (rf?.converged == false && t - probeStartMs >= 3 * pacer.periodMs(t)) probeScores += it.p2tBpm * it.shape
             }
         }
         lastTickMs = nowMs
@@ -147,19 +148,20 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     /**
      * One probe = 5 breath periods at a rate: period 1 is the physiological transient (then the window is cleared),
      * periods 2–3 refill the window, periods 4–5 are measured (median of P × rhythm, two breaths of independent data).
-     * Then the next rate is scheduled for the following inhale start. Once converged the pacer settles on the best rate.
+     * Then the next rate is scheduled for the following inhale start. A signal loss or a return to the app discards the
+     * probe's scores. Once converged the pacer moves to the best rate and the search stops.
      */
     private fun probe(search: RfSearch, t: Double, rate: Double) {
         val period = pacer.periodMs(t)
         val elapsed = t - probeStartMs
         if (!probeReset && elapsed >= period) { estimator.reset(); estimate = null; probeReset = true }
-        if (elapsed < 5 * period) return
+        if (search.converged || elapsed < 5 * period) return
         if (probeScores.isEmpty()) { probeStartMs = t; probeReset = false; return }
         search.report(rate, probeScores.sorted().let { it[it.size / 2] })
         probeScores.clear()
         val next = if (search.converged) search.best!! else search.next(phaseHint = if (lastLeadDeg > 10) 1.0 else if (lastLeadDeg < -10) -1.0 else 0.0)
         probeStartMs = if (next != rate) pacer.changeRate(next, t) else t
-        probeReset = false
+        probeReset = search.converged && next == rate   // staying at the rate: no transient to clear
         probeIndex++
     }
 
@@ -193,13 +195,14 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         kalman.reset()
         estimate = null
         summary.breakChain()
+        probeScores.clear()
     }
 
     /** Writes the row and feeds the summary; returns whether the beat may drive the metric. */
     private fun record(c: ClassifiedBeat, usable: Boolean = c.accepted && monitor.state == Signal.OK): Boolean {
         val b = c.beat
         val hrBpm = if (b.rrMs > 0) 60000 / b.rrMs else null
-        summary.addBeat(b.rrMs, usable)
+        if (!paused) summary.addBeat(b.rrMs, usable)
         csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg)
         return usable
     }

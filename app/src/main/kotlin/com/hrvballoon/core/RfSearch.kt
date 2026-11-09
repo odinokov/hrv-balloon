@@ -9,13 +9,16 @@ import kotlin.math.sqrt
  * Resonance-frequency search as 1-D Bayesian optimisation: a Gaussian process over breathing rates 4.0–7.0 /min
  * (RBF kernel, length 0.5 /min, ~15 % relative measurement noise) with an upper-confidence-bound acquisition.
  * Probe 1 is the current rate; probe 2 steps 0.7 /min in the direction the HR–pacer phase suggests; later probes
- * balance exploring unprobed rates against refining the best one. [best] is the posterior-mean argmax.
+ * balance exploring unprobed rates against refining the best one. [best] is the posterior-mean argmax when the fitted
+ * curve rises more than twice one probe's noise above its lowest point; without such a peak it is the top-scoring probe and
+ * the search cannot converge.
  */
 class RfSearch(private val startRate: Double) {
     private val rates = ArrayList<Double>()
     private val scores = ArrayList<Double>()
     private var lastBest: Double? = null
     private var stable = 0
+    private var peaked = false
 
     val probeCount get() = rates.size
 
@@ -25,7 +28,7 @@ class RfSearch(private val startRate: Double) {
     var best: Double? = null
         private set
 
-    val converged get() = rates.size >= 5 && stable >= 2
+    val converged get() = rates.size >= 5 && stable >= 2 && peaked
 
     /** [phaseHint] > 0 = HR leads the pacer (breathing slower than resonance), < 0 = lags, 0 = unknown. */
     fun next(phaseHint: Double): Double = when (rates.size) {
@@ -41,7 +44,9 @@ class RfSearch(private val startRate: Double) {
         rates += rateBpm
         scores += score
         if (rates.size < 3) return
-        val b = GRID.maxBy { posterior(it).first }
+        val mu = GRID.map { posterior(it).first }
+        peaked = mu.max() - mu.min() > 2 * NOISE_SD
+        val b = if (peaked) GRID[mu.indexOf(mu.max())] else rates[scores.indexOf(scores.max())]
         stable = if (lastBest != null && abs(b - lastBest!!) <= 0.1 + 1e-9) stable + 1 else 0
         lastBest = b
         best = b
@@ -69,6 +74,7 @@ class RfSearch(private val startRate: Double) {
     private companion object {
         val GRID = DoubleArray(31) { (40 + it) / 10.0 }
         const val LENGTH = 0.5
-        const val NOISE = 0.15 * 0.15
+        const val NOISE_SD = 0.15
+        const val NOISE = NOISE_SD * NOISE_SD
     }
 }
