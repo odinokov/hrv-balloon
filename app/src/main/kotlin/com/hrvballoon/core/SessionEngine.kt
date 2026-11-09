@@ -82,7 +82,10 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         monitor.onLink(connected, nowMs)?.let { transition(it, nowMs) }
     }
 
-    /** Away from the app: beats are still recorded, but nothing unpaced enters the statistics or the search. */
+    /**
+     * Away from the app: beats are still written to the CSV and still enter the beat-based summary (count, rejected share,
+     * mean HR, RMSSD, SDNN); the swing estimate, the time-based statistics and the resonance search pause until [resume].
+     */
     fun pause(nowMs: Long) {
         if (paused) return
         paused = true
