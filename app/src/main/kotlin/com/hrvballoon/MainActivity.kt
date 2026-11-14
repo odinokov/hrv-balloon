@@ -650,12 +650,13 @@ class MainActivity : Activity(), HrmClient.Listener {
                 "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\n" +
                 "Stars — Ranks compare the number of stars earned in each session. Sessions rank after 2 min of valid signal; " +
                 "equal star totals are ordered newest first.\n\n" +
-                "Search score — median of P × rhythm over the two measured breaths, used to compare breathing rates during a resonance search.\n\n" +
+                "Search score — median of P × rhythm over the six measured breaths of a probe, used to compare breathing rates during a resonance search.\n\n" +
                 "Breathe gently and comfortably; do not force deeper breaths to lift the balloon. Stop pacing if you feel dizzy or " +
                 "uncomfortable. The strap does not measure breathing depth or carbon dioxide.\n\n" +
                 "Find my resonance rate — a separate search mode that tries rates between 4 and 7 /min " +
-                "during one 15-min session (about 5 breaths each) and " +
-                "picks the one with the biggest, cleanest swing. It only reports a rate when its estimate has settled. The card shows the " +
+                "during one 15-min session (9 breaths each) and " +
+                "picks the one with the biggest, cleanest swing. It only reports a rate when its estimate has settled; with no clear peak " +
+                "it ends at the 5.5 /min default. The card shows the " +
                 "model's peak (the rate it would pick) next to the single best probe; they can differ by a step.",
         ).setPositiveButton("OK", null).show()
     }
