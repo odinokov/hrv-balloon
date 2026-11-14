@@ -31,6 +31,12 @@ class Settings(private val p: Prefs) {
         get() = p.getInt("ceilingBpm", 6)
         set(v) = p.put("ceilingBpm", v)
 
+    /** Step the lift threshold, keeping it 0 or more and at least [MIN_GAP] below the sky ceiling. */
+    fun stepFloor(delta: Int) { floorBpm = (floorBpm + delta).coerceIn(0, ceilingBpm - MIN_GAP) }
+
+    /** Step the sky ceiling, keeping it at most 40 and at least [MIN_GAP] above the lift threshold. */
+    fun stepCeiling(delta: Int) { ceilingBpm = (ceilingBpm + delta).coerceIn(floorBpm + MIN_GAP, 40) }
+
     /** Balloon smoothing time constant, tenths of a second. */
     var responseTenths: Int
         get() = p.getInt("responseTenths", 10)
@@ -81,4 +87,8 @@ class Settings(private val p: Prefs) {
     /** Sessions are a fixed 15 minutes: long enough for a resonance search, short enough to do daily. */
     val durationMs = 15 * 60_000L
     val durationLabel = "15"
+
+    private companion object {
+        const val MIN_GAP = 5
+    }
 }

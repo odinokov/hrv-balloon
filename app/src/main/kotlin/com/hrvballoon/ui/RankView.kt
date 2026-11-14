@@ -34,6 +34,8 @@ class RankView(context: Context) : View(context) {
     private val dst = Rect()
     private val paint = Paint().apply { isFilterBitmap = false; isAntiAlias = false; isDither = false }
 
+    override fun performClick() = super.performClick()
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         if (w == 0 || h == 0) return
         scale = maxOf(1, w / 160)

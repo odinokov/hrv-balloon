@@ -22,7 +22,6 @@ import android.os.VibratorManager
 import android.provider.Settings as SysSettings
 import android.view.Choreographer
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -33,7 +32,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ScrollView
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedCallback
@@ -58,9 +56,16 @@ import com.hrvballoon.core.sessionStatus
 import com.hrvballoon.core.starSlot
 import com.hrvballoon.core.stepRateTenths
 import com.hrvballoon.ui.BalloonView
+import com.hrvballoon.ui.Chrome.NAVY
+import com.hrvballoon.ui.Chrome.RED
+import com.hrvballoon.ui.Chrome.SLATE
+import com.hrvballoon.ui.Chrome.SLATE_TEXT
+import com.hrvballoon.ui.Chrome.YELLOW
 import com.hrvballoon.ui.Hud
 import com.hrvballoon.ui.MediaStoreCsv
 import com.hrvballoon.ui.PixelScene
+import com.hrvballoon.ui.SettingsWidgets
+import com.hrvballoon.ui.secondary
 import java.io.OutputStream
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -255,12 +260,6 @@ class MainActivity : Activity(), HrmClient.Listener {
     }
 
     /** Secondary buttons dim visibly when disabled. */
-    private fun Button.secondary() {
-        val states = arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf())
-        backgroundTintList = ColorStateList(states, intArrayOf(0xFF1E2C66.toInt(), 0xFF141C4A.toInt()))
-        setTextColor(ColorStateList(states, intArrayOf(PALE, SLATE_TEXT)))
-    }
-
     /** A stray tap can't end a session: Stop asks first (tap outside = keep going). */
     private fun confirmStop() {
         AlertDialog.Builder(this).setMessage("End the session?")
@@ -547,92 +546,32 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     /** One idiom throughout: section header, then rows of label-left / control-right (stepper, segmented choice, ON/OFF switch). */
     private fun showSettings() {
-        val dp = resources.displayMetrics.density
-        fun px(v: Int) = (v * dp).toInt()
-        val refreshers = ArrayList<() -> Unit>()
-        fun refresh() = refreshers.forEach { it() }
+        val ui = SettingsWidgets(this, main)
         var dialog: AlertDialog? = null
-
-        fun header(t: String) = TextView(this).apply {
-            text = up(t); textSize = 12f; setTextColor(YELLOW); letterSpacing = 0.12f; setPadding(0, px(16), 0, px(2))
-        }
-        fun row(label: String, control: View) = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = px(52)
-            if (control is Switch) control.contentDescription = label   // read as "<label>, switch, on", not "ON, on"
-            addView(TextView(this@MainActivity).apply { text = label; textSize = 15f }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(control, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-        }
-        fun small(label: String) = Button(this).apply { text = label; secondary(); minWidth = px(48); minimumWidth = px(48) }
-        /** Tap steps once; holding repeats every 120 ms after 400 ms. */
-        fun repeating(label: String, step: () -> Unit) = small(label).apply {
-            var repeat: Runnable? = null
-            setOnTouchListener { v, ev ->
-                when (ev.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        step(); refresh()
-                        repeat = object : Runnable { override fun run() { step(); refresh(); main.postDelayed(this, 120) } }
-                        main.postDelayed(repeat!!, 400)
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { repeat?.let { main.removeCallbacks(it) }; v.performClick() }
-                }
-                true
-            }
-        }
-        fun stepper(label: String, value: () -> String, onMinus: () -> Unit, onPlus: () -> Unit): View {
-            val v = TextView(this).apply { textSize = 16f; gravity = Gravity.CENTER; minWidth = px(76) }
-            refreshers += { v.text = value() }
-            return LinearLayout(this).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                addView(repeating("−", onMinus).apply { contentDescription = "$label, decrease" })
-                addView(v)
-                addView(repeating("+", onPlus).apply { contentDescription = "$label, increase" })
-            }
-        }
-        fun choice(options: List<String>, selected: () -> Int, onSelect: (Int) -> Unit): View {
-            val buttons = options.mapIndexed { i, o -> small(o).apply { minWidth = px(60); setOnClickListener { onSelect(i); refresh() } } }
-            refreshers += {
-                buttons.forEachIndexed { i, b ->
-                    val on = i == selected()
-                    b.backgroundTintList = ColorStateList.valueOf(if (on) YELLOW else 0xFF1E2C66.toInt())
-                    b.setTextColor(if (on) NAVY else PALE)
-                }
-            }
-            return LinearLayout(this).apply { buttons.forEach { addView(it) } }
-        }
-        fun onOff(initial: Boolean, onChange: (Boolean) -> Unit) = Switch(this).apply {
-            val checked = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-            thumbTintList = ColorStateList(checked, intArrayOf(YELLOW, 0xFF8AA0C0.toInt()))
-            trackTintList = ColorStateList(checked, intArrayOf(0xFF8A7420.toInt(), 0xFF3A4660.toInt()))
-            text = if (initial) "ON  " else "OFF  "
-            isChecked = initial
-            setOnCheckedChangeListener { _, v -> text = if (v) "ON  " else "OFF  "; onChange(v) }
-        }
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(px(20), 0, px(20), px(8))
-            addView(header("Breathing"))
-            addView(row("Rate, breaths/min", stepper("Rate", { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
+            setPadding(ui.px(20), 0, ui.px(20), ui.px(8))
+            addView(ui.header("Breathing"))
+            addView(ui.row("Rate, breaths/min", ui.stepper("Rate", { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
                 { settings.rateTenths = stepRateTenths(settings.rateTenths, -1) }, { settings.rateTenths = stepRateTenths(settings.rateTenths, 1) })))
             if (settings.lastRfTenths > 0) {
-                addView(row(String.format(Locale.ROOT, if (settings.lastRfNoPeak) "No clear peak: %.1f /min default" else "Resonance found: %.1f /min", settings.lastRfTenths / 10.0), small("Use").apply {
-                    setOnClickListener { settings.rateTenths = settings.lastRfTenths; refresh() }
+                addView(ui.row(String.format(Locale.ROOT, if (settings.lastRfNoPeak) "No clear peak: %.1f /min default" else "Resonance found: %.1f /min", settings.lastRfTenths / 10.0), ui.small("Use").apply {
+                    setOnClickListener { settings.rateTenths = settings.lastRfTenths; ui.refresh() }
                 }))
             }
-            addView(row("Inhale : exhale", choice(listOf("40:60", "50:50"), { if (settings.inhale5050) 1 else 0 }) { settings.inhale5050 = it == 1 }))
-            addView(header("Session"))
-            addView(row("Vibration cues", onOff(settings.vibrate) { settings.vibrate = it }))
-            addView(row("Find my resonance rate\n(next session only)", onOff(settings.rfSearch) { settings.rfSearch = it }))
-            addView(header("Balloon"))
-            addView(row("Lift threshold\n(heart-rate swing, beats/min)", stepper("Lift threshold", { "${settings.floorBpm}" },
-                { settings.floorBpm = (settings.floorBpm - 1).coerceIn(0, settings.ceilingBpm - 5) }, { settings.floorBpm = (settings.floorBpm + 1).coerceIn(0, settings.ceilingBpm - 5) })))
-            addView(row("Sky ceiling\n(heart-rate swing, beats/min)", stepper("Sky ceiling", { "${settings.ceilingBpm}" },
-                { settings.ceilingBpm = (settings.ceilingBpm - 1).coerceIn(settings.floorBpm + 5, 40) }, { settings.ceilingBpm = (settings.ceilingBpm + 1).coerceIn(settings.floorBpm + 5, 40) })))
-            addView(header("Data"))
-            addView(row("Save CSV to Download/HRV", onOff(settings.saveCsv) { settings.saveCsv = it }))
-            val forget = small("Forget").apply {
+            addView(ui.row("Inhale : exhale", ui.choice(listOf("40:60", "50:50"), { if (settings.inhale5050) 1 else 0 }) { settings.inhale5050 = it == 1 }))
+            addView(ui.header("Session"))
+            addView(ui.row("Vibration cues", ui.onOff(settings.vibrate) { settings.vibrate = it }))
+            addView(ui.row("Find my resonance rate\n(next session only)", ui.onOff(settings.rfSearch) { settings.rfSearch = it }))
+            addView(ui.header("Balloon"))
+            addView(ui.row("Lift threshold\n(heart-rate swing, beats/min)", ui.stepper("Lift threshold", { "${settings.floorBpm}" },
+                { settings.stepFloor(-1) }, { settings.stepFloor(1) })))
+            addView(ui.row("Sky ceiling\n(heart-rate swing, beats/min)", ui.stepper("Sky ceiling", { "${settings.ceilingBpm}" },
+                { settings.stepCeiling(-1) }, { settings.stepCeiling(1) })))
+            addView(ui.header("Data"))
+            addView(ui.row("Save CSV to Download/HRV", ui.onOff(settings.saveCsv) { settings.saveCsv = it }))
+            val forget = ui.small("Forget").apply {
                 isEnabled = settings.deviceAddress != null
                 setOnClickListener {
                     AlertDialog.Builder(this@MainActivity).setMessage("Forget ${settings.deviceName ?: "this strap"} and pair again?")
@@ -649,11 +588,11 @@ class MainActivity : Activity(), HrmClient.Listener {
                 }
             }
             // Rescan keeps the saved strap: picking another replaces it, Cancel leaves the link as it was.
-            val rescan = small("Rescan").apply { setOnClickListener { dialog?.dismiss(); pick() } }
-            addView(row(settings.deviceName ?: "No strap paired", LinearLayout(this@MainActivity).apply { addView(rescan); addView(forget) }))
-            addView(row("What the numbers mean", small("Help").apply { setOnClickListener { showHelp() } }))
+            val rescan = ui.small("Rescan").apply { setOnClickListener { dialog?.dismiss(); pick() } }
+            addView(ui.row(settings.deviceName ?: "No strap paired", LinearLayout(this@MainActivity).apply { addView(rescan); addView(forget) }))
+            addView(ui.row("What the numbers mean", ui.small("Help").apply { setOnClickListener { showHelp() } }))
         }
-        refresh()
+        ui.refresh()
         dialog = AlertDialog.Builder(this).setTitle("Settings")
             .setView(ScrollView(this).apply { addView(content) })
             .setPositiveButton("Done", null)
@@ -841,11 +780,5 @@ class MainActivity : Activity(), HrmClient.Listener {
         const val GRACE_MS = 60_000L
         const val CONTROLS_MS = 4_000L
         const val SCAN_TIMEOUT_MS = 20_000L
-        const val NAVY = 0xFF0B1030.toInt()
-        const val PALE = 0xFFDCE6F5.toInt()
-        const val YELLOW = 0xFFFFD83B.toInt()
-        const val RED = 0xFFD63A3A.toInt()
-        const val SLATE = 0xFF2E3A5C.toInt()
-        const val SLATE_TEXT = 0xFF6B7A99.toInt()
     }
 }

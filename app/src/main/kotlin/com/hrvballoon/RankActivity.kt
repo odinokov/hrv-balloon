@@ -49,9 +49,13 @@ class RankActivity : Activity() {
             hasUnranked = all.any { !it.ranked }
             lifetimeStars = settings.lifetimeStars
             blink = SysSettings.Global.getFloat(contentResolver, SysSettings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
-            setOnTouchListener { _, ev -> if (ev.actionMasked == MotionEvent.ACTION_UP) tap(ev.y); true }
-            // Accessibility click (TalkBack double-tap) has no coordinates: act on the card, or open your own session.
-            setOnClickListener { if (view.result != null) tap(0f) else if (pos >= 0) show(ranked[pos], pos) else finish() }
+            var touchY: Float? = null
+            setOnTouchListener { v, ev -> if (ev.actionMasked == MotionEvent.ACTION_UP) { touchY = ev.y; v.performClick() }; true }
+            // A touch clicks at its y; an accessibility click (TalkBack double-tap) has none: act on the card, or open your own session.
+            setOnClickListener {
+                val y = touchY.also { touchY = null }
+                if (y != null) tap(y) else if (view.result != null) tap(0f) else if (pos >= 0) show(ranked[pos], pos) else finish()
+            }
         }
         // After the assignment: show() reads `view`, which is still unset inside the apply block above.
         if (intent.getBooleanExtra(EXTRA_RESULT, false) && mine != null) show(mine, pos) else describe()
