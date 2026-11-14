@@ -26,6 +26,7 @@ class SessionRecord(
 
     val isSearch get() = kind != KIND_TRAINING
 
+    /** The version-1 positional line (old sessions.txt); kept to test the migration in [SessionHistory]. */
     fun toLine() = listOf(
         startMs, durationMs, f(rateBpm), meanP?.let(::f) ?: "", meanShape?.let(::f) ?: "", stars,
         meanHr?.let(::f) ?: "", rejectedPct?.let(::f) ?: "", validMs, rmssd?.let(::f) ?: "", sdnn?.let(::f) ?: "", beats, kind,

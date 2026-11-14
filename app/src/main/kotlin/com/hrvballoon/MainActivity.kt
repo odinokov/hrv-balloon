@@ -575,7 +575,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (wasSearch) settings.rfSearch = false
         outcome.offerTenths?.let { settings.lastRfTenths = it; settings.lastRfNoPeak = outcome.kind == SessionRecord.KIND_RF_NO_PEAK }
         styleStart()
-        SessionStore(this).append(
+        SessionStore(filesDir).append(
             SessionRecord(
                 startWall, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape,
                 summary.stars, summary.meanHr, summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats,

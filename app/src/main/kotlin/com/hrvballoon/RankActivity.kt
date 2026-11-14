@@ -36,7 +36,7 @@ class RankActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val all = SessionStore(this).load()
+        val all = SessionStore(filesDir).load()
         ranked = rankSessions(all)
         val start = intent.getLongExtra(EXTRA_START, -1)
         val mine = all.lastOrNull { it.startMs == start }
