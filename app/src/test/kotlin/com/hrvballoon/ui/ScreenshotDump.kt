@@ -17,7 +17,7 @@ class ScreenshotDump {
             out.write("P6\n$W $H\n255\n".toByteArray())
             for (p in px) out.write(byteArrayOf((p shr 16).toByte(), (p shr 8).toByte(), p.toByte()))
         }
-        val period = 10_000.0   // 6.0 breaths/min
+        val period = 60_000 / 5.5   // the default 5.5 breaths/min, inhale 50:50
         // Confirmed beats stop ~3 s before now (filter and notification lag), as on a phone; the real filter forecasts the rest.
         fun trace(nowMs: Long, mean: Double, swing: Double): Triple<DoubleArray, DoubleArray, (Double) -> Double> {
             val t = DoubleArray(34) { nowMs - 32_600.0 + it * 900 }
@@ -34,8 +34,8 @@ class ScreenshotDump {
             scene.render(
                 SceneState(
                     0.82, true, 0.7, true, true, false, 12_345, stars = 24, falling = listOf(11_900),
-                    traceT = t1, traceHr = hr1, traceNowMs = 450_000, pacerPeriodMs = period, progress = 0.5, forecast = f1,
-                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 68, 6.0, "07:30"),
+                    traceT = t1, traceHr = hr1, traceNowMs = 450_000, pacerPeriodMs = period, inhaleFraction = 0.5, progress = 0.5, forecast = f1,
+                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 68, 5.5, "07:30"),
                 ),
             ),
         )
@@ -45,8 +45,8 @@ class ScreenshotDump {
             scene.render(
                 SceneState(
                     0.38, false, 0.25, false, true, false, 98_765, stars = 31,
-                    traceT = t2, traceHr = hr2, traceNowMs = 828_000, pacerPeriodMs = period, progress = 0.92, forecast = f2,
-                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 63, 6.0, "01:12"),
+                    traceT = t2, traceHr = hr2, traceNowMs = 828_000, pacerPeriodMs = period, inhaleFraction = 0.5, progress = 0.92, forecast = f2,
+                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 63, 5.5, "01:12"),
                 ),
             ),
         )
@@ -54,7 +54,7 @@ class ScreenshotDump {
         val at = Instant.parse("2026-10-31T07:30:00Z").toEpochMilli()
         val records = rankSessions(
             listOf(31 to 13.4, 24 to 12.1, 36 to 14.0, 18 to 10.2, 27 to 12.6, 22 to 11.3).mapIndexed { i, (stars, p) ->
-                SessionRecord(at - i * day, 900_000, 6.0, p, 0.84 - i * 0.01, stars, 64.0 + i, 0.6 + i * 0.2, 880_000, 46.0 + i, 58.0 + i, 965 + i * 7)
+                SessionRecord(at - i * day, 900_000, 5.5, p, 0.84 - i * 0.01, stars, 64.0 + i, 0.6 + i * 0.2, 880_000, 46.0 + i, 58.0 + i, 965 + i * 7)
             },
         )
         val ranks = RankScene(W, H, TestText.scene)

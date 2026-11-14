@@ -117,6 +117,7 @@ Layout:
 - `core/` (Gradle module `:core`, plain Kotlin on the JVM) signal path and session logic: packet parsing, beat timeline, artifact filter, amplitude estimator, pacer, resonance search, session engine and outcome, trace forecast, summary, CSV. It cannot use Android APIs, and its tests run without Android.
 - `app/src/main/kotlin/com/hrvballoon/ble` Heart Rate Service client.
 - `app/src/main/kotlin/com/hrvballoon/ui` pixel scene, HUD font, balloon view, ranks.
+- `app/src/main/res/values/strings.xml` every text the app shows; a translation goes in `values-xx/strings.xml` with the same names. Strings named `scene_*` and `hud_*` are drawn in the pixel font, which has only A–Z, digits, space and `# . - % : > / + * ^`; a unit test rejects any other character.
 - `scripts/make_icon.py` generates the adaptive launcher icon from a pixel map.
 
 The README frames are rendered by the scene itself:
