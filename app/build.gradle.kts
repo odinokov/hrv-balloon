@@ -1,5 +1,12 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
+}
+
+// Upload-key settings for Play builds, kept out of git: storeFile (relative to app/), storePassword, keyAlias, keyPassword.
+val keystoreProps = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -12,6 +19,28 @@ android {
         targetSdk = 36
         versionCode = 6
         versionName = "2.0-alpha"
+    }
+
+    signingConfigs {
+        if (!keystoreProps.isEmpty) create("upload") {
+            storeFile = file(keystoreProps.getProperty("storeFile"))
+            storePassword = keystoreProps.getProperty("storePassword")
+            keyAlias = keystoreProps.getProperty("keyAlias")
+            keyPassword = keystoreProps.getProperty("keyPassword")
+        }
+    }
+
+    buildTypes {
+        // Play bundle: signed with the upload key when keystore.properties exists, unsigned otherwise. No R8: no libraries to shrink.
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("upload")
+        }
+        // GitHub APK: the release build signed with the debug key every earlier GitHub APK used, so installs update in place.
+        create("sideload") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {
