@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
+import com.hrvballoon.R
 import java.util.Locale
 
 /**
@@ -61,9 +62,9 @@ class SettingsWidgets(private val context: Context, private val main: Handler) {
         refreshers += { v.text = value() }
         return LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            addView(repeating("−", onMinus).apply { contentDescription = "$label, decrease" })
+            addView(repeating("−", onMinus).apply { contentDescription = context.getString(R.string.a11y_decrease, label) })
             addView(v)
-            addView(repeating("+", onPlus).apply { contentDescription = "$label, increase" })
+            addView(repeating("+", onPlus).apply { contentDescription = context.getString(R.string.a11y_increase, label) })
         }
     }
 
@@ -83,8 +84,8 @@ class SettingsWidgets(private val context: Context, private val main: Handler) {
         val checked = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
         thumbTintList = ColorStateList(checked, intArrayOf(Chrome.YELLOW, 0xFF8AA0C0.toInt()))
         trackTintList = ColorStateList(checked, intArrayOf(0xFF8A7420.toInt(), 0xFF3A4660.toInt()))
-        text = if (initial) "ON  " else "OFF  "
+        text = context.getString(if (initial) R.string.switch_on else R.string.switch_off)
         isChecked = initial
-        setOnCheckedChangeListener { _, v -> text = if (v) "ON  " else "OFF  "; onChange(v) }
+        setOnCheckedChangeListener { _, v -> text = context.getString(if (v) R.string.switch_on else R.string.switch_off); onChange(v) }
     }
 }

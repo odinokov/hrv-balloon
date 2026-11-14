@@ -131,9 +131,9 @@ class MainActivity : Activity(), HrmClient.Listener {
     }
 
     private fun showCrash(report: String) {
-        AlertDialog.Builder(this).setTitle("Last run crashed").setMessage(report.lines().take(12).joinToString("\n"))
-            .setPositiveButton("Copy") { _, _ -> (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("crash", report)) }
-            .setNegativeButton("Dismiss", null).show()
+        AlertDialog.Builder(this).setTitle(R.string.crash_title).setMessage(report.lines().take(12).joinToString("\n"))
+            .setPositiveButton(R.string.copy) { _, _ -> (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("crash", report)) }
+            .setNegativeButton(R.string.dismiss, null).show()
     }
 
     override fun onStart() {
@@ -146,7 +146,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             it.resume(sessionNow())
         }
         pendingResult?.let {
-            Toast.makeText(this, "Session ended while you were away", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.ended_while_away, Toast.LENGTH_LONG).show()
             openRanks(it, result = true)
             pendingResult = null
         }
@@ -214,17 +214,17 @@ class MainActivity : Activity(), HrmClient.Listener {
         val dp = resources.displayMetrics.density
         fun px(v: Int) = (v * dp).toInt()
         balloon = BalloonView(this).apply {
-            contentDescription = "Breathing scene"
+            contentDescription = getString(R.string.a11y_scene)
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
             onTap = { yf -> if (engine != null) showControls() else if (yf < 0.12f) onStripTap() }
         }
         startStop = Button(this).apply {
-            text = "Start"; isEnabled = false
+            setText(R.string.start); isEnabled = false
             setOnClickListener { if (engine == null) startSession() else confirmStop() }
         }
         styleStart()
-        ranksButton = Button(this).apply { text = "Ranks"; secondary(); setOnClickListener { openRanks(-1, result = false) } }
-        settingsButton = Button(this).apply { text = "Settings"; secondary(); setOnClickListener { showSettings() } }
+        ranksButton = Button(this).apply { setText(R.string.ranks); secondary(); setOnClickListener { openRanks(-1, result = false) } }
+        settingsButton = Button(this).apply { setText(R.string.settings); secondary(); setOnClickListener { showSettings() } }
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(px(16), px(8), px(16), px(12))
@@ -258,15 +258,15 @@ class MainActivity : Activity(), HrmClient.Listener {
             intArrayOf(if (running) RED else YELLOW, SLATE),
         )
         startStop.setTextColor(if (running) 0xFFFFFFFF.toInt() else if (startStop.isEnabled) NAVY else SLATE_TEXT)
-        if (!running) startStop.text = if (settings.rfSearch) "Find my rate" else String.format(Locale.ROOT, "Start · %.1f/min", settings.rateBpm)
+        if (!running) startStop.text = if (settings.rfSearch) getString(R.string.find_my_rate) else fmt(R.string.start_at, settings.rateBpm)
     }
 
     /** Secondary buttons dim visibly when disabled. */
     /** A stray tap can't end a session: Stop asks first (tap outside = keep going). */
     private fun confirmStop() {
-        AlertDialog.Builder(this).setMessage("End the session?")
-            .setPositiveButton("End") { _, _ -> stopSession(cue = true) }
-            .setNegativeButton("Keep going", null).show()
+        AlertDialog.Builder(this).setMessage(R.string.end_session_q)
+            .setPositiveButton(R.string.end) { _, _ -> stopSession(cue = true) }
+            .setNegativeButton(R.string.keep_going, null).show()
     }
 
     /** During a session the button row is hidden; a tap on the scene reveals Stop for a few seconds. */
@@ -296,15 +296,15 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (startStop.isEnabled != enabled) { startStop.isEnabled = enabled; styleStart() }
         if (engine == null) {
             val status = when (link) {
-                Link.NO_PERMISSION -> "Allow Bluetooth / tap here"
-                Link.BT_OFF -> "Bluetooth off / tap to enable"
-                Link.NO_DEVICE -> "Pair your strap / tap here"
-                Link.SCANNING -> "Looking for your strap"
-                Link.CONNECTING -> "Connecting / wear your strap"
+                Link.NO_PERMISSION -> getString(R.string.hud_allow_bt)
+                Link.BT_OFF -> getString(R.string.hud_bt_off)
+                Link.NO_DEVICE -> getString(R.string.hud_pair)
+                Link.SCANNING -> getString(R.string.hud_looking)
+                Link.CONNECTING -> getString(R.string.hud_connecting)
                 Link.CONNECTED -> when {
-                    neverRr -> "Check your strap / tap here"
-                    !rrFresh -> "Waiting for your strap"
-                    else -> "Ready"
+                    neverRr -> getString(R.string.hud_check_strap)
+                    !rrFresh -> getString(R.string.hud_waiting)
+                    else -> getString(R.string.hud_ready)
                 }
             }
             balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(settings.durationMs)) else Hud(dot, status)
@@ -339,21 +339,21 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (!frozen) target = s.balloonTarget
         balloon.frozen = frozen
         val lost = when (s.lostReason) {
-            LostReason.LINK -> listOf("STRAP DISCONNECTED", "RECONNECTING")
-            LostReason.CONTACT -> listOf("NO SKIN CONTACT", "WET THE ELECTRODES")
-            LostReason.STALE -> listOf("NO BEATS ARRIVING", "CHECK THE STRAP")
-            LostReason.GAP -> listOf("BEATS MISSING", "RECONNECTING")
-            LostReason.REJECTS -> listOf("BEATS IRREGULAR", "SIT STILL")
+            LostReason.LINK -> listOf(R.string.hud_lost_link, R.string.hud_lost_reconnecting)
+            LostReason.CONTACT -> listOf(R.string.hud_lost_contact, R.string.hud_lost_wet)
+            LostReason.STALE -> listOf(R.string.hud_lost_stale, R.string.hud_lost_check)
+            LostReason.GAP -> listOf(R.string.hud_lost_gap, R.string.hud_lost_reconnecting)
+            LostReason.REJECTS -> listOf(R.string.hud_lost_rejects, R.string.hud_lost_sit_still)
             null -> emptyList()
-        }
+        }.map { getString(it) }
         steady = settings.shapeGate && !s.warmingUp &&
             rhythmLimited(s.p2tBpm, s.shape, settings.floorBpm.toDouble(), steady)
         val status = when (sessionStatus(s, steady)) {
-            SessionStatus.DONE -> "Done"
-            SessionStatus.NO_SIGNAL -> "No signal"
-            SessionStatus.SEARCH -> "Search"
-            SessionStatus.SETTLING -> "Settling"
-            SessionStatus.STEADY -> "Steady"
+            SessionStatus.DONE -> getString(R.string.hud_done)
+            SessionStatus.NO_SIGNAL -> getString(R.string.hud_no_signal)
+            SessionStatus.SEARCH -> getString(R.string.hud_search)
+            SessionStatus.SETTLING -> getString(R.string.hud_settling)
+            SessionStatus.STEADY -> getString(R.string.hud_steady)
             SessionStatus.NONE -> ""
         }
         balloon.hud = Hud.session(sceneText, hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
@@ -419,6 +419,9 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private fun sessionNow() = SystemClock.elapsedRealtime() - startElapsed
 
+    /** Visible text with numbers: Locale.ROOT, like the pixel HUD, so decimals look the same everywhere. */
+    private fun fmt(id: Int, vararg args: Any?) = String.format(Locale.ROOT, getString(id), *args)
+
     private fun mmss(ms: Long) = String.format(Locale.ROOT, "%02d:%02d", ms / 60_000, ms / 1000 % 60)
 
     private fun earnStar(now: Long) {
@@ -426,7 +429,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         settings.lifetimeStars++
         falling += now
         balloon.stars = starCounter.count
-        balloon.announceForAccessibility("Star")
+        balloon.announceForAccessibility(getString(R.string.a11y_star))
         // Triple tap: unlike the single inhale cue and the double exhale cue.
         if (settings.vibrate) vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 20, 40, 20, 40, 20), -1))
     }
@@ -443,7 +446,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         settings.rateTenths = (rate * 10).roundToInt()
         styleStart()
         renderStatus()
-        Toast.makeText(this, String.format(Locale.ROOT, "Breathing rate set to %.1f /min", settings.rateBpm), Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, fmt(R.string.rate_set, settings.rateBpm), Toast.LENGTH_SHORT).show()
     }
 
     private fun startSession() {
@@ -452,8 +455,8 @@ class MainActivity : Activity(), HrmClient.Listener {
         val csv = if (!settings.saveCsv) SessionCsvWriter(NULL_STREAM) else try {
             SessionCsvWriter(MediaStoreCsv.open(this, csvName))
         } catch (e: Exception) {
-            AlertDialog.Builder(this).setMessage("Cannot create the CSV file in Download/HRV. Check storage space, or switch Save CSV off.")
-                .setPositiveButton("OK", null).show()
+            AlertDialog.Builder(this).setMessage(R.string.csv_failed)
+                .setPositiveButton(R.string.ok, null).show()
             return
         }
         val version = packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
@@ -492,7 +495,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         balloon.progress = 0.0   // a new session starts at golden hour
         balloon.running = true
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        startStop.text = "Stop"
+        startStop.setText(R.string.stop)
         styleStart()
         ranksButton.visibility = View.GONE
         settingsButton.visibility = View.GONE
@@ -530,7 +533,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 summary.rfProbes,
             ),
         )
-        if (csvName.isNotEmpty()) Toast.makeText(this, "CSV saved: Download/HRV/$csvName", Toast.LENGTH_LONG).show()
+        if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()
         main.postDelayed(landing, if (foreground) LANDING_MS else 0)
     }
 
@@ -554,30 +557,30 @@ class MainActivity : Activity(), HrmClient.Listener {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(ui.px(20), 0, ui.px(20), ui.px(8))
-            addView(ui.header("Breathing"))
-            addView(ui.row("Rate, breaths/min", ui.stepper("Rate", { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
+            addView(ui.header(getString(R.string.settings_breathing)))
+            addView(ui.row(getString(R.string.settings_rate), ui.stepper(getString(R.string.settings_rate_short), { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
                 { settings.rateTenths = stepRateTenths(settings.rateTenths, -1) }, { settings.rateTenths = stepRateTenths(settings.rateTenths, 1) })))
             if (settings.lastRfTenths > 0) {
-                addView(ui.row(String.format(Locale.ROOT, if (settings.lastRfNoPeak) "No clear peak: %.1f /min default" else "Resonance found: %.1f /min", settings.lastRfTenths / 10.0), ui.small("Use").apply {
+                addView(ui.row(fmt(if (settings.lastRfNoPeak) R.string.settings_no_peak else R.string.settings_resonance_found, settings.lastRfTenths / 10.0), ui.small(getString(R.string.use)).apply {
                     setOnClickListener { settings.rateTenths = settings.lastRfTenths; ui.refresh() }
                 }))
             }
-            addView(ui.row("Inhale : exhale", ui.choice(listOf("40:60", "50:50"), { if (settings.inhale5050) 1 else 0 }) { settings.inhale5050 = it == 1 }))
-            addView(ui.header("Session"))
-            addView(ui.row("Vibration cues", ui.onOff(settings.vibrate) { settings.vibrate = it }))
-            addView(ui.row("Find my resonance rate\n(next session only)", ui.onOff(settings.rfSearch) { settings.rfSearch = it }))
-            addView(ui.header("Balloon"))
-            addView(ui.row("Lift threshold\n(heart-rate swing, beats/min)", ui.stepper("Lift threshold", { "${settings.floorBpm}" },
+            addView(ui.row(getString(R.string.settings_inhale_exhale), ui.choice(listOf("40:60", "50:50"), { if (settings.inhale5050) 1 else 0 }) { settings.inhale5050 = it == 1 }))
+            addView(ui.header(getString(R.string.settings_session)))
+            addView(ui.row(getString(R.string.settings_vibration), ui.onOff(settings.vibrate) { settings.vibrate = it }))
+            addView(ui.row(getString(R.string.settings_find_rate), ui.onOff(settings.rfSearch) { settings.rfSearch = it }))
+            addView(ui.header(getString(R.string.settings_balloon)))
+            addView(ui.row(getString(R.string.settings_lift), ui.stepper(getString(R.string.settings_lift_short), { "${settings.floorBpm}" },
                 { settings.stepFloor(-1) }, { settings.stepFloor(1) })))
-            addView(ui.row("Sky ceiling\n(heart-rate swing, beats/min)", ui.stepper("Sky ceiling", { "${settings.ceilingBpm}" },
+            addView(ui.row(getString(R.string.settings_ceiling), ui.stepper(getString(R.string.settings_ceiling_short), { "${settings.ceilingBpm}" },
                 { settings.stepCeiling(-1) }, { settings.stepCeiling(1) })))
-            addView(ui.header("Data"))
-            addView(ui.row("Save CSV to Download/HRV", ui.onOff(settings.saveCsv) { settings.saveCsv = it }))
-            val forget = ui.small("Forget").apply {
+            addView(ui.header(getString(R.string.settings_data)))
+            addView(ui.row(getString(R.string.settings_save_csv), ui.onOff(settings.saveCsv) { settings.saveCsv = it }))
+            val forget = ui.small(getString(R.string.forget)).apply {
                 isEnabled = settings.deviceAddress != null
                 setOnClickListener {
-                    AlertDialog.Builder(this@MainActivity).setMessage("Forget ${settings.deviceName ?: "this strap"} and pair again?")
-                        .setPositiveButton("Forget") { _, _ ->
+                    AlertDialog.Builder(this@MainActivity).setMessage(getString(R.string.forget_q, settings.deviceName ?: getString(R.string.this_strap)))
+                        .setPositiveButton(R.string.forget) { _, _ ->
                             dialog?.dismiss()
                             settings.deviceAddress = null
                             settings.deviceName = null
@@ -586,41 +589,24 @@ class MainActivity : Activity(), HrmClient.Listener {
                             link = Link.NO_DEVICE
                             pick()
                         }
-                        .setNegativeButton("Cancel", null).show()
+                        .setNegativeButton(R.string.cancel, null).show()
                 }
             }
             // Rescan keeps the saved strap: picking another replaces it, Cancel leaves the link as it was.
-            val rescan = ui.small("Rescan").apply { setOnClickListener { dialog?.dismiss(); pick() } }
-            addView(ui.row(settings.deviceName ?: "No strap paired", LinearLayout(this@MainActivity).apply { addView(rescan); addView(forget) }))
-            addView(ui.row("What the numbers mean", ui.small("Help").apply { setOnClickListener { showHelp() } }))
+            val rescan = ui.small(getString(R.string.rescan)).apply { setOnClickListener { dialog?.dismiss(); pick() } }
+            addView(ui.row(settings.deviceName ?: getString(R.string.no_strap), LinearLayout(this@MainActivity).apply { addView(rescan); addView(forget) }))
+            addView(ui.row(getString(R.string.help_title), ui.small(getString(R.string.help)).apply { setOnClickListener { showHelp() } }))
         }
         ui.refresh()
-        dialog = AlertDialog.Builder(this).setTitle("Settings")
+        dialog = AlertDialog.Builder(this).setTitle(R.string.settings)
             .setView(ScrollView(this).apply { addView(content) })
-            .setPositiveButton("Done", null)
+            .setPositiveButton(R.string.done, null)
             .setOnDismissListener { styleStart(); renderStatus() }   // Back and a tap outside change settings too
             .show()
     }
 
     private fun showHelp() {
-        AlertDialog.Builder(this).setTitle("What the numbers mean").setMessage(
-            "P — how far your heart rate swings within one breath, peak minus trough, in beats per minute. A breath that takes you " +
-                "from 62 to 71 beats/min is a swing of 9. The resonance-breathing signal itself.\n\n" +
-                "Rhythm — how much of that swing is a clean sine at the pacer's rate (0–100 %). Depth without rhythm earns little lift.\n\n" +
-                "Steady — the swing is there, but it does not follow the pacer. Breathe with the bar, at the same speed, with no pauses. Do not breathe deeper.\n\n" +
-                "Lift — P between the lift threshold and the sky ceiling, scaled by rhythm. A star falls for each 10 s that the balloon stays at the ceiling. Stars come only from a live estimate.\n\n" +
-                "Trace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\n" +
-                "Stars — Ranks compare the number of stars earned in each session. Sessions rank after 2 min of valid signal; " +
-                "equal star totals are ordered newest first.\n\n" +
-                "Search score — median of P × rhythm over the six measured breaths of a probe, used to compare breathing rates during a resonance search.\n\n" +
-                "Breathe gently and comfortably; do not force deeper breaths to lift the balloon. Stop pacing if you feel dizzy or " +
-                "uncomfortable. The strap does not measure breathing depth or carbon dioxide.\n\n" +
-                "Find my resonance rate — a separate search mode that tries rates between 4 and 7 /min " +
-                "during one 15-min session (9 breaths each) and " +
-                "picks the one with the biggest, cleanest swing. It only reports a rate when its estimate has settled; with no clear peak " +
-                "it ends at the 5.5 /min default. The card shows the " +
-                "model's peak (the rate it would pick) next to the single best probe; they can differ by a step.",
-        ).setPositiveButton("OK", null).show()
+        AlertDialog.Builder(this).setTitle(R.string.help_title).setMessage(R.string.help_text).setPositiveButton(R.string.ok, null).show()
     }
 
     // ---- connection ----
@@ -633,12 +619,12 @@ class MainActivity : Activity(), HrmClient.Listener {
         renderStatus()
         val permanent = !shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_SCAN)
         AlertDialog.Builder(this)
-            .setMessage(if (permanent) "Bluetooth permission was denied. Allow \"Nearby devices\" in the app settings." else "Bluetooth permission is required to read the strap.")
-            .setPositiveButton(if (permanent) "Open settings" else "Retry") { _, _ ->
+            .setMessage(if (permanent) R.string.perm_denied else R.string.perm_required)
+            .setPositiveButton(if (permanent) R.string.open_settings else R.string.retry) { _, _ ->
                 if (permanent) startActivity(Intent(SysSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
                 else requestPermissions(PERMS, REQ_PERMS)
             }
-            .setNegativeButton("Cancel", null).show()
+            .setNegativeButton(R.string.cancel, null).show()
     }
 
     @Deprecated("Deprecated in Java")
@@ -694,12 +680,11 @@ class MainActivity : Activity(), HrmClient.Listener {
             connectTo(address)
         }
         val timeout = Runnable {
-            if (devices.isEmpty()) hint.text = "No strap found. Wear it and wet the electrodes. A strap that is connected to another app or phone " +
-                "(the old HRV app, a watch) does not advertise: disconnect it there first, then Rescan."
+            if (devices.isEmpty()) hint.setText(R.string.scan_none)
         }
         var lastScan = 0L
         fun scan() {
-            hint.text = "Scanning… wear the strap and wet the electrodes."
+            hint.setText(R.string.scanning)
             main.removeCallbacks(timeout)
             main.postDelayed(timeout, SCAN_TIMEOUT_MS)
             // Android refuses more than five scan starts in 30 s; a quick second tap just keeps the running scan.
@@ -713,10 +698,10 @@ class MainActivity : Activity(), HrmClient.Listener {
         link = Link.SCANNING
         renderStatus()
         dialog = AlertDialog.Builder(this)
-            .setTitle("Pick heart-rate strap")
+            .setTitle(R.string.pick_title)
             .setView(LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(hint); addView(list) })
-            .setNeutralButton("Rescan", null)
-            .setNegativeButton("Cancel", null)
+            .setNeutralButton(R.string.rescan, null)
+            .setNegativeButton(R.string.cancel, null)
             .setOnDismissListener {
                 client.stopScan()
                 main.removeCallbacks(timeout)
@@ -737,16 +722,16 @@ class MainActivity : Activity(), HrmClient.Listener {
     override fun onScanResult(address: String, name: String?) {
         if (address in devices) return
         devices[address] = name
-        scanAdapter?.add("${name ?: "unnamed strap"}\n$address")
-        scanHint?.text = "Tap your strap:"
+        scanAdapter?.add("${name ?: getString(R.string.unnamed_strap)}\n$address")
+        scanHint?.setText(R.string.tap_your_strap)
     }
 
     override fun onScanProgress(seen: Int) {
-        if (devices.isEmpty()) scanHint?.text = "Scanning… $seen Bluetooth device${if (seen == 1) "" else "s"} nearby, no heart-rate strap yet. Wear it and wet the electrodes."
+        if (devices.isEmpty()) scanHint?.text = resources.getQuantityString(R.plurals.scanning_seen, seen, seen)
     }
 
     override fun onScanFailed(code: Int) {
-        scanHint?.text = "Scan failed (code $code). Turn Bluetooth off and on again, then Rescan."
+        scanHint?.text = getString(R.string.scan_failed, code)
     }
 
     override fun onBle(note: String) {

@@ -71,7 +71,6 @@
     <string name="a11y_session_done">Session done. %1$s, %2$s. %3$s.%4$s Double-tap for the table.</string>
     <string name="a11y_rank">number %1$d of %2$d by stars</string>
     <string name="a11y_not_ranked">not ranked</string>
-    <string name="a11y_rhythm">" Rhythm %d percent."</string>
 
     <!-- Drawn in the pixel font (HUD, ranks, results card): uppercase A-Z, digits, space and # . - % : > / + * ^ only.
          The app uppercases the hud_ lines; SceneTextTest fails on any other character. Numbers are formatted with Locale.ROOT. -->
@@ -147,5 +146,9 @@
     <plurals name="a11y_lifetime">
         <item quantity="one">%d lifetime star</item>
         <item quantity="other">%d lifetime stars</item>
+    </plurals>
+    <plurals name="a11y_rhythm">
+        <item quantity="one">" Rhythm %d percent."</item>
+        <item quantity="other">" Rhythm %d percent."</item>
     </plurals>
 </resources>

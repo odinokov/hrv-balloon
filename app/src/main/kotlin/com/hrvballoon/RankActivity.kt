@@ -88,18 +88,20 @@ class RankActivity : Activity() {
     private fun describe() {
         val r = view.result
         view.contentDescription = when {
-            r == null && ranked.isEmpty() -> "No ranked sessions yet"
-            r == null -> "Best sessions. " + ranked.take(7).mapIndexed { i, s ->
-                String.format(Locale.ROOT, "%d: %d stars", i + 1, s.stars)
-            }.joinToString(". ") + ". Double-tap to open your session."
-            r.kind == SessionRecord.KIND_RF_SEARCH -> String.format(Locale.ROOT, "Resonance search done: %.1f per minute. Double-tap to use it, Back to skip.", r.rateBpm)
-            r.kind == SessionRecord.KIND_RF_NO_PEAK -> String.format(Locale.ROOT, "Resonance search found no clear peak; the default is %.1f per minute. %s", r.rateBpm,
-                if (view.offer) "Double-tap to use it, Back to skip." else "Double-tap for the table.")
-            r.isSearch -> "Resonance search incomplete, ${r.probes.size} probes. Double-tap for the table."
-            else -> String.format(
-                Locale.ROOT, "Session done. %d stars, %s. %d lifetime stars.%s Double-tap for the table.",
-                r.stars, if (view.rankPos > 0) "number ${view.rankPos} of ${ranked.size} by stars" else "not ranked", view.lifetimeStars,
-                r.meanShape?.let { String.format(Locale.ROOT, " Rhythm %d percent.", (it * 100).roundToInt()) } ?: "",
+            r == null && ranked.isEmpty() -> getString(R.string.a11y_no_ranked)
+            r == null -> getString(R.string.a11y_best, ranked.take(7).mapIndexed { i, s ->
+                resources.getQuantityString(R.plurals.a11y_rank_item, s.stars, i + 1, s.stars)
+            }.joinToString(". "))
+            r.kind == SessionRecord.KIND_RF_SEARCH -> getString(R.string.a11y_rf_done, r.rateBpm)
+            r.kind == SessionRecord.KIND_RF_NO_PEAK ->
+                getString(R.string.a11y_rf_no_peak, r.rateBpm, getString(if (view.offer) R.string.a11y_use_or_skip else R.string.a11y_for_table))
+            r.isSearch -> resources.getQuantityString(R.plurals.a11y_rf_incomplete, r.probes.size, r.probes.size)
+            else -> getString(
+                R.string.a11y_session_done,
+                resources.getQuantityString(R.plurals.a11y_stars, r.stars, r.stars),
+                if (view.rankPos > 0) getString(R.string.a11y_rank, view.rankPos, ranked.size) else getString(R.string.a11y_not_ranked),
+                resources.getQuantityString(R.plurals.a11y_lifetime, view.lifetimeStars, view.lifetimeStars),
+                r.meanShape?.let { (it * 100).roundToInt().let { pct -> resources.getQuantityString(R.plurals.a11y_rhythm, pct, pct) } } ?: "",
             )
         }
     }
