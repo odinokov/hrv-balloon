@@ -92,4 +92,13 @@ class RfSearchTest {
         assertEquals(6.2, s.conclude()!!, 1e-9)
         assertEquals(6.2, s.best!!, 1e-9)
     }
+
+    @Test fun aPeakStillMovingWhenTimeRunsOutIsBestSoFarNotNoPeak() {
+        val s = RfSearch(5.5)
+        for ((r, score) in listOf(5.5 to 10.0, 6.2 to 3.0, 4.8 to 3.0, 5.9 to 11.0, 6.0 to 12.0)) s.report(r, score)
+        assertFalse(s.converged)                      // five probes, but the best rate moved on the last ones
+        assertNull(s.conclude())
+        assertFalse(s.noPeak)
+        assertTrue("best=${s.best}", s.best!! in 5.5..6.2)
+    }
 }

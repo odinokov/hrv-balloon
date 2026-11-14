@@ -45,6 +45,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private var probeIndex = 1
     private var probeReset = false
     private val probeScores = ArrayList<Double>()
+    private var firstScoreMs = 0.0
     private val phaseRef = PacerTrack.fundamentalPhaseDeg(cfg.inhaleFraction)
     private var lastLeadDeg = 0.0
     private val timeline = BeatTimeline()
@@ -119,7 +120,10 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 shownP = it.p2tBpm
                 shownShape = it.shape
                 lastLeadDeg = wrapDeg(it.phaseDeg - phaseRef)
-                if (rf?.finished == false && t - probeStartMs >= SCORE_FROM * pacer.periodMs(t)) probeScores += it.p2tBpm * it.shape
+                if (rf?.finished == false && t - probeStartMs >= SCORE_FROM * pacer.periodMs(t)) {
+                    if (probeScores.isEmpty()) firstScoreMs = t
+                    probeScores += it.p2tBpm * it.shape
+                }
             }
         }
         lastTickMs = nowMs
@@ -159,7 +163,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         val elapsed = t - probeStartMs
         if (!probeReset && elapsed >= period) { estimator.reset(); estimate = null; probeReset = true }
         if (search.finished || elapsed < PROBE_BREATHS * period) return
-        val restart = probeScores.isEmpty()   // nothing measured (signal loss, time away): probe the same rate again
+        // Under three breaths scored (signal loss or time away late in the probe): probe the same rate again.
+        val restart = probeScores.isEmpty() || t - firstScoreMs < MIN_SCORED * period
         if (!restart) search.report(rate, probeScores.sorted().let { it[it.size / 2] })
         probeScores.clear()
         var next = when {
@@ -220,6 +225,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         const val TRACE_MS = 30_000
         const val PROBE_BREATHS = 9   // 1 transient + 2 to refill the two-breath window + 6 scored
         const val SCORE_FROM = 3      // breaths into a probe before scoring starts
+        const val MIN_SCORED = 3      // breaths of scores a probe needs to count (of six)
         const val FINAL_MS = 120_000L // a probe must end this long before the session does
     }
 }

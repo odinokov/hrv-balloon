@@ -31,7 +31,7 @@ class RfSearch(private val startRate: Double, private val fallbackBpm: Double = 
 
     val converged get() = rates.size >= MIN_PROBES && stable >= 2 && peaked
 
-    /** Set by [conclude]: the search ran out of time without converging, after enough probes to call the curve flat. */
+    /** Set by [conclude]: time ran out after enough probes and the fitted curve shows no peak above the noise. */
     var noPeak = false
         private set
 
@@ -41,11 +41,12 @@ class RfSearch(private val startRate: Double, private val fallbackBpm: Double = 
 
     /**
      * No time for another probe. Without a peak after [MIN_PROBES] probes the answer is the fallback, which becomes
-     * [best]; with fewer probes there is no answer (null) and [best] stays the incomplete estimate.
+     * [best]. With fewer probes, or a peak whose rate had not settled, there is no answer (null) and [best] stays the
+     * model's estimate so far.
      */
     fun conclude(): Double? {
         stopped = true
-        noPeak = !converged && rates.size >= MIN_PROBES
+        noPeak = !converged && !peaked && rates.size >= MIN_PROBES
         if (noPeak) best = fallbackBpm
         return if (noPeak) fallbackBpm else null
     }

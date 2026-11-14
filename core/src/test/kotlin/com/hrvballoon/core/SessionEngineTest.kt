@@ -360,4 +360,10 @@ class SessionEngineTest {
         assertEquals(6.2, r.summary.rfBest!!, 1e-9)
         assertEquals(6.2, r.states.last().rateBpm, 1e-9)
     }
+
+    @Test fun aProbeWithUnderThreeBreathsOfScoresAfterADropoutRestarts() {
+        // Probe 1 at 5.5 /min ends at 98.2 s; after a 40-62 s dropout the window refills by ~84 s, leaving ~1.3 breaths scored.
+        val r = run(clean, durationMs = 900_000, stopAtMs = 110_000, rfSearch = true, suppress = { it in 40_000L..62_000L })
+        assertEquals(1, r.at(100_000).rfProbe!!.index)
+    }
 }
