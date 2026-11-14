@@ -15,7 +15,6 @@ class SettingsDialog(private val activity: Activity, private val settings: Setti
         fun forgetStrap()
         fun rescan()
         fun showHelp()
-        fun exportHistory()
         /** Back, a tap outside and Done all close the dialog, and each may have changed settings. */
         fun closed()
     }
@@ -47,7 +46,6 @@ class SettingsDialog(private val activity: Activity, private val settings: Setti
                 { settings.stepCeiling(-1) }, { settings.stepCeiling(1) })))
             addView(ui.header(str(R.string.settings_data)))
             addView(ui.row(str(R.string.settings_save_csv), ui.onOff(settings.saveCsv) { settings.saveCsv = it }))
-            addView(ui.row(str(R.string.settings_history), ui.small(str(R.string.export)).apply { setOnClickListener { actions.exportHistory() } }))
             val forget = ui.small(str(R.string.forget)).apply {
                 isEnabled = settings.deviceAddress != null
                 setOnClickListener {

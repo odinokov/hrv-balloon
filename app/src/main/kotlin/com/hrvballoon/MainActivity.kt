@@ -592,21 +592,8 @@ class MainActivity : Activity(), HrmClient.Listener {
         }
         override fun rescan() = pick()
         override fun showHelp() = this@MainActivity.showHelp()
-        override fun exportHistory() = this@MainActivity.exportHistory()
         override fun closed() { styleStart(); renderStatus() }
     }).show()
-
-    /** The session history as a CSV in Download/HRV. */
-    private fun exportHistory() {
-        val name = "hrv_sessions_" + OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv"
-        val message = try {
-            SessionStore(filesDir).export(MediaStoreCsv.open(this, name))
-            getString(R.string.history_saved, name)
-        } catch (e: Exception) {
-            getString(R.string.history_failed)
-        }
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-    }
 
     private fun showHelp() {
         AlertDialog.Builder(this).setTitle(R.string.help_title).setMessage(R.string.help_text).setPositiveButton(R.string.ok, null).show()

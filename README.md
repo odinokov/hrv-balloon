@@ -34,7 +34,7 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
 
 Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet electrodes.
 
-1. Download `hrv-balloon-v2.0-alpha.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
+1. Download `hrv-balloon-v2.0.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 5.5/min 15:00`, then tap **Start · 5.5/min** and breathe with the bar.
 4. Tap the screen to show **Stop**, then confirm **End**, or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
@@ -77,7 +77,6 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 | Lift threshold, HR swing in beats/min | 1 | swing below this stays grounded |
 | Sky ceiling, HR swing in beats/min | 6 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
-| Session history | | **Export** saves it to Download/HRV |
 
 The defaults, 1 and 6, are an easy start. Swing falls steeply with age, so these limits suit older users and fill the sky quickly for fit young ones. For a harder game, raise the sky ceiling first and the lift threshold after it, since the ceiling stays at least 5 above the threshold. Ranks compare star totals, so compare sessions played at the same limits.
 
@@ -89,7 +88,7 @@ Session length is fixed at 15 minutes: long enough for a resonance search, short
 
 Nothing leaves the phone.
 
-- **History.** `sessions.csv` in app-private storage, one row per finished session, shown on the Ranks screen and the per-session results card. Its first line names the format version (`# hrv-sessions v2`) and the next names the columns, which are read by name; the older one-line-per-session `sessions.txt` is converted once and kept as `sessions.v1.txt`. Settings → **Session history → Export** saves a copy to `Download/HRV/hrv_sessions_YYYYMMDD_HHMMSS.csv`.
+- **History.** `sessions.csv` in app-private storage, one row per finished session, shown on the Ranks screen and the per-session results card. Its first line names the format version (`# hrv-sessions v2`) and the next names the columns, which are read by name; the older one-line-per-session `sessions.txt` is converted once and kept as `sessions.v1.txt`.
 - **CSV** (optional). `Download/HRV/hrv_YYYYMMDD_HHMMSS.csv`, flushed after every row so a crash loses nothing. Header lines `# key=value` give `app_version`, `device_address`, `device_name`, `start`, `rate_bpm`, `inhale_fraction`, `duration`, `floor_bpm`, `ceiling_bpm`, and `rf_estimate_bpm` when a resonance search started from a height estimate. Then:
 
   ```

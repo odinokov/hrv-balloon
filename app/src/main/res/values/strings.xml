@@ -42,10 +42,6 @@
     <string name="settings_ceiling_short">Sky ceiling</string>
     <string name="settings_data">Data</string>
     <string name="settings_save_csv">Save CSV to Download/HRV</string>
-    <string name="settings_history">Session history</string>
-    <string name="export">Export</string>
-    <string name="history_saved">History saved: Download/HRV/%s</string>
-    <string name="history_failed">Cannot save the history in Download/HRV. Check storage space.</string>
     <string name="forget">Forget</string>
     <string name="forget_q">Forget %s and pair again?</string>
     <string name="this_strap">this strap</string>

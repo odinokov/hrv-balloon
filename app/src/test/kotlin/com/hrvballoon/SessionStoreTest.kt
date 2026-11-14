@@ -5,7 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 
 class SessionStoreTest {
@@ -23,13 +22,12 @@ class SessionStoreTest {
         assertEquals(listOf(1L, 2L, 3L), SessionStore(dir).load().map { it.startMs })
     }
 
-    @Test fun aFreshStoreStartsWithAHeaderAndExportsTheSameCsv() {
+    @Test fun aFreshStoreStartsWithTheSchemaAndHeader() {
         val dir = Files.createTempDirectory("store").toFile()
         val store = SessionStore(dir)
         assertTrue(store.load().isEmpty())
         store.append(record(7))
-        val out = ByteArrayOutputStream()
-        store.export(out)
-        assertEquals(dir.resolve("sessions.csv").readText(), out.toString("UTF-8"))
+        assertTrue(dir.resolve("sessions.csv").readText().startsWith("# hrv-sessions v2\nstart_ms,"))
+        assertEquals(listOf(7L), store.load().map { it.startMs })
     }
 }
