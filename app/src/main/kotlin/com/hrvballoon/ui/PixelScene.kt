@@ -37,11 +37,11 @@ data class SceneState(
 class Hud(val dot: Int, val status: String, val timer: String = "", val lost: List<String> = emptyList()) {
     companion object {
         /** One line: "<label> HR <n> [Pace] <rate>/min". The plain running state has no label; with a label the word Pace goes, so the line still fits beside the timer. */
-        fun session(dot: Int, status: String, hrBpm: Int?, rateBpm: Double, timer: String = "", lost: List<String> = emptyList()): Hud {
+        fun session(text: SceneText, dot: Int, status: String, hrBpm: Int?, rateBpm: Double, timer: String = "", lost: List<String> = emptyList()): Hud {
             val hr = hrBpm?.takeIf { it in 1..999 }?.toString() ?: "--"
-            val text = if (status.isEmpty()) String.format(Locale.ROOT, "HR %s Pace %.1f/min", hr, rateBpm)
-            else String.format(Locale.ROOT, "%s HR %s %.1f/min", status, hr, rateBpm)
-            return Hud(dot, text, timer, lost)
+            val line = if (status.isEmpty()) String.format(Locale.ROOT, text.hudLine, hr, rateBpm)
+            else String.format(Locale.ROOT, text.hudLineStatus, status, hr, rateBpm)
+            return Hud(dot, line, timer, lost)
         }
     }
 }

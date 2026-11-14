@@ -59,6 +59,9 @@ object PixelFont {
 
     fun width(text: String) = text.length * ADVANCE - 1
 
+    /** Whether [c] has a glyph; space is always blank. */
+    fun has(c: Char) = c == ' ' || c in glyphs
+
     /** Draws [text] with its top-left at (x, y) through [put]; [scale] enlarges each glyph pixel to a scale×scale block. */
     inline fun draw(x: Int, y: Int, text: String, color: Int, scale: Int = 1, put: (Int, Int, Int) -> Unit) {
         var cx = x

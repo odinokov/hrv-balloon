@@ -35,7 +35,7 @@ class ScreenshotDump {
                 SceneState(
                     0.82, true, 0.7, true, true, false, 12_345, stars = 24, falling = listOf(11_900),
                     traceT = t1, traceHr = hr1, traceNowMs = 450_000, pacerPeriodMs = period, progress = 0.5, forecast = f1,
-                    hud = Hud.session(PixelScene.DOT_GREEN, "", 68, 6.0, "07:30"),
+                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 68, 6.0, "07:30"),
                 ),
             ),
         )
@@ -46,7 +46,7 @@ class ScreenshotDump {
                 SceneState(
                     0.38, false, 0.25, false, true, false, 98_765, stars = 31,
                     traceT = t2, traceHr = hr2, traceNowMs = 828_000, pacerPeriodMs = period, progress = 0.92, forecast = f2,
-                    hud = Hud.session(PixelScene.DOT_GREEN, "", 63, 6.0, "01:12"),
+                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 63, 6.0, "01:12"),
                 ),
             ),
         )
@@ -57,7 +57,7 @@ class ScreenshotDump {
                 SessionRecord(at - i * day, 900_000, 6.0, p, 0.84 - i * 0.01, stars, 64.0 + i, 0.6 + i * 0.2, 880_000, 46.0 + i, 58.0 + i, 965 + i * 7)
             },
         )
-        val ranks = RankScene(W, H)
+        val ranks = RankScene(W, H, TestText.scene)
         save("ranks", ranks.render(records, 1, 5_000))
         save("result", ranks.renderResult(records[1], 2, records.size, records[0], 5_000, 212))
     }

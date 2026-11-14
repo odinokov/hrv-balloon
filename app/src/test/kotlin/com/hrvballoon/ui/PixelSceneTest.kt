@@ -136,7 +136,7 @@ class PixelSceneTest {
     }
 
     @Test fun statusShowsHeartRatePaceAndCountdownWithoutClippingAnyValue() {
-        val hud = Hud.session(PixelScene.DOT_GREEN, "", 168, 5.5, "12:34")
+        val hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 168, 5.5, "12:34")
         val px = scene.render(state().copy(hud = hud))
         var expectedInk = 0
         PixelFont.draw(12, 4, "HR 168 PACE 5.5/MIN", PixelScene.HUD_TEXT) { x, y, color ->
@@ -149,7 +149,7 @@ class PixelSceneTest {
         }
         assertEquals(expectedInk, count(px, PixelScene.HUD_TEXT))
         // The longest labelled line the app produces (No signal always shows HR as --) still fits whole beside the countdown.
-        val long = scene.render(state().copy(hud = Hud.session(PixelScene.DOT_GREEN, "Settling", 168, 5.5, "00:59")))
+        val long = scene.render(state().copy(hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "Settling", 168, 5.5, "00:59")))
         var longInk = 0
         PixelFont.draw(12, 4, "SETTLING HR 168 5.5/MIN", PixelScene.HUD_TEXT) { x, y, color -> longInk++; assertEquals(color, long[y * scene.w + x]) }
         PixelFont.draw(scene.w - PixelFont.width("00:59") - 4, 4, "00:59", PixelScene.HUD_TEXT) { _, _, _ -> longInk++ }
@@ -160,7 +160,7 @@ class PixelSceneTest {
 
     @Test fun missingOrInvalidHeartRateIsShownAsUnavailable() {
         for (hr in listOf(null, 0, -1, 1000)) {
-            val hud = Hud.session(PixelScene.DOT_RED, "No signal", hr, 5.4)
+            val hud = Hud.session(TestText.scene, PixelScene.DOT_RED, "No signal", hr, 5.4)
             assertEquals("No signal HR -- 5.4/min", hud.status)
             assertTrue(PixelFont.width(hud.status) <= scene.w - 16)
         }
@@ -493,9 +493,9 @@ class PixelSceneTest {
     }
 
     @Test fun aBlankStatusLeavesJustHrAndPace() {
-        assertEquals("HR 168 Pace 5.5/min", Hud.session(PixelScene.DOT_GREEN, "", 168, 5.5).status)
-        assertEquals("Settling HR -- 5.5/min", Hud.session(PixelScene.DOT_GREEN, "Settling", null, 5.5).status)   // a label displaces the word Pace
-        assertEquals("12:34", Hud.session(PixelScene.DOT_GREEN, "", 68, 5.5, "12:34").timer)
+        assertEquals("HR 168 Pace 5.5/min", Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 168, 5.5).status)
+        assertEquals("Settling HR -- 5.5/min", Hud.session(TestText.scene, PixelScene.DOT_GREEN, "Settling", null, 5.5).status)   // a label displaces the word Pace
+        assertEquals("12:34", Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 68, 5.5, "12:34").timer)
     }
 
     @Test fun skyDissolvesInSmallSteps() {

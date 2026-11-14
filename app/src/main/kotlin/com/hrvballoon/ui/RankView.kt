@@ -41,7 +41,7 @@ class RankView(context: Context) : View(context) {
         scale = maxOf(1, w / 160)
         val lw = w / scale
         val lh = h / scale
-        scene = RankScene(lw, lh)
+        scene = RankScene(lw, lh, SceneText { resources.getString(it) })
         bitmap = Bitmap.createBitmap(lw, lh, Bitmap.Config.ARGB_8888)
         val ox = (w - lw * scale) / 2
         offsetY = (h - lh * scale) / 2

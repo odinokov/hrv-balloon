@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RankSceneTest {
-    private val scene = RankScene(160, 284)
+    private val scene = RankScene(160, 284, TestText.scene)
     private fun rec(i: Int, p: Double = 10.0 - i, stars: Int = 3) =
         SessionRecord(1_761_400_000_000 + i * 86_400_000L, 300_000, 5.5, p, 0.8, stars, 68.0, 1.0, 280_000, 44.0, 55.0, 330)
     private val records = List(3) { rec(it) }
@@ -114,7 +114,7 @@ class RankSceneTest {
     }
 
     @Test fun shortWindowsDoNotCrash() {
-        val small = RankScene(160, 120)
+        val small = RankScene(160, 120, TestText.scene)
         assertEquals(160 * 120, small.render(records, 0, 5_000).size)
         assertEquals(160 * 120, small.renderResult(records[0], 1, 3, records[0], 5_000, 1).size)
     }

@@ -64,6 +64,7 @@ import com.hrvballoon.ui.Chrome.YELLOW
 import com.hrvballoon.ui.Hud
 import com.hrvballoon.ui.MediaStoreCsv
 import com.hrvballoon.ui.PixelScene
+import com.hrvballoon.ui.SceneText
 import com.hrvballoon.ui.SettingsWidgets
 import com.hrvballoon.ui.secondary
 import java.io.OutputStream
@@ -97,6 +98,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var foreground = false
 
     private var engine: SessionEngine? = null
+    private val sceneText by lazy { SceneText { resources.getString(it) } }
     private var backGuard: Any? = null   // OnBackInvokedCallback on Android 13+, set while a session runs
     private var startElapsed = 0L
     private var startWall = 0L
@@ -305,7 +307,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                     else -> "Ready"
                 }
             }
-            balloon.hud = if (rrFresh) Hud.session(dot, status, freshHr(now), settings.rateBpm, mmss(settings.durationMs)) else Hud(dot, status)
+            balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(settings.durationMs)) else Hud(dot, status)
             describe(status)
         } else {
             hudDot = dot
@@ -354,7 +356,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             SessionStatus.STEADY -> "Steady"
             SessionStatus.NONE -> ""
         }
-        balloon.hud = Hud.session(hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
+        balloon.hud = Hud.session(sceneText, hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
         balloon.traceT = s.traceT
         balloon.traceHr = s.traceHr
         balloon.forecast = s.forecast?.let { f -> engine?.pacer?.let { p -> { t: Double -> f.at(p.cycles(t)) } } }

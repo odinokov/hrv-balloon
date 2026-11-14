@@ -9,7 +9,7 @@ import java.util.Random
 import kotlin.math.roundToInt
 
 /** Star rankings and results card: violet night sky with twinkling stars over rolling hills, 4×6 pixel font. */
-class RankScene(val w: Int, val h: Int, seed: Long = 11) {
+class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 11) {
     private val background = IntArray(w * h)
     private val frame = IntArray(w * h)
     private val twinkles: List<IntArray>
@@ -44,20 +44,20 @@ class RankScene(val w: Int, val h: Int, seed: Long = 11) {
     fun render(records: List<SessionRecord>, highlight: Int, timeMs: Long, hasUnranked: Boolean = false, blink: Boolean = true): IntArray {
         backdrop(timeMs)
         surface(0, 0, w, 17, SURFACE)
-        text(centred("BEST SESSIONS"), 8, "BEST SESSIONS", titleColor(timeMs))
+        text(centred(t.bestSessions), 8, t.bestSessions, titleColor(timeMs))
         val shown = records.take(MAX_ROWS).withIndex().toMutableList()
         val pinned = highlight >= MAX_ROWS && highlight < records.size
         if (pinned) shown += IndexedValue(highlight, records[highlight])
         val tableBottom = if (shown.isEmpty()) 88 else 30 + (shown.size + if (pinned) 1 else 0) * ROW_H
         surface(4, 17, w - 4, tableBottom + 1, SURFACE)
         text(8, 20, "#", DIM)
-        text(30, 20, "SESSION", DIM)
-        rightText(w - 12, 20, "STARS", DIM)
+        text(30, 20, t.colSession, DIM)
+        rightText(w - 12, 20, t.colStars, DIM)
         surface(8, 28, w - 8, 29, SEPARATOR)
         if (records.isEmpty()) {
-            val msg = if (hasUnranked) "NO RANKED SESSIONS YET" else "NO SESSIONS YET"
+            val msg = if (hasUnranked) t.noRanked else t.noSessions
             text(centred(msg), 60, msg, DIM)
-            if (hasUnranked) text(centred("2 MIN MINIMUM TO RANK"), 70, "2 MIN MINIMUM TO RANK", DIM)
+            if (hasUnranked) text(centred(t.minToRank), 70, t.minToRank, DIM)
         }
         val marker = !blink || (timeMs / 400) % 2 == 0L
         if (pinned) text(8, 30 + MAX_ROWS * ROW_H + 5, "...", DIM)
@@ -73,8 +73,8 @@ class RankScene(val w: Int, val h: Int, seed: Long = 11) {
             val at = Instant.ofEpochMilli(r.startMs).atZone(ZoneId.systemDefault())
             text(30, y, "${dateFmt.format(at)} ${timeFmt.format(at)}", DIM)
         }
-        text(centred("TAP A ROW FOR DETAILS"), h - 30, "TAP A ROW FOR DETAILS", DIM)
-        text(centred("TAP ELSEWHERE TO CLOSE"), h - 20, "TAP ELSEWHERE TO CLOSE", DIM)
+        text(centred(t.tapRow), h - 30, t.tapRow, DIM)
+        text(centred(t.tapClose), h - 20, t.tapClose, DIM)
         return frame
     }
 
@@ -90,50 +90,50 @@ class RankScene(val w: Int, val h: Int, seed: Long = 11) {
         backdrop(timeMs)
         surface(0, 0, w, 17, SURFACE)
         surface(4, 18, w - 4, 47, SURFACE)
-        text(centred("SESSION DONE"), 8, "SESSION DONE", titleColor(timeMs))
+        text(centred(t.sessionDone), 8, t.sessionDone, titleColor(timeMs))
         if (r.isSearch) {
             val converged = r.kind == SessionRecord.KIND_RF_SEARCH
             val noPeak = r.kind == SessionRecord.KIND_RF_NO_PEAK
             val bestProbe = r.probes.maxByOrNull { it.second }
             val hero = when {
-                converged -> String.format(Locale.ROOT, "RESONANCE %.1f", r.rateBpm)
-                noPeak -> "NO CLEAR PEAK"
-                r.probes.size < 3 -> "NO ESTIMATE YET"
-                else -> String.format(Locale.ROOT, "BEST SO FAR %.1f", r.rateBpm)
+                converged -> String.format(Locale.ROOT, t.resonance, r.rateBpm)
+                noPeak -> t.noClearPeak
+                r.probes.size < 3 -> t.noEstimate
+                else -> String.format(Locale.ROOT, t.bestSoFar, r.rateBpm)
             }
             text(centred(hero, 2), 22, hero, if (converged) HIGHLIGHT else DIM, 2)
             val sub = when {
-                converged -> String.format(Locale.ROOT, "MODEL %.1f - BEST PROBE %.1f", r.rateBpm, bestProbe?.first ?: r.rateBpm)
-                noPeak -> String.format(Locale.ROOT, "DEFAULT %.1f - %d PROBES", r.rateBpm, r.probes.size)
-                bestProbe != null -> String.format(Locale.ROOT, "BEST PROBE %.1f - %d PROBES", bestProbe.first, r.probes.size)
-                else -> "NO PROBES COMPLETED"
+                converged -> String.format(Locale.ROOT, t.modelVsProbe, r.rateBpm, bestProbe?.first ?: r.rateBpm)
+                noPeak -> String.format(Locale.ROOT, t.defaultProbes, r.rateBpm, r.probes.size)
+                bestProbe != null -> String.format(Locale.ROOT, t.bestProbe, bestProbe.first, r.probes.size)
+                else -> t.noProbes
             }
             text(centred(sub), 38, sub, if (converged) TEXT else DIM)
             if (r.probes.isNotEmpty()) surface(4, 48, w - 4, 68 + minOf(12, r.probes.size) * 8, SURFACE)
             probeCurve(r, 52, if (converged) r.rateBpm else null)
             if (offer) {
-                val use = String.format(Locale.ROOT, "TAP TO USE %.1f/MIN", r.rateBpm)
+                val use = String.format(Locale.ROOT, t.tapToUse, r.rateBpm)
                 text(centred(use), h - 30, use, HIGHLIGHT)
-                text(centred("BACK TO SKIP"), h - 20, "BACK TO SKIP", DIM)
-            } else text(centred("TAP FOR RANKS"), h - 20, "TAP FOR RANKS", DIM)
+                text(centred(t.backToSkip), h - 20, t.backToSkip, DIM)
+            } else text(centred(t.tapForRanks), h - 20, t.tapForRanks, DIM)
         } else {
-            val stars = "STARS *${r.stars}"
+            val stars = String.format(Locale.ROOT, t.stars, r.stars)
             val scale = if (PixelFont.width(stars) * 2 <= w - 8) 2 else 1
             text(centred(stars, scale), 22, stars, HIGHLIGHT, scale)
             val line = when {
-                !r.ranked -> "NOT RANKED - UNDER 2 MIN"
-                rankPos == 1 -> if (total > 1) "MOST STARS  #1 OF $total" else "FIRST SESSION"
-                else -> "#$rankPos OF $total BY STARS"
+                !r.ranked -> t.notRanked
+                rankPos == 1 -> if (total > 1) String.format(Locale.ROOT, t.mostStars, total) else t.firstSession
+                else -> String.format(Locale.ROOT, t.rankOf, rankPos, total)
             }
             text(centred(line), 38, line, if (!r.ranked) DIM else if (rankPos == 1) HIGHLIGHT else TEXT)
-            val stats = r.meanShape?.let { String.format(Locale.ROOT, "RHYTHM %d%%", (it * 100).roundToInt()) }
+            val stats = r.meanShape?.let { String.format(Locale.ROOT, t.rhythm, (it * 100).roundToInt()) }
             surface(4, 48, w - 4, if (stats != null) 98 else 82, SURFACE)
-            val lifetime = "LIFETIME *$lifetimeStars"
+            val lifetime = String.format(Locale.ROOT, t.lifetime, lifetimeStars)
             text(centred(lifetime), 54, lifetime, TEXT)
             val whenAt = fullFmt.format(Instant.ofEpochMilli(r.startMs).atZone(ZoneId.systemDefault()))
             text(centred(whenAt), 70, whenAt, DIM)
             stats?.let { text(centred(it), 86, it, TEXT) }
-            text(centred("TAP FOR RANKS"), h - 20, "TAP FOR RANKS", DIM)
+            text(centred(t.tapForRanks), h - 20, t.tapForRanks, DIM)
         }
         return frame
     }
@@ -141,7 +141,7 @@ class RankScene(val w: Int, val h: Int, seed: Long = 11) {
     /** Score by rate, sorted by rate: a bar per probe, the best probe highlighted; a caret marks the model's peak rate. */
     private fun probeCurve(r: SessionRecord, y0: Int, modelPeak: Double?) {
         if (r.probes.isEmpty()) return
-        text(20, y0, "RATE  SCORE", DIM)
+        text(20, y0, t.rateScore, DIM)
         val maxScore = r.probes.maxOf { it.second }.coerceAtLeast(1e-9)
         val sorted = r.probes.sortedBy { it.first }.take(12)
         val peakRow = modelPeak?.let { peak -> sorted.indices.minByOrNull { kotlin.math.abs(sorted[it].first - peak) } }
