@@ -13,7 +13,7 @@ class SessionConfig(
  * Current resonance-search probe: the rate being breathed, its 1-based index, the best rate so far, and
  * [settlingMs] > 0 while the window is being refilled after a rate change (not a warm-up failure).
  */
-class RfProbe(val rateBpm: Double, val index: Int, val bestBpm: Double?, val converged: Boolean, val settlingMs: Long)
+class RfProbe(val rateBpm: Double, val index: Int, val bestBpm: Double?, val converged: Boolean, val settlingMs: Long, val finished: Boolean)
 
 /**
  * [traceT]/[traceHr]: midpoint-stamped HR of the usable beats from the last 30 s, oldest first.
@@ -117,7 +117,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 shownP = it.p2tBpm
                 shownShape = it.shape
                 lastLeadDeg = wrapDeg(it.phaseDeg - phaseRef)
-                if (rf?.converged == false && t - probeStartMs >= 3 * pacer.periodMs(t)) probeScores += it.p2tBpm * it.shape
+                if (rf?.finished == false && t - probeStartMs >= SCORE_FROM * pacer.periodMs(t)) probeScores += it.p2tBpm * it.shape
             }
         }
         lastTickMs = nowMs
@@ -135,8 +135,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             elapsedMs = nowMs, remainingMs = remaining, finished = finished,
             traceT = DoubleArray(trace.size) { trace[it][0] }, traceHr = DoubleArray(trace.size) { trace[it][1] },
             rfProbe = rf?.let {
-                val settling = if (it.converged) 0L else (3 * pacer.periodMs(t) - (t - probeStartMs)).toLong().coerceAtLeast(0)
-                RfProbe(rate, probeIndex, it.best, it.converged, settling)
+                val settling = if (it.finished) 0L else (SCORE_FROM * pacer.periodMs(t) - (t - probeStartMs)).toLong().coerceAtLeast(0)
+                RfProbe(rate, probeIndex, it.best, it.converged, settling, it.finished)
             },
             phaseLeadDeg = estimate?.let { lastLeadDeg }, rateBpm = rate,
             forecast = if (monitor.state == Signal.OK && !paused) kalman.forecast() else null,
@@ -146,23 +146,30 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private fun wrapDeg(d: Double) = ((d + 180) % 360 + 360) % 360 - 180
 
     /**
-     * One probe = 5 breath periods at a rate: period 1 is the physiological transient (then the window is cleared),
-     * periods 2–3 refill the window, periods 4–5 are measured (median of P × rhythm, two breaths of independent data).
+     * One probe = 9 breath periods at a rate: period 1 is the physiological transient (then the window is cleared),
+     * periods 2–3 refill the window, periods 4–9 are measured (median of P × rhythm, four two-breath windows of data).
      * Then the next rate is scheduled for the following inhale start. A signal loss or a return to the app discards the
-     * probe's scores. Once converged the pacer moves to the best rate and the search stops.
+     * probe's scores. Once converged the pacer moves to the best rate and the search stops; it also stops when the next
+     * probe could not end [FINAL_MS] before the session does.
      */
     private fun probe(search: RfSearch, t: Double, rate: Double) {
         val period = pacer.periodMs(t)
         val elapsed = t - probeStartMs
         if (!probeReset && elapsed >= period) { estimator.reset(); estimate = null; probeReset = true }
-        if (search.converged || elapsed < 5 * period) return
-        if (probeScores.isEmpty()) { probeStartMs = t; probeReset = false; return }
-        search.report(rate, probeScores.sorted().let { it[it.size / 2] })
+        if (search.finished || elapsed < PROBE_BREATHS * period) return
+        val restart = probeScores.isEmpty()   // nothing measured (signal loss, time away): probe the same rate again
+        if (!restart) search.report(rate, probeScores.sorted().let { it[it.size / 2] })
         probeScores.clear()
-        val next = if (search.converged) search.best!! else search.next(phaseHint = if (lastLeadDeg > 10) 1.0 else if (lastLeadDeg < -10) -1.0 else 0.0)
+        var next = when {
+            restart -> rate
+            search.converged -> search.best!!
+            else -> search.next(phaseHint = if (lastLeadDeg > 10) 1.0 else if (lastLeadDeg < -10) -1.0 else 0.0)
+        }
+        val endBy = cfg.durationMs?.let { it - FINAL_MS }
+        if (!search.converged && endBy != null && t + period + PROBE_BREATHS * 60_000 / next > endBy) { search.stop(); next = rate }
         probeStartMs = if (next != rate) pacer.changeRate(next, t) else t
-        probeReset = search.converged && next == rate   // staying at the rate: no transient to clear
-        probeIndex++
+        probeReset = search.finished && next == rate   // staying at the rate: no transient to clear
+        if (!restart) probeIndex++
     }
 
     /** The drawn balloon touched the ceiling (decided by the UI, which owns the smoothed height). */
@@ -209,5 +216,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
 
     private companion object {
         const val TRACE_MS = 30_000
+        const val PROBE_BREATHS = 9   // 1 transient + 2 to refill the two-breath window + 6 scored
+        const val SCORE_FROM = 3      // breaths into a probe before scoring starts
+        const val FINAL_MS = 120_000L // a probe must end this long before the session does
     }
 }

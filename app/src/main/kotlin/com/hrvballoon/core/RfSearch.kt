@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 
 /**
  * Resonance-frequency search as 1-D Bayesian optimisation: a Gaussian process over breathing rates 4.0–7.0 /min
- * (RBF kernel, length 0.5 /min, ~15 % relative measurement noise) with an upper-confidence-bound acquisition.
+ * (RBF kernel, length 0.5 /min, ~25 % relative noise per 9-breath probe) with an upper-confidence-bound acquisition.
  * Probe 1 is the current rate; probe 2 steps 0.7 /min in the direction the HR–pacer phase suggests; later probes
  * balance exploring unprobed rates against refining the best one. [best] is the posterior-mean argmax when the fitted
  * curve rises more than twice one probe's noise above its lowest point; without such a peak it is the top-scoring probe and
@@ -29,6 +29,14 @@ class RfSearch(private val startRate: Double) {
         private set
 
     val converged get() = rates.size >= 5 && stable >= 2 && peaked
+
+    /** Set by [stop] when the session has no time left for another probe. */
+    var stopped = false
+        private set
+
+    val finished get() = converged || stopped
+
+    fun stop() { stopped = true }
 
     /** [phaseHint] > 0 = HR leads the pacer (breathing slower than resonance), < 0 = lags, 0 = unknown. */
     fun next(phaseHint: Double): Double = when (rates.size) {
@@ -74,7 +82,7 @@ class RfSearch(private val startRate: Double) {
     private companion object {
         val GRID = DoubleArray(31) { (40 + it) / 10.0 }
         const val LENGTH = 0.5
-        const val NOISE_SD = 0.15
+        const val NOISE_SD = 0.25   // probe-to-probe spread of 18-36 % at 9 breaths on a recorded session
         const val NOISE = NOISE_SD * NOISE_SD
     }
 }

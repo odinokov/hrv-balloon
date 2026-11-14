@@ -61,4 +61,13 @@ class RfSearchTest {
         repeat(8) { n.report(n.next(phaseHint = 0.0), 5.0 * (1 + 0.04 * rnd.nextGaussian())) }
         assertFalse("differences within the measurement noise", n.converged)
     }
+
+    @Test fun aPeakWithinTwiceTheProbeNoiseDoesNotConverge() {
+        val s = RfSearch(5.5)
+        repeat(10) {
+            val r = s.next(phaseHint = 0.0)
+            s.report(r, 10 * (1 + 0.4 * exp(-(r - 5.5) * (r - 5.5) / (2 * 0.5 * 0.5))))   // 40% above the floor at most
+        }
+        assertFalse(s.converged)
+    }
 }

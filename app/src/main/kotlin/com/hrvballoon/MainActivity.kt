@@ -330,7 +330,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         val status = when {
             s.finished -> "Done"
             frozen -> "No signal"
-            probe != null && !probe.converged -> "Search"
+            probe != null && !probe.finished -> "Search"
             s.warmingUp -> "Settling"
             steady -> "Steady"
             else -> ""

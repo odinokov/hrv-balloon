@@ -6,7 +6,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import kotlin.math.PI
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class SessionEngineTest {
     private class Run(val states: List<UiState>, val csv: List<String>, val summary: Summary) {
@@ -120,7 +122,7 @@ class SessionEngineTest {
     }
 
     @Test fun resonanceSearchProbesRatesAtInhaleStarts() {
-        val r = run(clean, durationMs = 600_000, rfSearch = true)
+        val r = run(synthBeats(60.0, 10.0, 5.5, 900.0), durationMs = 900_000, rfSearch = true)
         val probes = r.states.mapNotNull { it.rfProbe }
         assertTrue(probes.isNotEmpty())
         val rates = probes.map { it.rateBpm }.distinct()
@@ -284,16 +286,53 @@ class SessionEngineTest {
     }
 
     @Test fun aSignalLossOrAReturnDiscardsTheProbesScores() {
-        // Probe 1 at 5.5 /min is scored from 32.7 s to 54.5 s.
-        val lost = run(clean, durationMs = 120_000, stopAtMs = 70_000, rfSearch = true, suppress = { it in 35_000L..60_000L })
-        assertEquals("scored from pre-loss data", 1, lost.at(56_000).rfProbe!!.index)
-        val away = run(clean, durationMs = 120_000, stopAtMs = 70_000, rfSearch = true, pause = 36_000L..58_000L)
-        assertEquals("scored from pre-pause data", 1, away.at(59_000).rfProbe!!.index)
+        // Probe 1 at 5.5 /min is scored from 32.7 s to 98.2 s; both gaps cover its end, so nothing scored after them.
+        val lost = run(clean, durationMs = 900_000, stopAtMs = 110_000, rfSearch = true, suppress = { it in 84_000L..101_000L })
+        assertEquals("scored from pre-loss data", 1, lost.at(100_000).rfProbe!!.index)
+        val away = run(clean, durationMs = 900_000, stopAtMs = 110_000, rfSearch = true, pause = 86_000L..99_000L)
+        assertEquals("scored from pre-pause data", 1, away.at(100_000).rfProbe!!.index)
     }
 
     @Test fun backgroundBeatsStayOutOfTheSummary() {
         val base = run(clean, durationMs = 240_000)
         val away = run(clean, durationMs = 240_000, pause = 60_000L..110_000L)
         assertTrue("base=${base.summary.beats} away=${away.summary.beats}", away.summary.beats < base.summary.beats - 30)
+    }
+
+    /** HR follows the pacer by ±5 beats/min at whatever rate it runs, so every probe scores alike: a curve with no peak. */
+    private fun runFollower(durationMs: Long): Run {
+        val out = ByteArrayOutputStream()
+        val engine = SessionEngine(SessionConfig(5.5, 0.5, durationMs, 0.0, 15.0, true, true), SessionCsvWriter(out))
+        val rnd = java.util.Random(7)
+        var beatEnd = 0.0
+        var rr = 60000 / 62.0
+        val states = ArrayList<UiState>()
+        var t = 0L
+        while (true) {
+            while (beatEnd + rr + 500 <= t) {
+                beatEnd += rr
+                engine.onPacket((beatEnd + 500).toLong(), packet(rr))
+                rr = 60000 / (62 + 5 * sin(2 * PI * engine.pacer.cycles(beatEnd))) + rnd.nextGaussian() * 3
+            }
+            val st = engine.tick(t)
+            states += st
+            if (st.finished) break
+            t += 250
+        }
+        return Run(states, out.toString("UTF-8").lines(), engine.stop(t))
+    }
+
+    @Test fun aProbeLastsNineBreaths() {
+        val r = run(clean, durationMs = 900_000, stopAtMs = 120_000, rfSearch = true)
+        assertEquals(1, r.at(95_000).rfProbe!!.index)   // 9 breaths at 5.5 /min take 98.2 s
+        val second = r.states.first { it.rfProbe!!.index == 2 }.tMs
+        assertTrue("second probe began at $second", second in 98_000L..100_000L)
+    }
+
+    @Test fun noProbeRunsIntoTheLastTwoMinutes() {
+        val r = runFollower(900_000)
+        val late = r.states.filter { it.tMs > 781_000 }.map { it.rfProbe!!.index }.distinct()
+        assertEquals("probe indices after 13:01: $late", 1, late.size)
+        assertFalse(r.summary.rfConverged)
     }
 }
