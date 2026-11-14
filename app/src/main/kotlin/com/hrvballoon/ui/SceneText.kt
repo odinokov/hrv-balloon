@@ -43,6 +43,7 @@ class SceneText(get: (Int) -> String) {
     val bestSoFar = get(R.string.scene_best_so_far)
     val modelVsProbe = get(R.string.scene_model_vs_probe)
     val defaultProbes = get(R.string.scene_default_probes)
+    val estimateProbes = get(R.string.scene_estimate_probes)
     val bestProbe = get(R.string.scene_best_probe)
     val noProbes = get(R.string.scene_no_probes)
     val tapToUse = get(R.string.scene_tap_to_use)

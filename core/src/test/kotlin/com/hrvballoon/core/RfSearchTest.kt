@@ -85,4 +85,11 @@ class RfSearchTest {
         assertFalse(few.noPeak)
         assertTrue(few.finished)
     }
+
+    @Test fun withoutAPeakTheSearchEndsAtItsOwnFallback() {
+        val s = RfSearch(6.2, fallbackBpm = 6.2)
+        repeat(6) { s.report(s.next(phaseHint = 0.0), 5.0) }
+        assertEquals(6.2, s.conclude()!!, 1e-9)
+        assertEquals(6.2, s.best!!, 1e-9)
+    }
 }

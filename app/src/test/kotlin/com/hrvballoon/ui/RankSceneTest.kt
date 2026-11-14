@@ -158,4 +158,13 @@ class RankSceneTest {
         val plain = count(scene.renderResult(r, -1, 3, null, 5_000, 0, offer = false), RankScene.HIGHLIGHT)
         assertTrue("offered=$offered plain=$plain", offered > plain)
     }
+
+    @Test fun noPeakCardNamesTheHeightEstimateWhenThereWasOne() {
+        val probes = listOf(6.2 to 8.0, 6.9 to 8.1, 5.5 to 7.9, 5.0 to 8.0, 6.0 to 8.2)
+        fun card(estimate: Double?) = scene.renderResult(
+            SessionRecord(1L, 900_000, 6.2, 8.0, 0.8, 0, 62.0, 1.0, 600_000, 30.0, 40.0, 800, SessionRecord.KIND_RF_NO_PEAK, probes, estimate),
+            -1, 3, null, 5_000, 0, offer = false,
+        ).copyOf()
+        assertTrue(!card(6.2).contentEquals(card(null)))   // ESTIMATE 6.2 versus DEFAULT 6.2
+    }
 }

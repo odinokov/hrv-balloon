@@ -30,7 +30,7 @@
     <string name="settings_rate">Rate, breaths/min</string>
     <string name="settings_rate_short">Rate</string>
     <string name="settings_resonance_found">Resonance found: %.1f /min</string>
-    <string name="settings_no_peak">No clear peak: %.1f /min default</string>
+    <string name="settings_no_peak">No clear peak: %.1f /min</string>
     <string name="settings_inhale_exhale">Inhale : exhale</string>
     <string name="settings_session">Session</string>
     <string name="settings_vibration">Vibration cues</string>
@@ -52,6 +52,16 @@
     <string name="switch_off">"OFF  "</string>
     <string name="a11y_decrease">%s, decrease</string>
     <string name="a11y_increase">%s, increase</string>
+    <string name="rf_estimate_title">Start from your height</string>
+    <string name="rf_estimate_message">Height and sex predict a starting rate (Hasuo et al. 2023); the search then measures yours. Nothing is stored.</string>
+    <string name="height_cm">Height, cm</string>
+    <string name="sex">Sex</string>
+    <string name="sex_male">Male</string>
+    <string name="sex_female">Female</string>
+    <string name="skip">Skip</string>
+    <string name="rf_estimate_invalid">Enter a height from 130 to 210 cm and choose male or female.</string>
+    <string name="rf_estimate_start">Starting at %.1f /min, estimated from height and sex.</string>
+    <string name="rf_estimate_outside">Starting at %.1f /min: your height is outside the range the estimate was built on, so it is capped.</string>
     <string name="help_text">P — how far your heart rate swings within one breath, peak minus trough, in beats per minute. A breath that takes you from 62 to 71 beats/min is a swing of 9. The resonance-breathing signal itself.\n\nRhythm — how much of that swing is a clean sine at the pacer\'s rate (0–100 %). Depth without rhythm earns little lift.\n\nSteady — the swing is there, but it does not follow the pacer. Breathe with the bar, at the same speed, with no pauses. Do not breathe deeper.\n\nLift — P between the lift threshold and the sky ceiling, scaled by rhythm. A star falls for each 10 s that the balloon stays at the ceiling. Stars come only from a live estimate.\n\nTrace — your heart rate over the last 30 s. Light bands are inhales, dark bands exhales; the band at the right edge is the breath you are in.\n\nStars — Ranks compare the number of stars earned in each session. Sessions rank after 2 min of valid signal; equal star totals are ordered newest first.\n\nSearch score — median of P × rhythm over the six measured breaths of a probe, used to compare breathing rates during a resonance search.\n\nBreathe gently and comfortably; do not force deeper breaths to lift the balloon. Stop pacing if you feel dizzy or uncomfortable. The strap does not measure breathing depth or carbon dioxide.\n\nFind my resonance rate — a separate search mode that tries rates between 4 and 7 /min during one 15-min session (9 breaths each) and picks the one with the biggest, cleanest swing. It only reports a rate when its estimate has settled; with no clear peak it ends at the 5.5 /min default. The card shows the model\'s peak (the rate it would pick) next to the single best probe; they can differ by a step.</string>
     <string name="perm_denied">Bluetooth permission was denied. Allow \"Nearby devices\" in the app settings.</string>
     <string name="perm_required">Bluetooth permission is required to read the strap.</string>
@@ -65,7 +75,7 @@
     <string name="a11y_no_ranked">No ranked sessions yet</string>
     <string name="a11y_best">Best sessions. %s. Double-tap to open your session.</string>
     <string name="a11y_rf_done">Resonance search done: %.1f per minute. Double-tap to use it, Back to skip.</string>
-    <string name="a11y_rf_no_peak">Resonance search found no clear peak; the default is %1$.1f per minute. %2$s</string>
+    <string name="a11y_rf_no_peak">Resonance search found no clear peak and ended at %1$.1f per minute. %2$s</string>
     <string name="a11y_use_or_skip">Double-tap to use it, Back to skip.</string>
     <string name="a11y_for_table">Double-tap for the table.</string>
     <string name="a11y_session_done">Session done. %1$s, %2$s. %3$s.%4$s Double-tap for the table.</string>
@@ -113,6 +123,7 @@
     <string name="scene_best_so_far">BEST SO FAR %.1f</string>
     <string name="scene_model_vs_probe">MODEL %1$.1f - BEST PROBE %2$.1f</string>
     <string name="scene_default_probes">DEFAULT %1$.1f - %2$d PROBES</string>
+    <string name="scene_estimate_probes">ESTIMATE %1$.1f - %2$d PROBES</string>
     <string name="scene_best_probe">BEST PROBE %1$.1f - %2$d PROBES</string>
     <string name="scene_no_probes">NO PROBES COMPLETED</string>
     <string name="scene_tap_to_use">TAP TO USE %.1f/MIN</string>

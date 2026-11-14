@@ -70,4 +70,12 @@ class SessionCsvTest {
         w.beat(1000.0, 1500, 1000.0, true, 60.0, 5.5, 0.0, null, null)
         assertTrue(out.size() > afterHeader)
     }
+
+    @Test fun headerCarriesTheResonanceEstimateOnlyWhenThereIsOne() {
+        fun header(estimate: Double?) = java.io.ByteArrayOutputStream().also {
+            SessionCsvWriter(it).writeHeader(SessionMeta("2.0", "AA", "strap", "2026-11-14T10:00:00+08:00", 6.2, 0.5, "15", 1.0, 6.0, rfEstimateBpm = estimate))
+        }.toString("UTF-8").lines()
+        assertTrue(header(6.2).contains("# rf_estimate_bpm=6.2"))
+        assertTrue(header(null).none { it.startsWith("# rf_estimate") })
+    }
 }

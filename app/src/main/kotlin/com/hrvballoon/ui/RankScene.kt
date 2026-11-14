@@ -104,7 +104,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             text(centred(hero, 2), 22, hero, if (converged) HIGHLIGHT else DIM, 2)
             val sub = when {
                 converged -> String.format(Locale.ROOT, t.modelVsProbe, r.rateBpm, bestProbe?.first ?: r.rateBpm)
-                noPeak -> String.format(Locale.ROOT, t.defaultProbes, r.rateBpm, r.probes.size)
+                noPeak -> String.format(Locale.ROOT, if (r.rfEstimateBpm != null) t.estimateProbes else t.defaultProbes, r.rateBpm, r.probes.size)
                 bestProbe != null -> String.format(Locale.ROOT, t.bestProbe, bestProbe.first, r.probes.size)
                 else -> t.noProbes
             }

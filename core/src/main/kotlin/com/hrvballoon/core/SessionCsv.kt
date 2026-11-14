@@ -13,6 +13,8 @@ enum class CsvEvent(val csv: String) {
 class SessionMeta(
     val appVersion: String, val deviceAddress: String, val deviceName: String?, val startIso: String,
     val rateBpm: Double, val inhaleFraction: Double, val durationSetting: String, val floorBpm: Double, val ceilingBpm: Double,
+    /** Height-and-sex starting estimate of a resonance search, when one was given. */
+    val rfEstimateBpm: Double? = null,
 )
 
 /** Device names are free text set by the device; keep the header awk/cut-safe. */
@@ -34,7 +36,7 @@ class SessionCsvWriter(out: OutputStream) {
             "duration" to meta.durationSetting,
             "floor_bpm" to f1(meta.floorBpm),
             "ceiling_bpm" to f1(meta.ceilingBpm),
-        )
+        ) + listOfNotNull(meta.rfEstimateBpm?.let { "rf_estimate_bpm" to f1(it) })
         for ((k, v) in fields) w.write("# $k=$v\n")
         w.write(COLUMNS)
         w.write("\n")

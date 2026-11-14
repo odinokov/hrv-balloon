@@ -37,4 +37,11 @@ class SessionOutcomeTest {
         assertEquals(6.2, sessionOutcome(true, 6.2, 6.0, null, false, false, probes).rateBpm, 1e-9)
         assertEquals(6.0, sessionOutcome(true, 6.0, 6.0, null, false, false, emptyList()).rateBpm, 1e-9)
     }
+
+    @Test fun noPeakOffersTheSearchFallbackSuchAsAHeightEstimate() {
+        val o = sessionOutcome(true, 6.2, 5.5, 6.2, false, true, probes)
+        assertEquals(6.2, o.rateBpm, 1e-9)
+        assertEquals(62, o.offerTenths)
+        assertEquals(0, sessionOutcome(true, 6.2, 6.2, 6.2, false, true, probes).offerTenths)
+    }
 }

@@ -15,6 +15,8 @@ class SessionRecord(
     val kind: Int = KIND_TRAINING,
     /** Search probes as (rate, score), in probe order. */
     val probes: List<Pair<Double, Double>> = emptyList(),
+    /** Height-and-sex starting estimate of a search (Hasuo et al. 2023), when one was given. */
+    val rfEstimateBpm: Double? = null,
 ) {
     /** Effective amplitude in bpm, retained for history and resonance-search comparisons. */
     val score get() = (meanP ?: 0.0) * (meanShape ?: 0.0)

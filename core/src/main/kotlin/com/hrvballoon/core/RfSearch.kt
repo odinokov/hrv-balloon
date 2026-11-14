@@ -13,7 +13,8 @@ import kotlin.math.sqrt
  * curve rises more than twice one probe's noise above its lowest point; without such a peak it is the top-scoring probe and
  * the search cannot converge.
  */
-class RfSearch(private val startRate: Double) {
+/** [fallbackBpm]: where a search without a peak ends, e.g. a height-and-sex estimate; 5.5 /min by default. */
+class RfSearch(private val startRate: Double, private val fallbackBpm: Double = FALLBACK_BPM) {
     private val rates = ArrayList<Double>()
     private val scores = ArrayList<Double>()
     private var lastBest: Double? = null
@@ -39,14 +40,14 @@ class RfSearch(private val startRate: Double) {
     val finished get() = converged || stopped
 
     /**
-     * No time for another probe. Without a peak after [MIN_PROBES] probes the answer is [FALLBACK_BPM], which becomes
+     * No time for another probe. Without a peak after [MIN_PROBES] probes the answer is the fallback, which becomes
      * [best]; with fewer probes there is no answer (null) and [best] stays the incomplete estimate.
      */
     fun conclude(): Double? {
         stopped = true
         noPeak = !converged && rates.size >= MIN_PROBES
-        if (noPeak) best = FALLBACK_BPM
-        return if (noPeak) FALLBACK_BPM else null
+        if (noPeak) best = fallbackBpm
+        return if (noPeak) fallbackBpm else null
     }
 
     /** [phaseHint] > 0 = HR leads the pacer (breathing slower than resonance), < 0 = lags, 0 = unknown. */

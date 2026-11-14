@@ -7,6 +7,8 @@ class SessionConfig(
     val shapeGate: Boolean,
     /** Run the resonance-frequency search: the pacer rate is probed and adapted during the session. */
     val rfSearch: Boolean,
+    /** Where a search without a peak ends: a height-and-sex estimate when one was given. */
+    val rfFallbackBpm: Double = RfSearch.FALLBACK_BPM,
 )
 
 /**
@@ -38,7 +40,7 @@ class UiState(
 class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvWriter) {
     /** The pacer; rate may change during a resonance search. Query it from the UI thread only. */
     val pacer = PacerTrack(cfg.rateBpm, cfg.inhaleFraction)
-    private val rf = if (cfg.rfSearch) RfSearch(cfg.rateBpm) else null
+    private val rf = if (cfg.rfSearch) RfSearch(cfg.rateBpm, cfg.rfFallbackBpm) else null
     private var probeStartMs = 0.0
     private var probeIndex = 1
     private var probeReset = false
@@ -150,7 +152,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
      * periods 2–3 refill the window, periods 4–9 are measured (median of P × rhythm, four two-breath windows of data).
      * Then the next rate is scheduled for the following inhale start. A signal loss or a return to the app discards the
      * probe's scores. Once converged the pacer moves to the best rate and the search stops; it also stops when the next
-     * probe could not end [FINAL_MS] before the session does, at [RfSearch.FALLBACK_BPM] when the curve shows no peak.
+     * probe could not end [FINAL_MS] before the session does, at [SessionConfig.rfFallbackBpm] when the curve shows no peak.
      */
     private fun probe(search: RfSearch, t: Double, rate: Double) {
         val period = pacer.periodMs(t)

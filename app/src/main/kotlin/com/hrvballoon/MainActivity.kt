@@ -20,6 +20,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.provider.Settings as SysSettings
+import android.text.InputType
 import android.view.Choreographer
 import android.view.Gravity
 import android.view.View
@@ -28,6 +29,7 @@ import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -40,16 +42,20 @@ import com.hrvballoon.ble.HrmClient
 import com.hrvballoon.core.Bounce
 import com.hrvballoon.core.HrsPacket
 import com.hrvballoon.core.LostReason
+import com.hrvballoon.core.RfEstimate
+import com.hrvballoon.core.RfSearch
 import com.hrvballoon.core.SessionConfig
 import com.hrvballoon.core.SessionCsvWriter
 import com.hrvballoon.core.SessionEngine
 import com.hrvballoon.core.SessionMeta
 import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.SessionStatus
+import com.hrvballoon.core.Sex
 import com.hrvballoon.core.Signal
 import com.hrvballoon.core.Smoother
 import com.hrvballoon.core.StarCounter
 import com.hrvballoon.core.UiState
+import com.hrvballoon.core.hasuoEstimate
 import com.hrvballoon.core.rhythmLimited
 import com.hrvballoon.core.sessionOutcome
 import com.hrvballoon.core.sessionStatus
@@ -98,6 +104,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var foreground = false
 
     private var engine: SessionEngine? = null
+    private var sessionEstimate: Double? = null
     private val sceneText by lazy { SceneText { resources.getString(it) } }
     private var backGuard: Any? = null   // OnBackInvokedCallback on Android 13+, set while a session runs
     private var startElapsed = 0L
@@ -220,7 +227,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         }
         startStop = Button(this).apply {
             setText(R.string.start); isEnabled = false
-            setOnClickListener { if (engine == null) startSession() else confirmStop() }
+            setOnClickListener { if (engine != null) confirmStop() else if (settings.rfSearch) askEstimate(::startSession) else startSession(null) }
         }
         styleStart()
         ranksButton = Button(this).apply { setText(R.string.ranks); secondary(); setOnClickListener { openRanks(-1, result = false) } }
@@ -449,7 +456,9 @@ class MainActivity : Activity(), HrmClient.Listener {
         Toast.makeText(this, fmt(R.string.rate_set, settings.rateBpm), Toast.LENGTH_SHORT).show()
     }
 
-    private fun startSession() {
+    /** [estimate]: a search's height-and-sex start; the search begins there and ends there if it finds no peak. */
+    private fun startSession(estimate: RfEstimate?) {
+        val startRate = estimate?.rateBpm ?: settings.rateBpm
         val now = OffsetDateTime.now()
         csvName = if (settings.saveCsv) "hrv_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv" else ""
         val csv = if (!settings.saveCsv) SessionCsvWriter(NULL_STREAM) else try {
@@ -463,15 +472,16 @@ class MainActivity : Activity(), HrmClient.Listener {
         csv.writeHeader(
             SessionMeta(
                 version, settings.deviceAddress ?: "?", settings.deviceName, now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-                settings.rateBpm, settings.inhaleFraction, settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                startRate, settings.inhaleFraction, settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                estimate?.rateBpm,
             ),
         )
         startElapsed = SystemClock.elapsedRealtime()
         startWall = System.currentTimeMillis()
         engine = SessionEngine(
             SessionConfig(
-                settings.rateBpm, settings.inhaleFraction, settings.durationMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
-                settings.shapeGate, settings.rfSearch,
+                startRate, settings.inhaleFraction, settings.durationMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                settings.shapeGate, settings.rfSearch, estimate?.rateBpm ?: RfSearch.FALLBACK_BPM,
             ),
             csv,
         )
@@ -487,7 +497,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         balloon.traceT = DoubleArray(0)
         balloon.traceHr = DoubleArray(0)
         balloon.forecast = null
-        balloon.pacerPeriodMs = 60_000 / settings.rateBpm
+        balloon.pacerPeriodMs = 60_000 / startRate
         balloon.inhaleFraction = settings.inhaleFraction
         target = 0.0
         frozen = false
@@ -500,6 +510,46 @@ class MainActivity : Activity(), HrmClient.Listener {
         ranksButton.visibility = View.GONE
         settingsButton.visibility = View.GONE
         showControls()   // visible for the first few seconds so the reveal gesture is learned
+        sessionEstimate = estimate?.rateBpm
+        estimate?.let { Toast.makeText(this, fmt(if (it.extrapolated) R.string.rf_estimate_outside else R.string.rf_estimate_start, it.rateBpm), Toast.LENGTH_LONG).show() }
+    }
+
+    /** Asks height and sex each time a search starts (nothing stored); Skip starts at the current rate. */
+    private fun askEstimate(onStart: (RfEstimate?) -> Unit) {
+        val ui = SettingsWidgets(this, main)
+        val height = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            hint = "170"
+            minEms = 4
+            contentDescription = getString(R.string.height_cm)
+        }
+        var sex: Sex? = null
+        val sexChoice = ui.choice(listOf(getString(R.string.sex_male), getString(R.string.sex_female)), { if (sex == null) -1 else sex!!.ordinal }) {
+            sex = Sex.entries[it]
+        }
+        ui.refresh()
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(ui.px(20), ui.px(8), ui.px(20), 0)
+            addView(TextView(this@MainActivity).apply { setText(R.string.rf_estimate_message) })
+            addView(ui.row(getString(R.string.height_cm), height))
+            addView(ui.row(getString(R.string.sex), sexChoice))
+        }
+        val dialog = AlertDialog.Builder(this).setTitle(R.string.rf_estimate_title).setView(content)
+            .setPositiveButton(R.string.start, null)
+            .setNeutralButton(R.string.skip) { _, _ -> onStart(null) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val cm = height.text.toString().replace(',', '.').toDoubleOrNull()
+            val chosen = sex
+            if (cm == null || cm !in 130.0..210.0 || chosen == null) {
+                Toast.makeText(this, R.string.rf_estimate_invalid, Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            dialog.dismiss()
+            onStart(hasuoEstimate(cm, chosen))
+        }
     }
 
     /** [cue] = long vibration: Stop button and timer end, not a session cut short by leaving the app. */
@@ -531,6 +581,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 summary.stars, summary.meanHr, summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats,
                 outcome.kind,
                 summary.rfProbes,
+                if (wasSearch) sessionEstimate else null,
             ),
         )
         if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()

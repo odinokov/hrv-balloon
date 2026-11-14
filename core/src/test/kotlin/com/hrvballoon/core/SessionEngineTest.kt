@@ -300,9 +300,9 @@ class SessionEngineTest {
     }
 
     /** HR follows the pacer by ±5 beats/min at whatever rate it runs, so every probe scores alike: a curve with no peak. */
-    private fun runFollower(durationMs: Long): Run {
+    private fun runFollower(durationMs: Long, start: Double = 5.5, fallback: Double = 5.5): Run {
         val out = ByteArrayOutputStream()
-        val engine = SessionEngine(SessionConfig(5.5, 0.5, durationMs, 0.0, 15.0, true, true), SessionCsvWriter(out))
+        val engine = SessionEngine(SessionConfig(start, 0.5, durationMs, 0.0, 15.0, true, true, rfFallbackBpm = fallback), SessionCsvWriter(out))
         val rnd = java.util.Random(7)
         var beatEnd = 0.0
         var rr = 60000 / 62.0
@@ -351,5 +351,13 @@ class SessionEngineTest {
         assertFalse(r.summary.rfConverged)
         assertTrue("probes=${r.summary.rfProbes.size}", r.summary.rfProbes.size in 1..4)
         assertEquals(1, r.states.filter { it.tMs > 310_000 }.map { it.rateBpm }.distinct().size)
+    }
+
+    @Test fun aSearchFromAHeightEstimateFallsBackToThatEstimate() {
+        val r = runFollower(900_000, start = 6.2, fallback = 6.2)
+        assertEquals(6.2, r.summary.rfProbes.first().first, 1e-9)   // first probe at the estimate
+        assertTrue(r.summary.rfNoPeak)
+        assertEquals(6.2, r.summary.rfBest!!, 1e-9)
+        assertEquals(6.2, r.states.last().rateBpm, 1e-9)
     }
 }
