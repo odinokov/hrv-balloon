@@ -80,31 +80,38 @@ class RankScene(val w: Int, val h: Int, seed: Long = 11) {
 
     /**
      * End-of-session card. Training: hero star count (2×), star rank, lifetime total and date.
-     * Search: the found rate as hero only when converged, else an honest "incomplete"; then the probe curve.
+     * Search: the found rate as hero only when converged, "no clear peak" with the 5.5 default, or an honest "incomplete";
+     * then the probe curve. [offer]: the card ends with "tap to use" its rate.
      */
-    fun renderResult(r: SessionRecord, rankPos: Int, total: Int, best: SessionRecord?, timeMs: Long, lifetimeStars: Int): IntArray {
+    fun renderResult(
+        r: SessionRecord, rankPos: Int, total: Int, best: SessionRecord?, timeMs: Long, lifetimeStars: Int,
+        offer: Boolean = r.kind == SessionRecord.KIND_RF_SEARCH,
+    ): IntArray {
         backdrop(timeMs)
         surface(0, 0, w, 17, SURFACE)
         surface(4, 18, w - 4, 47, SURFACE)
         text(centred("SESSION DONE"), 8, "SESSION DONE", titleColor(timeMs))
         if (r.isSearch) {
             val converged = r.kind == SessionRecord.KIND_RF_SEARCH
+            val noPeak = r.kind == SessionRecord.KIND_RF_NO_PEAK
             val bestProbe = r.probes.maxByOrNull { it.second }
             val hero = when {
                 converged -> String.format(Locale.ROOT, "RESONANCE %.1f", r.rateBpm)
+                noPeak -> "NO CLEAR PEAK"
                 r.probes.size < 3 -> "NO ESTIMATE YET"
                 else -> String.format(Locale.ROOT, "BEST SO FAR %.1f", r.rateBpm)
             }
             text(centred(hero, 2), 22, hero, if (converged) HIGHLIGHT else DIM, 2)
             val sub = when {
                 converged -> String.format(Locale.ROOT, "MODEL %.1f - BEST PROBE %.1f", r.rateBpm, bestProbe?.first ?: r.rateBpm)
+                noPeak -> String.format(Locale.ROOT, "DEFAULT %.1f - %d PROBES", r.rateBpm, r.probes.size)
                 bestProbe != null -> String.format(Locale.ROOT, "BEST PROBE %.1f - %d PROBES", bestProbe.first, r.probes.size)
                 else -> "NO PROBES COMPLETED"
             }
             text(centred(sub), 38, sub, if (converged) TEXT else DIM)
             if (r.probes.isNotEmpty()) surface(4, 48, w - 4, 68 + minOf(12, r.probes.size) * 8, SURFACE)
             probeCurve(r, 52, if (converged) r.rateBpm else null)
-            if (converged) {
+            if (offer) {
                 val use = String.format(Locale.ROOT, "TAP TO USE %.1f/MIN", r.rateBpm)
                 text(centred(use), h - 30, use, HIGHLIGHT)
                 text(centred("BACK TO SKIP"), h - 20, "BACK TO SKIP", DIM)

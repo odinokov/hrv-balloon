@@ -335,4 +335,21 @@ class SessionEngineTest {
         assertEquals("probe indices after 13:01: $late", 1, late.size)
         assertFalse(r.summary.rfConverged)
     }
+
+    @Test fun aSearchWithoutAPeakEndsAt55() {
+        val r = runFollower(900_000)
+        assertTrue(r.summary.rfNoPeak)
+        assertFalse(r.summary.rfConverged)
+        assertEquals(5.5, r.summary.rfBest!!, 1e-9)
+        assertTrue("probes=${r.summary.rfProbes.size}", r.summary.rfProbes.size >= 5)
+        assertEquals(5.5, r.states.last().rateBpm, 1e-9)
+    }
+
+    @Test fun aSearchTooShortForFiveProbesStaysIncompleteAtItsRate() {
+        val r = runFollower(420_000)   // probes must end by 5:00, room for two or three
+        assertFalse(r.summary.rfNoPeak)
+        assertFalse(r.summary.rfConverged)
+        assertTrue("probes=${r.summary.rfProbes.size}", r.summary.rfProbes.size in 1..4)
+        assertEquals(1, r.states.filter { it.tMs > 310_000 }.map { it.rateBpm }.distinct().size)
+    }
 }

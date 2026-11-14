@@ -150,4 +150,12 @@ class RankSceneTest {
         val without = count(scene.renderResult(copy(null, null), 2, 3, records[0], 5_000, lifetimeStars = 12), RankScene.TEXT)
         assertTrue("with=$with without=$without", with > without)   // rhythm shows on its own, P is never needed
     }
+
+    @Test fun noPeakCardOffersTheDefaultOnlyWhenAsked() {
+        val r = SessionRecord(1L, 900_000, 5.5, 8.0, 0.8, 0, 62.0, 1.0, 600_000, 30.0, 40.0, 800,
+            SessionRecord.KIND_RF_NO_PEAK, listOf(5.5 to 8.0, 6.2 to 8.1, 4.8 to 7.9, 5.0 to 8.0, 6.0 to 8.2))
+        val offered = count(scene.renderResult(r, -1, 3, null, 5_000, 0, offer = true), RankScene.HIGHLIGHT)
+        val plain = count(scene.renderResult(r, -1, 3, null, 5_000, 0, offer = false), RankScene.HIGHLIGHT)
+        assertTrue("offered=$offered plain=$plain", offered > plain)
+    }
 }

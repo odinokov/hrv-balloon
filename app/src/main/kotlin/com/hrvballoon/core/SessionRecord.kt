@@ -8,7 +8,10 @@ class SessionRecord(
     val stars: Int, val meanHr: Double?, val rejectedPct: Double?,
     /** Time with a live estimate; sessions below [MIN_RANKED_MS] stay in history but are not ranked. */
     val validMs: Long, val rmssd: Double?, val sdnn: Double?, val beats: Int,
-    /** [KIND_TRAINING], [KIND_RF_SEARCH] (converged; [rateBpm] is the rate found) or [KIND_RF_INCOMPLETE]. */
+    /**
+     * [KIND_TRAINING], [KIND_RF_SEARCH] (converged; [rateBpm] is the rate found), [KIND_RF_NO_PEAK] (no peak after
+     * enough probes; [rateBpm] is the 5.5 default) or [KIND_RF_INCOMPLETE].
+     */
     val kind: Int = KIND_TRAINING,
     /** Search probes as (rate, score), in probe order. */
     val probes: List<Pair<Double, Double>> = emptyList(),
@@ -34,6 +37,7 @@ class SessionRecord(
         const val KIND_TRAINING = 0
         const val KIND_RF_SEARCH = 1
         const val KIND_RF_INCOMPLETE = 2
+        const val KIND_RF_NO_PEAK = 3
 
         /** Accepts the current 14-field line and the older 13-, 12- and 8-field ones (8 = fully valid, no RMSSD/SDNN/beats). */
         fun fromLine(line: String): SessionRecord? {

@@ -11,6 +11,7 @@ import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.rankSessions
 import com.hrvballoon.ui.RankView
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -20,6 +21,7 @@ import kotlin.math.roundToInt
  * returns [EXTRA_USE_RATE], Back skips.
  */
 class RankActivity : Activity() {
+    private var currentRate = 0.0
     private lateinit var view: RankView
     private lateinit var ranked: List<SessionRecord>
     private var pos = -1
@@ -40,6 +42,7 @@ class RankActivity : Activity() {
         val mine = all.lastOrNull { it.startMs == start }
         pos = ranked.indexOfFirst { it.startMs == start }
         val settings = Settings(AndroidPrefs(this))
+        currentRate = settings.rateBpm
         view = RankView(this).apply {
             records = ranked
             highlight = pos
@@ -60,13 +63,15 @@ class RankActivity : Activity() {
         view.rankPos = pos + 1
         view.total = ranked.size
         view.best = ranked.firstOrNull()
+        // A search without a peak offers the 5.5 default only to someone breathing at another rate.
+        view.offer = r.kind == SessionRecord.KIND_RF_SEARCH || (r.kind == SessionRecord.KIND_RF_NO_PEAK && abs(currentRate - r.rateBpm) > 0.05)
         view.invalidate()
         describe()
     }
 
     private fun tap(y: Float) {
         view.result?.let { r ->
-            if (r.kind == SessionRecord.KIND_RF_SEARCH) { setResult(RESULT_OK, Intent().putExtra(EXTRA_USE_RATE, r.rateBpm)); finish(); return }
+            if (view.offer) { setResult(RESULT_OK, Intent().putExtra(EXTRA_USE_RATE, r.rateBpm)); finish(); return }
             view.result = null; view.invalidate(); describe(); return
         }
         val row = view.rowAtViewY(y)
@@ -82,6 +87,8 @@ class RankActivity : Activity() {
                 String.format(Locale.ROOT, "%d: %d stars", i + 1, s.stars)
             }.joinToString(". ") + ". Double-tap to open your session."
             r.kind == SessionRecord.KIND_RF_SEARCH -> String.format(Locale.ROOT, "Resonance search done: %.1f per minute. Double-tap to use it, Back to skip.", r.rateBpm)
+            r.kind == SessionRecord.KIND_RF_NO_PEAK -> String.format(Locale.ROOT, "Resonance search found no clear peak; the default is %.1f per minute. %s", r.rateBpm,
+                if (view.offer) "Double-tap to use it, Back to skip." else "Double-tap for the table.")
             r.isSearch -> "Resonance search incomplete, ${r.probes.size} probes. Double-tap for the table."
             else -> String.format(
                 Locale.ROOT, "Session done. %d stars, %s. %d lifetime stars.%s Double-tap for the table.",

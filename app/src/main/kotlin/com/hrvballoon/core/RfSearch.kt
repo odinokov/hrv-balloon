@@ -28,15 +28,26 @@ class RfSearch(private val startRate: Double) {
     var best: Double? = null
         private set
 
-    val converged get() = rates.size >= 5 && stable >= 2 && peaked
+    val converged get() = rates.size >= MIN_PROBES && stable >= 2 && peaked
 
-    /** Set by [stop] when the session has no time left for another probe. */
-    var stopped = false
+    /** Set by [conclude]: the search ran out of time without converging, after enough probes to call the curve flat. */
+    var noPeak = false
         private set
+
+    private var stopped = false
 
     val finished get() = converged || stopped
 
-    fun stop() { stopped = true }
+    /**
+     * No time for another probe. Without a peak after [MIN_PROBES] probes the answer is [FALLBACK_BPM], which becomes
+     * [best]; with fewer probes there is no answer (null) and [best] stays the incomplete estimate.
+     */
+    fun conclude(): Double? {
+        stopped = true
+        noPeak = !converged && rates.size >= MIN_PROBES
+        if (noPeak) best = FALLBACK_BPM
+        return if (noPeak) FALLBACK_BPM else null
+    }
 
     /** [phaseHint] > 0 = HR leads the pacer (breathing slower than resonance), < 0 = lags, 0 = unknown. */
     fun next(phaseHint: Double): Double = when (rates.size) {
@@ -79,10 +90,13 @@ class RfSearch(private val startRate: Double) {
 
     private fun snap(rate: Double) = ((rate * 10).roundToInt() / 10.0).coerceIn(4.0, 7.0)
 
-    private companion object {
-        val GRID = DoubleArray(31) { (40 + it) / 10.0 }
-        const val LENGTH = 0.5
-        const val NOISE_SD = 0.25   // probe-to-probe spread of 18-36 % at 9 breaths on a recorded session
-        const val NOISE = NOISE_SD * NOISE_SD
+    companion object {
+        /** Rate used when a search finds no clear peak: 5.5 /min with equal inhale and exhale (Lin, Tai & Fan 2014). */
+        const val FALLBACK_BPM = 5.5
+        const val MIN_PROBES = 5
+        private val GRID = DoubleArray(31) { (40 + it) / 10.0 }
+        private const val LENGTH = 0.5
+        private const val NOISE_SD = 0.25   // probe-to-probe spread of 18-36 % at 9 breaths on a recorded session
+        private const val NOISE = NOISE_SD * NOISE_SD
     }
 }

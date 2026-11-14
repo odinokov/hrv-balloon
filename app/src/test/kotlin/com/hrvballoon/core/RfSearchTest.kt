@@ -70,4 +70,19 @@ class RfSearchTest {
         }
         assertFalse(s.converged)
     }
+
+    @Test fun withoutAPeakTheSearchConcludesAt55AndWithTooFewProbesAtNothing() {
+        val s = RfSearch(6.0)
+        repeat(6) { s.report(s.next(phaseHint = 0.0), 5.0) }
+        assertEquals(5.5, s.conclude()!!, 1e-9)
+        assertTrue(s.noPeak)
+        assertTrue(s.finished)
+        assertFalse(s.converged)
+        assertEquals(5.5, s.best!!, 1e-9)
+        val few = RfSearch(6.0)
+        repeat(3) { few.report(few.next(phaseHint = 0.0), 5.0) }
+        assertNull(few.conclude())
+        assertFalse(few.noPeak)
+        assertTrue(few.finished)
+    }
 }

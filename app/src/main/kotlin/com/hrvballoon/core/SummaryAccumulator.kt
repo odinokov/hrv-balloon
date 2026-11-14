@@ -11,6 +11,8 @@ class Summary(
     /** Resonance-search result (posterior-mean best rate), when the session was a search. */
     val rfBest: Double?,
     val rfConverged: Boolean,
+    /** The search ended without a peak after enough probes; [rfBest] is then the 5.5 default. */
+    val rfNoPeak: Boolean,
     val rfProbes: List<Pair<Double, Double>>,
 )
 
@@ -35,6 +37,7 @@ class SummaryAccumulator {
     private var validMs = 0L
     var rfBest: Double? = null
     var rfConverged = false
+    var rfNoPeak = false
     var rfProbes: List<Pair<Double, Double>> = emptyList()
 
     fun addBeat(rrMs: Double, accepted: Boolean) {
@@ -87,6 +90,7 @@ class SummaryAccumulator {
         validMs = validMs,
         rfBest = rfBest,
         rfConverged = rfConverged,
+        rfNoPeak = rfNoPeak,
         rfProbes = rfProbes,
     )
 }

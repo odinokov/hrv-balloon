@@ -150,7 +150,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
      * periods 2–3 refill the window, periods 4–9 are measured (median of P × rhythm, four two-breath windows of data).
      * Then the next rate is scheduled for the following inhale start. A signal loss or a return to the app discards the
      * probe's scores. Once converged the pacer moves to the best rate and the search stops; it also stops when the next
-     * probe could not end [FINAL_MS] before the session does.
+     * probe could not end [FINAL_MS] before the session does, at [RfSearch.FALLBACK_BPM] when the curve shows no peak.
      */
     private fun probe(search: RfSearch, t: Double, rate: Double) {
         val period = pacer.periodMs(t)
@@ -166,7 +166,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             else -> search.next(phaseHint = if (lastLeadDeg > 10) 1.0 else if (lastLeadDeg < -10) -1.0 else 0.0)
         }
         val endBy = cfg.durationMs?.let { it - FINAL_MS }
-        if (!search.converged && endBy != null && t + period + PROBE_BREATHS * 60_000 / next > endBy) { search.stop(); next = rate }
+        if (!search.converged && endBy != null && t + period + PROBE_BREATHS * 60_000 / next > endBy) { next = search.conclude() ?: rate }
         probeStartMs = if (next != rate) pacer.changeRate(next, t) else t
         probeReset = search.finished && next == rate   // staying at the rate: no transient to clear
         if (!restart) probeIndex++
@@ -181,7 +181,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     fun stop(nowMs: Long): Summary {
         filter.flush().forEach { record(it) }
         csv.close()
-        rf?.let { summary.rfBest = it.best; summary.rfConverged = it.converged; summary.rfProbes = it.probes }
+        rf?.let { summary.rfBest = it.best; summary.rfConverged = it.converged; summary.rfNoPeak = it.noPeak; summary.rfProbes = it.probes }
         return summary.result(nowMs)
     }
 

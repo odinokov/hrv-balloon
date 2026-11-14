@@ -35,6 +35,7 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import com.hrvballoon.ble.HrmClient
+import com.hrvballoon.core.sessionOutcome
 import com.hrvballoon.core.HrsPacket
 import com.hrvballoon.core.LostReason
 import com.hrvballoon.core.SessionConfig
@@ -495,19 +496,15 @@ class MainActivity : Activity(), HrmClient.Listener {
         settingsButton.visibility = View.VISIBLE
         controls.visibility = View.GONE
         if (cue && foreground) endCue()   // the timer can end while you are in another app: no blind buzz there
-        val rfBest = summary.rfBest
-        if (wasSearch) {
-            settings.rfSearch = false
-            if (summary.rfConverged && rfBest != null) settings.lastRfTenths = (rfBest * 10).toInt()
-        }
+        val outcome = sessionOutcome(wasSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
+        if (wasSearch) settings.rfSearch = false
+        outcome.offerTenths?.let { settings.lastRfTenths = it; settings.lastRfNoPeak = outcome.kind == SessionRecord.KIND_RF_NO_PEAK }
         styleStart()
-        // An unfinished search records the model's best rate (from the third probe), else its best probe, else the start rate.
-        val recordRate = if (!wasSearch) finalRate else rfBest ?: summary.rfProbes.maxByOrNull { it.second }?.first ?: settings.rateBpm
         SessionStore(this).append(
             SessionRecord(
-                startWall, summary.durationMs, recordRate, summary.meanP, summary.meanShape,
+                startWall, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape,
                 summary.stars, summary.meanHr, summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats,
-                if (!wasSearch) SessionRecord.KIND_TRAINING else if (summary.rfConverged) SessionRecord.KIND_RF_SEARCH else SessionRecord.KIND_RF_INCOMPLETE,
+                outcome.kind,
                 summary.rfProbes,
             ),
         )
@@ -599,7 +596,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             addView(row("Rate, breaths/min", stepper("Rate", { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
                 { settings.rateTenths = stepRateTenths(settings.rateTenths, -1) }, { settings.rateTenths = stepRateTenths(settings.rateTenths, 1) })))
             if (settings.lastRfTenths > 0) {
-                addView(row(String.format(Locale.ROOT, "Resonance found: %.1f /min", settings.lastRfTenths / 10.0), small("Use").apply {
+                addView(row(String.format(Locale.ROOT, if (settings.lastRfNoPeak) "No clear peak: %.1f /min default" else "Resonance found: %.1f /min", settings.lastRfTenths / 10.0), small("Use").apply {
                     setOnClickListener { settings.rateTenths = settings.lastRfTenths; refresh() }
                 }))
             }

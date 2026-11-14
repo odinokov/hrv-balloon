@@ -19,6 +19,8 @@ class RankView(context: Context) : View(context) {
     var total = 0
     var best: SessionRecord? = null
     var lifetimeStars = 0
+    /** The shown card ends with "tap to use" its rate. */
+    var offer = false
     var hasUnranked = false
     var blink = true
     private var scale = 1
@@ -47,7 +49,7 @@ class RankView(context: Context) : View(context) {
     override fun onDraw(c: Canvas) {
         val s = scene ?: return
         val b = bitmap ?: return
-        val px = result?.let { s.renderResult(it, rankPos, total, best, timeMs, lifetimeStars) } ?: s.render(records, highlight, timeMs, hasUnranked, blink)
+        val px = result?.let { s.renderResult(it, rankPos, total, best, timeMs, lifetimeStars, offer) } ?: s.render(records, highlight, timeMs, hasUnranked, blink)
         b.setPixels(px, 0, s.w, 0, 0, s.w, s.h)
         c.drawColor(RankScene.NIGHT[0])
         c.drawBitmap(b, null, dst, paint)
