@@ -1,7 +1,7 @@
 package com.hrvballoon
 
-import android.annotation.SuppressLint
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
@@ -47,12 +47,14 @@ import com.hrvballoon.core.SessionCsvWriter
 import com.hrvballoon.core.SessionEngine
 import com.hrvballoon.core.SessionMeta
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.SessionStatus
 import com.hrvballoon.core.Signal
 import com.hrvballoon.core.Smoother
 import com.hrvballoon.core.StarCounter
 import com.hrvballoon.core.UiState
 import com.hrvballoon.core.rhythmLimited
 import com.hrvballoon.core.sessionOutcome
+import com.hrvballoon.core.sessionStatus
 import com.hrvballoon.core.starSlot
 import com.hrvballoon.core.stepRateTenths
 import com.hrvballoon.ui.BalloonView
@@ -343,16 +345,15 @@ class MainActivity : Activity(), HrmClient.Listener {
             LostReason.REJECTS -> listOf("BEATS IRREGULAR", "SIT STILL")
             null -> emptyList()
         }
-        val probe = s.rfProbe
         steady = settings.shapeGate && !s.warmingUp &&
             rhythmLimited(s.p2tBpm, s.shape, settings.floorBpm.toDouble(), steady)
-        val status = when {
-            s.finished -> "Done"
-            frozen -> "No signal"
-            probe != null && !probe.finished -> "Search"
-            s.warmingUp -> "Settling"
-            steady -> "Steady"
-            else -> ""
+        val status = when (sessionStatus(s, steady)) {
+            SessionStatus.DONE -> "Done"
+            SessionStatus.NO_SIGNAL -> "No signal"
+            SessionStatus.SEARCH -> "Search"
+            SessionStatus.SETTLING -> "Settling"
+            SessionStatus.STEADY -> "Steady"
+            SessionStatus.NONE -> ""
         }
         balloon.hud = Hud.session(hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
         balloon.traceT = s.traceT
