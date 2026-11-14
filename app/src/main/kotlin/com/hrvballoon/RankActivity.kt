@@ -55,7 +55,9 @@ class RankActivity : Activity() {
         }
         // After the assignment: show() reads `view`, which is still unset inside the apply block above.
         if (intent.getBooleanExtra(EXTRA_RESULT, false) && mine != null) show(mine, pos) else describe()
-        setContentView(view)
+        val root = android.widget.FrameLayout(this).apply { addView(view) }   // padded for the system bars; the view keeps its own coordinates
+        setContentView(root)
+        edgeToEdge(root)
     }
 
     private fun show(r: SessionRecord, pos: Int) {

@@ -16,7 +16,13 @@
     <application
         android:label="HRV Balloon"
         android:icon="@mipmap/ic_launcher"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:enableOnBackInvokedCallback="true">
+        <!-- Android 16 ignores the portrait lock on screens 600 dp and wider for targetSdk 36; this keeps the portrait
+             layout there until the scenes support landscape (the opt-out ends with targetSdk 37). -->
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

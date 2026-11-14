@@ -1,5 +1,6 @@
 package com.hrvballoon
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
@@ -11,6 +12,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -34,8 +36,10 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import com.hrvballoon.ble.HrmClient
-import com.hrvballoon.core.sessionOutcome
+import com.hrvballoon.core.Bounce
 import com.hrvballoon.core.HrsPacket
 import com.hrvballoon.core.LostReason
 import com.hrvballoon.core.SessionConfig
@@ -45,11 +49,11 @@ import com.hrvballoon.core.SessionMeta
 import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.Signal
 import com.hrvballoon.core.Smoother
-import com.hrvballoon.core.Bounce
 import com.hrvballoon.core.StarCounter
-import com.hrvballoon.core.rhythmLimited
-import com.hrvballoon.core.starSlot
 import com.hrvballoon.core.UiState
+import com.hrvballoon.core.rhythmLimited
+import com.hrvballoon.core.sessionOutcome
+import com.hrvballoon.core.starSlot
 import com.hrvballoon.core.stepRateTenths
 import com.hrvballoon.ui.BalloonView
 import com.hrvballoon.ui.Hud
@@ -86,6 +90,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var foreground = false
 
     private var engine: SessionEngine? = null
+    private var backGuard: Any? = null   // OnBackInvokedCallback on Android 13+, set while a session runs
     private var startElapsed = 0L
     private var startWall = 0L
     private var csvName = ""
@@ -170,9 +175,20 @@ class MainActivity : Activity(), HrmClient.Listener {
         super.onDestroy()
     }
 
+    /** Android 12 only: from Android 13 the manifest routes Back to [guardBack]'s callback (Android 16 never calls this). */
+    @SuppressLint("GestureBackNavigation")   // reached on Android 12 only; 13+ use the OnBackInvokedCallback
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (engine != null) confirmStop() else @Suppress("DEPRECATION") super.onBackPressed()
+    }
+
+    /** Android 13+: Back during a session asks before ending it, and leaves the app normally otherwise. */
+    private fun guardBack(on: Boolean) {
+        if (Build.VERSION.SDK_INT < 33) return
+        (backGuard as OnBackInvokedCallback?)?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+        backGuard = if (!on) null else OnBackInvokedCallback { confirmStop() }.also {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
+        }
     }
 
     private val graceStop = Runnable { if (engine != null && !foreground) stopSession(cue = false, endAtMs = leftAtMs) }
@@ -217,10 +233,12 @@ class MainActivity : Activity(), HrmClient.Listener {
             }
         }
         // Controls overlay the scene, so showing/hiding them never resizes (and rebuilds) the framebuffer.
-        setContentView(FrameLayout(this).apply {
+        val root = FrameLayout(this).apply {
             addView(balloon, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(controls, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
-        })
+        }
+        setContentView(root)
+        edgeToEdge(root)
     }
 
     /** Enabled = yellow, disabled = slate, running = red with white text (4.6:1): unmistakable regardless of the OEM skin. */
@@ -452,6 +470,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             ),
             csv,
         )
+        guardBack(true)
         smoother = Smoother(settings.responseMs)
         starCounter = StarCounter()
         live = false
@@ -485,6 +504,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         val wasSearch = settings.rfSearch
         val finalRate = e.pacer.rateAt(endAtMs.toDouble())   // exclude any change still waiting for the next inhale
         engine = null
+        guardBack(false)
         frozen = false
         target = 0.0
         balloon.running = false
