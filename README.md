@@ -102,7 +102,7 @@ Nothing leaves the phone.
 Requires a JDK 17 or newer (with `javac`) and an Android SDK with `platforms;android-36` and `build-tools;36.0.0`. With your own SDK, set `ANDROID_HOME` (or `sdk.dir` in `local.properties`) and run `./gradlew`, as CI does:
 
 ```sh
-./gradlew -q testDebugUnitTest    # unit tests
+./gradlew -q :core:test testDebugUnitTest    # unit tests
 ./gradlew -q assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew -q bundleRelease        # app/build/outputs/bundle/release/app-release.aab, for Google Play
 ./gradlew -q assembleSideload     # app/build/outputs/apk/sideload/app-sideload.apk, for GitHub releases
@@ -114,7 +114,7 @@ Release builds are unsigned unless a gitignored `keystore.properties` in the rep
 
 Layout:
 
-- `app/src/main/kotlin/com/hrvballoon/core` pure-Kotlin signal path: packet parsing, beat timeline, artifact filter, amplitude estimator, pacer, resonance search, session engine, trace forecast, summary, CSV. Unit-tested without Android.
+- `core/` (Gradle module `:core`, plain Kotlin on the JVM) signal path and session logic: packet parsing, beat timeline, artifact filter, amplitude estimator, pacer, resonance search, session engine and outcome, trace forecast, summary, CSV. It cannot use Android APIs, and its tests run without Android.
 - `app/src/main/kotlin/com/hrvballoon/ble` Heart Rate Service client.
 - `app/src/main/kotlin/com/hrvballoon/ui` pixel scene, HUD font, balloon view, ranks.
 - `scripts/make_icon.py` generates the adaptive launcher icon from a pixel map.

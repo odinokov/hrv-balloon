@@ -14,4 +14,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "hrvbf"
-include(":app")
+include(":app", ":core")
