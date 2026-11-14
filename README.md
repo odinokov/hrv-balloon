@@ -64,7 +64,7 @@ Settings → **Find my resonance rate (next session only)**. Before that session
 
 ### Swing versus RMSSD
 
-HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency, a sine-fit counterpart of the peak-to-trough criterion used in resonance-frequency assessment [11]. That criterion averages each breath's maximum minus minimum heart rate. The two agree only for a clean sine wave; the conventional value usually runs higher, because the 40 : 60 pacer gives an asymmetric wave and maximum minus minimum also picks up beat-to-beat noise. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 beats/min, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
+HRV is often quoted as RMSSD, the root mean square of differences between consecutive RR intervals, in ms. The balloon uses a fitted peak-to-trough heart-rate swing at the pacer frequency, a sine-fit counterpart of the peak-to-trough criterion used in resonance-frequency assessment [11]. A related real-time sine-fit amplitude, with the frequency fitted near the breathing rate on optical pulse data, correlated at r = 0.93 with low-frequency power around the breathing rate across 5,158 users of a digital mental-health programme [15]. That criterion averages each breath's maximum minus minimum heart rate. The two agree only for a clean sine wave; the conventional value usually runs higher, because an unequal inhale : exhale setting such as 40 : 60 gives an asymmetric wave and maximum minus minimum also picks up beat-to-beat noise. Successive differences act as a high-pass filter: for an approximately sinusoidal RR trace at 6 breaths/min and a mean heart rate of about 60 beats/min, RMSSD is roughly a fifth of the RR peak-to-trough. RMSSD and SDNN are also computed in ms when enough accepted data are available and saved with the session record, though neither is shown on screen.
 
 ## Settings
 
@@ -78,7 +78,7 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 | Sky ceiling, HR swing in beats/min | 6 | swing at or above this is at the top |
 | Save CSV to Download/HRV | off | per-beat file, see below |
 
-The defaults, 1 and 6, are an easy start. Swing falls steeply with age, so these limits suit older users and fill the sky quickly for fit young ones. For a harder game, raise the sky ceiling first and the lift threshold after it, since the ceiling stays at least 5 above the threshold. Ranks compare star totals, so compare sessions played at the same limits.
+The defaults, 1 and 6, are an easy start. Swing falls steeply with age, more so in men [15], so these limits suit older users and fill the sky quickly for fit young ones. For a harder game, raise the sky ceiling first and the lift threshold after it, since the ceiling stays at least 5 above the threshold. Ranks compare star totals, so compare sessions played at the same limits.
 
 Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 1–6 beats/min is about 17–100 ms of RR swing at 60 beats/min, but 9–56 ms at 80 beats/min.
 
@@ -170,6 +170,7 @@ On hardware: the Polar H10 agrees closely with ECG for RR intervals at rest and 
 12. Lin IM, Tai LY, Fan SY. Breathing at a rate of 5.5 breaths per minute with equal inhalation-to-exhalation ratio increases heart rate variability. *Int J Psychophysiol.* 2014;91(3):206–211. [doi:10.1016/j.ijpsycho.2013.12.006](https://doi.org/10.1016/j.ijpsycho.2013.12.006)
 13. Hasuo H, Mori K, Matsuoka H, Sakuma H, Ishikawa H. An estimation formula for resonance frequency using sex and height for healthy individuals and patients with incurable cancers. *Appl Psychophysiol Biofeedback.* 2024;49(1):125–132. [doi:10.1007/s10484-023-09602-5](https://doi.org/10.1007/s10484-023-09602-5)
 14. Vaschillo EG, Vaschillo B, Lehrer PM. Characteristics of resonance in heart rate variability stimulated by biofeedback. *Appl Psychophysiol Biofeedback.* 2006;31(2):129–142. [doi:10.1007/s10484-006-9009-3](https://doi.org/10.1007/s10484-006-9009-3)
+15. Aschbacher K, Mather M, Lehrer P, Gevirtz R, Epel E, Peiper NC. Real-time heart rate variability biofeedback amplitude during a large-scale digital mental health intervention differed by age, gender, and mental and physical health. *Psychophysiology.* 2024;61(6):e14533. [doi:10.1111/psyp.14533](https://doi.org/10.1111/psyp.14533)
 
 ## Not a medical device
 
