@@ -8,6 +8,7 @@ dist/
 # local toolchain: ./gw keeps every tool home inside the repo
 .home/
 .sdk/
+.jdk/
 local.properties
 
 # signing keys and their passwords: never commit

@@ -49,7 +49,8 @@ class PacerTrack(rateBpm: Double, val inhaleFraction: Double) {
 
     /** Schedules [newRate] for the next inhale start after [nowMs] (replacing any pending change); returns that time. */
     fun changeRate(newRate: Double, nowMs: Double): Double {
-        while (starts.size > 1 && starts.last() > nowMs) { starts.removeLast(); rates.removeLast(); cycles0.removeLast() }
+        // removeAt, not removeLast: with compileSdk 35+ that resolves to the Java 21 member, missing before Android 15.
+        while (starts.size > 1 && starts.last() > nowMs) { starts.removeAt(starts.lastIndex); rates.removeAt(rates.lastIndex); cycles0.removeAt(cycles0.lastIndex) }
         val i = seg(nowMs)
         val nextWhole = floor(cycles(nowMs) + 1e-9) + 1
         val at = starts[i] + (nextWhole - cycles0[i]) * 60_000 / rates[i]
