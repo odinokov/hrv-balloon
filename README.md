@@ -22,11 +22,11 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
 
 ## What a session looks like
 
-- **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 40 : 60 by default. Haptic cues follow it: a short pulse marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
+- **Pacer.** A bar fills over the inhale and empties over the exhale, cosine-eased, 50 : 50 by default [12]. Haptic cues follow it: a short pulse marks the inhale start, a double tap the exhale start, a triple tap each star, a long buzz the end.
 - **Balloon.** Lift comes from the swing: how far heart rate rises and falls with the breath. Heart rate here is beat-to-beat, 60000 / RR in ms, so 62 → 71 is a swing of 9: RR shortening from 968 to 845 ms. It is the peak-to-trough of a wave fitted over the last two breaths, which smooths out single fast or slow beats. With the default limits, below the lift threshold of 1 the balloon stays on the ground, and from the sky ceiling of 6 up it is at the top. The height is then scaled by how clean and pacer-locked the swing is. Depth without rhythm earns little.
-- **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (one star for each breath at 6.0/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
+- **Stars.** Each 10 s that the balloon stays at the ceiling drops a star (about one star per breath at the default 5.5/min). Stars come only from a live estimate, so none fall while the status line shows Settling. Stars are the score; the Ranks screen orders past sessions by them.
 - **Ranks.** Tap a row to open its results card; a training session's card shows the mean rhythm (R², %).
-- **Status line.** `HR 68 Pace 6.0/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
+- **Status line.** `HR 68 Pace 5.5/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. They appear after one full breath of good signal, at the start and after a loss. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
 - **Signal loss.** Link down, no skin contact, no RR for over 4 s, a gap of over 3 s in the beats, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses the cues, the statistics and the resonance search; beats received meanwhile are written to the CSV only. After a minute away the session ends.
 
@@ -36,7 +36,7 @@ Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet el
 
 1. Download `hrv-balloon-v1.4.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
-3. Wait for `Ready HR 68 6.0/min 15:00`, then tap **Start · 6.0/min** and breathe with the bar.
+3. Wait for `Ready HR 68 5.5/min 15:00`, then tap **Start · 5.5/min** and breathe with the bar.
 4. Tap the screen to show **Stop**, then confirm **End**, or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
 
 ## Breathe gently
@@ -70,8 +70,8 @@ HRV is often quoted as RMSSD, the root mean square of differences between consec
 
 | Setting | Default | Notes |
 |---|---|---|
-| Rate, breaths/min | 6.0 | 4.0–7.0, 0.1 steps |
-| Inhale : exhale | 40 : 60 | or 50 : 50 |
+| Rate, breaths/min | 5.5 | 4.0–7.0, 0.1 steps |
+| Inhale : exhale | 50 : 50 | or 40 : 60 |
 | Vibration cues | on | |
 | Find my resonance rate | off | one session, then resets |
 | Lift threshold, HR swing in beats/min | 1 | swing below this stays grounded |
@@ -141,6 +141,7 @@ What the trials show:
 - **Lehrer et al. 2020**, a meta-analysis of 58 randomised controlled studies. HRV biofeedback showed a small-to-moderate benefit, comparable to other effective treatments, and larger against inactive than active control conditions. <mark>Effects were largest for anxiety, depression, anger and athletic or artistic performance, and smallest for PTSD, sleep and quality of life</mark>, each resting on few studies [9]. Its lead author co-developed the standard protocol, and blinding is hard in biofeedback trials, where participants see their own feedback.
 - **Lehrer et al. 2003**, 54 healthy adults. Ten biofeedback sessions raised resting baroreflex gain [1].
 - **Lin et al. 2012**, 43 college students with prehypertension, randomised to resonance biofeedback, paced breathing at 6/min without feedback, or a control group that sat breathing normally. Both breathing groups had ten 20-minute laboratory sessions over five weeks and practised at home for 20 minutes twice a day. <mark>With biofeedback, mean systolic pressure fell from 131.7 to 118.9 mm Hg</mark> and baroreflex sensitivity rose from 7.0 to 15.8 ms/mm Hg; paced breathing at 6/min gave smaller gains, 131.3 to 123.6 mm Hg and 7.8 to 11.0 ms/mm Hg. The blood-pressure drop held at three months while practice continued at 20 minutes a day [2].
+- **Lin, Tai and Fan 2014**, 47 healthy college students, each breathing four patterns in counterbalanced order: 6 or 5.5 breaths/min, with inhale to exhale 5 : 5 or 4 : 6. 5.5 breaths/min at 5 : 5 gave higher SDNN and low-frequency power than the other three patterns, and all four felt more relaxing than spontaneous breathing. HRV was measured during the breathing, in a single session. The app's defaults, 5.5 breaths/min with equal inhale and exhale, follow this result [12].
 - **Steffen et al. 2017**, 95 students randomised to breathing at their resonance frequency, one breath per minute faster, or quiet sitting. <mark>After fifteen minutes at resonance, positive mood was higher than in both other groups, and systolic pressure during a subsequent mental stressor and recovery was lower than with quiet sitting.</mark> Both effects were measured in a single laboratory session [3].
 - **Szulczewski 2019**, 16 participants practising six breaths per minute for 10 minutes daily over seven days. End-tidal CO₂ initially fell, a sign of over-breathing. The fall shrank with practice, while reported hyperventilation symptoms persisted [4].
 - **Minjoz et al. 2026**, 47 healthy adults, genuine versus sham biofeedback, three five-minute sessions daily for 24 days. <mark>Genuine biofeedback improved positive affect and reduced depressive symptoms more than sham.</mark> HRV and electrodermal activity, at rest, under mental load and in recovery, showed no detectable difference between groups. In exploratory analyses, the size of the breathing-driven HRV swing during practice predicted psychological benefit poorly. Participants were healthy, so the trial does not address clinical depression [5].
@@ -161,6 +162,7 @@ On hardware: the Polar H10 agrees closely with ECG for RR intervals at rest and 
 9. Lehrer P, Kaur K, Sharma A, et al. Heart rate variability biofeedback improves emotional and physical health and performance: a systematic review and meta analysis. *Appl Psychophysiol Biofeedback.* 2020;45(3):109–129. [doi:10.1007/s10484-020-09466-z](https://doi.org/10.1007/s10484-020-09466-z)
 10. Polar Electro. Polar H10 heart rate sensor user manual: technical specifications. Accessed 1 Nov 2026. https://support.polar.com/e_manuals/h10-heart-rate-sensor/polar-h10-user-manual-english/technical-specifications.htm
 11. Shaffer F, Meehan ZM. A practical guide to resonance frequency assessment for heart rate variability biofeedback. *Front Neurosci.* 2020;14:570400. [doi:10.3389/fnins.2020.570400](https://doi.org/10.3389/fnins.2020.570400)
+12. Lin IM, Tai LY, Fan SY. Breathing at a rate of 5.5 breaths per minute with equal inhalation-to-exhalation ratio increases heart rate variability. *Int J Psychophysiol.* 2014;91(3):206–211. [doi:10.1016/j.ijpsycho.2013.12.006](https://doi.org/10.1016/j.ijpsycho.2013.12.006)
 
 ## Not a medical device
 

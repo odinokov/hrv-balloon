@@ -10,6 +10,10 @@ dist/
 .sdk/
 local.properties
 
+# signing keys and their passwords: never commit
+.keys/
+keystore.properties
+
 # IDE
 .idea/
 *.iml

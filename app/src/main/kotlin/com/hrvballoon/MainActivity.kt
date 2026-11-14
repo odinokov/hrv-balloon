@@ -107,7 +107,7 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        settings = Settings(this)
+        settings = Settings(AndroidPrefs(this))
         buildUi()
         client = HrmClient(this, this)
         if (hasPermissions()) connectOrPick() else requestPermissions(PERMS, REQ_PERMS)

@@ -39,7 +39,7 @@ class RankActivity : Activity() {
         val start = intent.getLongExtra(EXTRA_START, -1)
         val mine = all.lastOrNull { it.startMs == start }
         pos = ranked.indexOfFirst { it.startMs == start }
-        val settings = Settings(this)
+        val settings = Settings(AndroidPrefs(this))
         view = RankView(this).apply {
             records = ranked
             highlight = pos
