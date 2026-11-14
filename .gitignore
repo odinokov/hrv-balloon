@@ -14,6 +14,10 @@ local.properties
 # signing keys and their passwords: never commit
 .keys/
 keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
 
 # IDE
 .idea/
@@ -31,3 +35,10 @@ rnd/
 .superpowers/
 .impeccable/
 .code-review-graph/
+.claude/
+CLAUDE.local.md
+.slopconfig.yaml
+
+# heap dumps and logs
+*.hprof
+*.log
