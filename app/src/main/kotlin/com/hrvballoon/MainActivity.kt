@@ -27,13 +27,10 @@ import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowManager
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ListView
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedCallback
@@ -60,7 +57,6 @@ import com.hrvballoon.core.rhythmLimited
 import com.hrvballoon.core.sessionOutcome
 import com.hrvballoon.core.sessionStatus
 import com.hrvballoon.core.starSlot
-import com.hrvballoon.core.stepRateTenths
 import com.hrvballoon.ui.BalloonView
 import com.hrvballoon.ui.Chrome.NAVY
 import com.hrvballoon.ui.Chrome.RED
@@ -80,9 +76,6 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 class MainActivity : Activity(), HrmClient.Listener {
-    /** Connection phase, rendered in the scene's top band; transient messages are states, so nothing can overwrite them. */
-    private enum class Link { NO_PERMISSION, BT_OFF, NO_DEVICE, SCANNING, CONNECTING, CONNECTED }
-
     private lateinit var client: HrmClient
     private lateinit var settings: Settings
     private lateinit var balloon: BalloonView
@@ -91,9 +84,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     private lateinit var settingsButton: Button
     private lateinit var controls: LinearLayout
     private val main = Handler(Looper.getMainLooper())
-    private val devices = LinkedHashMap<String, String?>()
-    private var scanAdapter: ArrayAdapter<String>? = null
-    private var scanHint: TextView? = null
+    private var picker: StrapPicker? = null
     private val vibrator by lazy { (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator }
 
     private var link = Link.NO_DEVICE
@@ -302,18 +293,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         val enabled = engine != null || rrFresh
         if (startStop.isEnabled != enabled) { startStop.isEnabled = enabled; styleStart() }
         if (engine == null) {
-            val status = when (link) {
-                Link.NO_PERMISSION -> getString(R.string.hud_allow_bt)
-                Link.BT_OFF -> getString(R.string.hud_bt_off)
-                Link.NO_DEVICE -> getString(R.string.hud_pair)
-                Link.SCANNING -> getString(R.string.hud_looking)
-                Link.CONNECTING -> getString(R.string.hud_connecting)
-                Link.CONNECTED -> when {
-                    neverRr -> getString(R.string.hud_check_strap)
-                    !rrFresh -> getString(R.string.hud_waiting)
-                    else -> getString(R.string.hud_ready)
-                }
-            }
+            val status = getString(linkStatusRes(link, rrFresh, neverRr))
             balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(settings.durationMs)) else Hud(dot, status)
             describe(status)
         } else {
@@ -601,59 +581,31 @@ class MainActivity : Activity(), HrmClient.Listener {
     }
 
     /** One idiom throughout: section header, then rows of label-left / control-right (stepper, segmented choice, ON/OFF switch). */
-    private fun showSettings() {
-        val ui = SettingsWidgets(this, main)
-        var dialog: AlertDialog? = null
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(ui.px(20), 0, ui.px(20), ui.px(8))
-            addView(ui.header(getString(R.string.settings_breathing)))
-            addView(ui.row(getString(R.string.settings_rate), ui.stepper(getString(R.string.settings_rate_short), { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
-                { settings.rateTenths = stepRateTenths(settings.rateTenths, -1) }, { settings.rateTenths = stepRateTenths(settings.rateTenths, 1) })))
-            if (settings.lastRfTenths > 0) {
-                addView(ui.row(fmt(if (settings.lastRfNoPeak) R.string.settings_no_peak else R.string.settings_resonance_found, settings.lastRfTenths / 10.0), ui.small(getString(R.string.use)).apply {
-                    setOnClickListener { settings.rateTenths = settings.lastRfTenths; ui.refresh() }
-                }))
-            }
-            addView(ui.row(getString(R.string.settings_inhale_exhale), ui.choice(listOf("40:60", "50:50"), { if (settings.inhale5050) 1 else 0 }) { settings.inhale5050 = it == 1 }))
-            addView(ui.header(getString(R.string.settings_session)))
-            addView(ui.row(getString(R.string.settings_vibration), ui.onOff(settings.vibrate) { settings.vibrate = it }))
-            addView(ui.row(getString(R.string.settings_find_rate), ui.onOff(settings.rfSearch) { settings.rfSearch = it }))
-            addView(ui.header(getString(R.string.settings_balloon)))
-            addView(ui.row(getString(R.string.settings_lift), ui.stepper(getString(R.string.settings_lift_short), { "${settings.floorBpm}" },
-                { settings.stepFloor(-1) }, { settings.stepFloor(1) })))
-            addView(ui.row(getString(R.string.settings_ceiling), ui.stepper(getString(R.string.settings_ceiling_short), { "${settings.ceilingBpm}" },
-                { settings.stepCeiling(-1) }, { settings.stepCeiling(1) })))
-            addView(ui.header(getString(R.string.settings_data)))
-            addView(ui.row(getString(R.string.settings_save_csv), ui.onOff(settings.saveCsv) { settings.saveCsv = it }))
-            val forget = ui.small(getString(R.string.forget)).apply {
-                isEnabled = settings.deviceAddress != null
-                setOnClickListener {
-                    AlertDialog.Builder(this@MainActivity).setMessage(getString(R.string.forget_q, settings.deviceName ?: getString(R.string.this_strap)))
-                        .setPositiveButton(R.string.forget) { _, _ ->
-                            dialog?.dismiss()
-                            settings.deviceAddress = null
-                            settings.deviceName = null
-                            client.close()
-                            client = HrmClient(this@MainActivity, this@MainActivity)
-                            link = Link.NO_DEVICE
-                            pick()
-                        }
-                        .setNegativeButton(R.string.cancel, null).show()
-                }
-            }
-            // Rescan keeps the saved strap: picking another replaces it, Cancel leaves the link as it was.
-            val rescan = ui.small(getString(R.string.rescan)).apply { setOnClickListener { dialog?.dismiss(); pick() } }
-            addView(ui.row(settings.deviceName ?: getString(R.string.no_strap), LinearLayout(this@MainActivity).apply { addView(rescan); addView(forget) }))
-            addView(ui.row(getString(R.string.help_title), ui.small(getString(R.string.help)).apply { setOnClickListener { showHelp() } }))
+    private fun showSettings() = SettingsDialog(this, settings, main, object : SettingsDialog.Actions {
+        override fun forgetStrap() {
+            settings.deviceAddress = null
+            settings.deviceName = null
+            client.close()
+            client = HrmClient(this@MainActivity, this@MainActivity)
+            link = Link.NO_DEVICE
+            pick()
         }
-        ui.refresh()
-        dialog = AlertDialog.Builder(this).setTitle(R.string.settings)
-            .setView(ScrollView(this).apply { addView(content) })
-            .setPositiveButton(R.string.done, null)
-            .setOnDismissListener { styleStart(); renderStatus() }   // Back and a tap outside change settings too
-            .show()
+        override fun rescan() = pick()
+        override fun showHelp() = this@MainActivity.showHelp()
+        override fun exportHistory() = this@MainActivity.exportHistory()
+        override fun closed() { styleStart(); renderStatus() }
+    }).show()
+
+    /** The session history as a CSV in Download/HRV. */
+    private fun exportHistory() {
+        val name = "hrv_sessions_" + OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv"
+        val message = try {
+            SessionStore(filesDir).export(MediaStoreCsv.open(this, name))
+            getString(R.string.history_saved, name)
+        } catch (e: Exception) {
+            getString(R.string.history_failed)
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun showHelp() {
@@ -714,48 +666,16 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private fun pick() {
         if (!hasPermissions() || !client.bluetoothEnabled) { connectOrPick(); return }
-        val dp = resources.displayMetrics.density
-        devices.clear()
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, mutableListOf<String>())
-        scanAdapter = adapter
-        val hint = TextView(this).apply { textSize = 14f; setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt()) }
-        scanHint = hint
-        val list = ListView(this).apply { this.adapter = adapter }
-        var dialog: AlertDialog? = null
-        list.setOnItemClickListener { _, _, i, _ ->
-            val address = devices.keys.elementAt(i)
-            settings.deviceAddress = address
-            settings.deviceName = devices[address]
-            client.stopScan()   // before the dialog's dismiss arrives: no connect under a running scan
-            dialog?.dismiss()
-            connectTo(address)
-        }
-        val timeout = Runnable {
-            if (devices.isEmpty()) hint.setText(R.string.scan_none)
-        }
-        var lastScan = 0L
-        fun scan() {
-            hint.setText(R.string.scanning)
-            main.removeCallbacks(timeout)
-            main.postDelayed(timeout, SCAN_TIMEOUT_MS)
-            // Android refuses more than five scan starts in 30 s; a quick second tap just keeps the running scan.
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastScan < 6_000) return
-            lastScan = now
-            client.stopScan()
-            client.startScan()
-        }
         val before = link
         link = Link.SCANNING
         renderStatus()
-        dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.pick_title)
-            .setView(LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(hint); addView(list) })
-            .setNeutralButton(R.string.rescan, null)
-            .setNegativeButton(R.string.cancel, null)
-            .setOnDismissListener {
-                client.stopScan()
-                main.removeCallbacks(timeout)
+        picker = StrapPicker(
+            this, main,
+            startScan = { client.stopScan(); client.startScan() },
+            stopScan = { client.stopScan() },
+            onPick = { address, name -> settings.deviceAddress = address; settings.deviceName = name; connectTo(address) },
+            onClosed = {
+                picker = null
                 // Nothing picked. A live link survived the scan (CONNECTED stays CONNECTED); a pending connect was dropped
                 // by the scan, so start it again for the saved strap.
                 if (link == Link.SCANNING) {
@@ -764,26 +684,15 @@ class MainActivity : Activity(), HrmClient.Listener {
                     else if (before == Link.CONNECTED) { link = before; renderStatus() }
                     else connectTo(saved)
                 }
-            }
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener { scan() }
-        scan()
+            },
+        ).also { it.show() }
     }
 
-    override fun onScanResult(address: String, name: String?) {
-        if (address in devices) return
-        devices[address] = name
-        scanAdapter?.add("${name ?: getString(R.string.unnamed_strap)}\n$address")
-        scanHint?.setText(R.string.tap_your_strap)
-    }
+    override fun onScanResult(address: String, name: String?) { picker?.found(address, name) }
 
-    override fun onScanProgress(seen: Int) {
-        if (devices.isEmpty()) scanHint?.text = resources.getQuantityString(R.plurals.scanning_seen, seen, seen)
-    }
+    override fun onScanProgress(seen: Int) { picker?.progress(seen) }
 
-    override fun onScanFailed(code: Int) {
-        scanHint?.text = getString(R.string.scan_failed, code)
-    }
+    override fun onScanFailed(code: Int) { picker?.failed(code) }
 
     override fun onBle(note: String) {
         renderStatus()
@@ -817,6 +726,5 @@ class MainActivity : Activity(), HrmClient.Listener {
         const val LANDING_MS = 1500L
         const val GRACE_MS = 60_000L
         const val CONTROLS_MS = 4_000L
-        const val SCAN_TIMEOUT_MS = 20_000L
     }
 }
