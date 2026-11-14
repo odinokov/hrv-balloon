@@ -99,14 +99,18 @@ Nothing leaves the phone.
 
 ## Building
 
-Requires JDK 17 or newer and an Android SDK with `platforms;android-34` and `build-tools;34.0.0`. With your own SDK, set `ANDROID_HOME` (or `sdk.dir` in `local.properties`) and run `./gradlew`, as CI does:
+Requires a JDK 17 or newer (with `javac`) and an Android SDK with `platforms;android-36` and `build-tools;36.0.0`. With your own SDK, set `ANDROID_HOME` (or `sdk.dir` in `local.properties`) and run `./gradlew`, as CI does:
 
 ```sh
 ./gradlew -q testDebugUnitTest    # unit tests
 ./gradlew -q assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
+./gradlew -q bundleRelease        # app/build/outputs/bundle/release/app-release.aab, for Google Play
+./gradlew -q assembleSideload     # app/build/outputs/apk/sideload/app-sideload.apk, for GitHub releases
 ```
 
-`./gw` is a self-contained alternative: it expects the SDK in `.sdk/` inside the repository (gitignored, with `local.properties` pointing `sdk.dir` at it) and keeps every tool home inside the repository, so nothing is written to `~/.gradle` or `~/.android`.
+Release builds are unsigned unless a gitignored `keystore.properties` in the repository root names the upload key: `storeFile` (relative to `app/`), `storePassword`, `keyAlias` and `keyPassword`. The sideload APK is the release build signed with this machine's debug key; GitHub releases are signed with the maintainer's, so an APK built elsewhere cannot update them.
+
+`./gw` is a self-contained alternative: it expects the SDK in `.sdk/` inside the repository (gitignored, with `local.properties` pointing `sdk.dir` at it), uses a JDK unpacked in `.jdk/` when there is one, and keeps every tool home inside the repository, so nothing is written to `~/.gradle` or `~/.android`.
 
 Layout:
 
