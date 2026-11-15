@@ -11,6 +11,8 @@ U = 4   # dp per pixel
 N = 27  # pixels per side (108 dp); launchers show the central 72 dp, the 66-dp circle is the safe zone
 SKY = ['#17153A', '#2B2160', '#4A2D78', '#6F3A84', '#9A4A86', '#C75E7A', '#E8806A', '#F9C286']
 CORAL, CREAM, DARK, WA, WB = '#E2574B', '#FFF1D6', '#3A2A22', '#9C6B3C', '#7A4F28'
+CORAL_L, CORAL_D, CREAM_L, CREAM_D, WHITE = '#F28A72', '#A83A3A', '#FFFBEE', '#D9C09A', '#FFFFFF'
+STAR, STAR_DARK = '#FFD83B', '#E3A41C'
 GROUND, GRASS, HILL = '#3F7D4A', '#7FB56C', '#2A5A66'
 
 cx, cy, rad = 13, 11, 5
@@ -26,7 +28,7 @@ for x, top in enumerate(hill):
     for y in range(top, N):
         bg[(x, y)] = HILL if y < 21 else GRASS if y == 21 else GROUND
 
-# ---- foreground: checkered balloon (2×2 cells) sized for the safe zone: rows 6..20 = 24..84 dp ----
+# ---- foreground: shaded checkered balloon (2×2 cells, light left, dark right, as in the game) sized for the safe zone ----
 fg = {}
 def inside(x, y):
     dx, dy = x - cx, y - cy
@@ -39,12 +41,23 @@ for y in range(cy - rad, cy + 7):
     for x in range(N):
         if inside(x, y):
             edge = not all(inside(x + ex, y + ey) for ex, ey in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-            fg[(x, y)] = DARK if edge else (CORAL if ((x - cx + 100) // 2 + (y - cy + 100) // 2) % 2 == 0 else CREAM)
-for y in (16, 17):
+            coral = ((x - cx + 100) // 2 + (y - cy + 100) // 2) % 2 == 0
+            half = max(1, max(abs(xx - cx) for xx in range(N) if inside(xx, y)))
+            u = (x - cx) / half
+            shade = (CORAL_L if coral else CREAM_L) if u < -0.45 else (CORAL_D if coral else CREAM_D) if u > 0.45 else (CORAL if coral else CREAM)
+            fg[(x, y)] = DARK if (y - cy == 5) or edge else shade   # outlined: crisp against the sky at launcher size
+for (hx, hy) in ((cx - 3, cy - 3), (cx - 3, cy - 2), (cx - 2, cy - 4)):
+    if (hx, hy) in fg and fg[(hx, hy)] != DARK: fg[(hx, hy)] = WHITE
+# falling star: a small plus with a dark core and a two-pixel trail, inside the safe zone left of the balloon
+stx, sty = 6, 14
+for (ex, ey) in ((0, -1), (0, 1), (-1, 0), (1, 0)): fg[(stx + ex, sty + ey)] = STAR
+fg[(stx, sty)] = STAR_DARK
+fg[(stx, sty - 3)] = STAR   # one-pixel trail: the star is falling
+for y in (17, 18):
     fg[(cx - 2, y)] = DARK; fg[(cx + 2, y)] = DARK                       # ropes
-for y in range(18, 21):
+for y in range(19, 22):
     for x in range(cx - 2, cx + 3):
-        fg[(x, y)] = DARK if y == 20 or x in (cx - 2, cx + 2) else (WA if (x + y) % 2 == 0 else WB)
+        fg[(x, y)] = DARK if y == 19 or x in (cx - 2, cx + 2) else (WA if (x + y) % 2 == 0 else WB)
 
 def runs(cells):
     """Merge horizontally adjacent cells into (x, y, length) runs: fewer path segments for the launcher to rasterise."""
