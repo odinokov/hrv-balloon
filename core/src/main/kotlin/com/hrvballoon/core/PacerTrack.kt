@@ -59,5 +59,4 @@ class PacerTrack(rateBpm: Double, val inhaleFraction: Double) {
         cycles0 += nextWhole
         return at
     }
-    }
 }
