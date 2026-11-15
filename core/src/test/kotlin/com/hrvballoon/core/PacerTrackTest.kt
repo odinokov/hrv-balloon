@@ -5,14 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PacerTrackTest {
-    @Test fun theFundamentalPhaseOfThePacerCurveIsWhereHrSitsAtResonance() {
-        // Symmetric breathing: the curve is 0.5 − 0.5·cos(2πθ) = 0.5 + 0.5·sin(2πθ − 90°), so φ = −90° and the crest is half a cycle in.
-        assertEquals(-90.0, PacerTrack.fundamentalPhaseDeg(0.5), 0.5)
-        // 40:60: the inhale ends earlier but the long exhale pulls the fundamental's crest past it, between 0.4 and 0.5 of the cycle.
-        val f = PacerTrack.fundamentalPhaseDeg(0.4)
-        assertTrue("f=$f", f in -90.0..-54.0)
-    }
-
     @Test fun matchesPacerWhileRateIsConstant() {
         val track = PacerTrack(6.0, 0.4)
         val pacer = Pacer(6.0, 0.4)

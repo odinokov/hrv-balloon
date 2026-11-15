@@ -21,7 +21,6 @@ class RfProbe(val rateBpm: Double, val index: Int, val bestBpm: Double?, val con
  * [traceT]/[traceHr]: midpoint-stamped HR of the usable beats from the last 30 s, oldest first.
  * [lostReason] is set only while LOST; [warmupRemainingMs] counts down the two-period window (0 once an estimate exists).
  * The balloon target holds its last value through loss and warm-up — a sensor gap must not read as a failure.
- * [phaseLeadDeg]: HR phase relative to the pacer fundamental (> 0 = HR leads = breathing slower than resonance).
  * [rateBpm] is the pacer's current rate. [forecast] projects HR ahead for the trace panel (display only); null unless the
  * signal is good and a full breath has been seen since the last reset.
  */
@@ -30,7 +29,7 @@ class UiState(
     val shape: Double?, val warmingUp: Boolean, val warmupRemainingMs: Long, val balloonTarget: Double, val inhale: Boolean,
     val pacerLevel: Double, val elapsedMs: Long, val remainingMs: Long?, val finished: Boolean,
     val traceT: DoubleArray, val traceHr: DoubleArray, val rfProbe: RfProbe?,
-    val phaseLeadDeg: Double?, val rateBpm: Double, val forecast: HrForecast?,
+    val rateBpm: Double, val forecast: HrForecast?,
 )
 
 /**
@@ -46,8 +45,6 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private var probeReset = false
     private val probeScores = ArrayList<Double>()
     private var firstScoreMs = 0.0
-    private val phaseRef = PacerTrack.fundamentalPhaseDeg(cfg.inhaleFraction)
-    private var lastLeadDeg = 0.0
     private val timeline = BeatTimeline()
     private val filter = ArtifactFilter()
     private val monitor = SignalMonitor(0)
@@ -119,7 +116,6 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 summary.addValid(nowMs - lastTickMs)
                 shownP = it.p2tBpm
                 shownShape = it.shape
-                lastLeadDeg = wrapDeg(it.phaseDeg - phaseRef)
                 if (rf?.finished == false && t - probeStartMs >= SCORE_FROM * pacer.periodMs(t)) {
                     if (probeScores.isEmpty()) firstScoreMs = t
                     probeScores += it.p2tBpm * it.shape
@@ -144,12 +140,10 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 val settling = if (it.finished) 0L else (SCORE_FROM * pacer.periodMs(t) - (t - probeStartMs)).toLong().coerceAtLeast(0)
                 RfProbe(rate, probeIndex, it.best, it.found, settling, it.finished)
             },
-            phaseLeadDeg = estimate?.let { lastLeadDeg }, rateBpm = rate,
+            rateBpm = rate,
             forecast = if (monitor.state == Signal.OK && !paused) kalman.forecast() else null,
         )
     }
-
-    private fun wrapDeg(d: Double) = ((d + 180) % 360 + 360) % 360 - 180
 
     /**
      * One probe = 9 breath periods at a rate: period 1 is the physiological transient (then the window is cleared),

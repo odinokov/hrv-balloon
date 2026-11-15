@@ -59,23 +59,5 @@ class PacerTrack(rateBpm: Double, val inhaleFraction: Double) {
         cycles0 += nextWhole
         return at
     }
-
-    companion object {
-        /**
-         * Phase φ of the pacer curve's own fundamental, A·sin(2πθ + φ) fitted over one cycle (θ = 0 at inhale start):
-         * at resonance HR is in phase with breathing, so this is where [Estimate.phaseDeg] should sit. −90° for 50:50, −72° for 40:60.
-         */
-        fun fundamentalPhaseDeg(inhaleFraction: Double): Double {
-            var c = 0.0
-            var d = 0.0
-            for (i in 0 until 720) {
-                val p = (i + 0.5) / 720
-                val u = if (p < inhaleFraction) p / inhaleFraction else 1 - (p - inhaleFraction) / (1 - inhaleFraction)
-                val level = (1 - cos(PI * u)) / 2
-                c += level * cos(2 * PI * p)
-                d += level * kotlin.math.sin(2 * PI * p)
-            }
-            return Math.toDegrees(kotlin.math.atan2(c, d))
-        }
     }
 }

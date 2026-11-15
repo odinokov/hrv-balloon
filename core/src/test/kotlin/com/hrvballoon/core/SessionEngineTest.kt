@@ -53,25 +53,8 @@ class SessionEngineTest {
 
     private val clean = synthBeats(60.0, 10.0, 5.5, 330.0)
 
-    /** HR = sin(2πft + phase0) and the pacer starts at t = 0, so the fitted φ ≈ phase0: lead = φ − the pacer fundamental's phase. */
-    private fun withLead(leadDeg: Double, durS: Double = 200.0) =
-        synthBeats(60.0, 10.0, 5.5, durS, phase0 = Math.toRadians(PacerTrack.fundamentalPhaseDeg(0.4) + leadDeg))
-
-    // A constant arrival lag is invisible to the beat clock's minimum-latency envelope and shifts the phase by 360·lag/period
-    // (500 ms ≈ 16° at 5.5/min); a real strap reports some beats within tens of ms of a packet, so these use a 20 ms floor.
-    @Test fun phaseLeadIsMeasuredAgainstThePacerFundamental() {
-        assertTrue(Math.abs(run(withLead(0.0), lagMs = 20).at(120_000).phaseLeadDeg!!) < 10)
-        val lead = run(withLead(40.0), lagMs = 20).at(120_000).phaseLeadDeg!!
-        assertTrue("lead=$lead", lead in 30.0..50.0)
-        val lag = run(withLead(-40.0), lagMs = 20).at(120_000).phaseLeadDeg!!
-        assertTrue("lag=$lag", lag in -50.0..-30.0)
-        val late = run(withLead(0.0)).at(120_000).phaseLeadDeg!!   // the 500 ms harness lag reads as a lag of about 16°
-        assertTrue("late=$late", late in -24.0..-8.0)
-        assertNull(run(clean).at(5_000).phaseLeadDeg)   // nothing before the first estimate
-    }
-
     @Test fun theRateNeverChangesOutsideASearch() {
-        assertTrue(run(withLead(40.0, 330.0), lagMs = 20).states.all { it.rateBpm == 5.5 })
+        assertTrue(run(clean, lagMs = 20).states.all { it.rateBpm == 5.5 })
     }
 
     @Test fun endToEnd() {

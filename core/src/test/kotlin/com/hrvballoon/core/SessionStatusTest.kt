@@ -6,7 +6,7 @@ import org.junit.Test
 class SessionStatusTest {
     private fun state(finished: Boolean = false, signal: Signal = Signal.OK, warmingUp: Boolean = false, probe: RfProbe? = null) =
         UiState(0, signal, null, 60, null, null, null, warmingUp, 0, 0.0, true, 0.0, 0, null, finished,
-            DoubleArray(0), DoubleArray(0), probe, null, 5.5, null)
+            DoubleArray(0), DoubleArray(0), probe, 5.5, null)
 
     private val searching = RfProbe(5.5, 1, null, false, 0, false)
     private val done = RfProbe(5.5, 6, 5.5, true, 0, true)
