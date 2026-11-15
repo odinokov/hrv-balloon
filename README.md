@@ -34,7 +34,7 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
 
 Needs an Android 12+ phone with Bluetooth LE and a chest strap, worn with wet electrodes.
 
-1. Download `hrv-balloon-v2.0.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
+1. Download `hrv-balloon-v2.1.apk` from the [latest release](https://github.com/odinokov/hrv-balloon/releases/latest) and compare its MD5 or SHA-256 with the release notes. Open it; Android asks you to allow installs from your browser or file manager, and Play Protect may warn about an unknown developer. Or build it as [below](#building).
 2. Open the app and allow **Nearby devices**. Tap your strap in the list. It is remembered; Settings has **Rescan** and **Forget**.
 3. Wait for `Ready HR 68 5.5/min 15:00`, then tap **Start · 5.5/min** and breathe with the bar.
 4. Tap the screen to show **Stop**, then confirm **End**, or let the countdown run out. The results card shows your stars, your rank and the session's mean rhythm; tap it for the Ranks table.
