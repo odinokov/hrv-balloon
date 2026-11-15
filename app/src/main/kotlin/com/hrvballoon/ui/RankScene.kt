@@ -80,7 +80,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
 
     /**
      * End-of-session card. Training: hero star count (2×), star rank, lifetime total and date.
-     * Search: the found rate as hero only when converged, "no clear peak" with the 5.5 default, or an honest "incomplete";
+     * Search: the found rate as hero only when converged, "no clear peak" with the rate the search kept, or an honest "incomplete";
      * then the probe curve. [offer]: the card ends with "tap to use" its rate.
      */
     fun renderResult(

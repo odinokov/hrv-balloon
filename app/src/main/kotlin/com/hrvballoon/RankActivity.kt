@@ -69,7 +69,7 @@ class RankActivity : Activity() {
         view.rankPos = pos + 1
         view.total = ranked.size
         view.best = ranked.firstOrNull()
-        // A search without a peak offers the 5.5 default only to someone breathing at another rate.
+        // A search without a peak offers its answer, near its start, only to someone breathing at another rate.
         view.offer = r.kind == SessionRecord.KIND_RF_SEARCH || (r.kind == SessionRecord.KIND_RF_NO_PEAK && abs(currentRate - r.rateBpm) > 0.05)
         view.invalidate()
         describe()

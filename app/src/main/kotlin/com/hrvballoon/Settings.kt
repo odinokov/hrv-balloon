@@ -54,7 +54,7 @@ class Settings(private val p: Prefs) {
         get() = p.getInt("lastRfTenths", 0)
         set(v) = p.put("lastRfTenths", v)
 
-    /** [lastRfTenths] is the 5.5 default from a search that found no clear peak, not a measured resonance. */
+    /** [lastRfTenths] is the answer of a search that found no clear peak, near its start (height estimate or own rate), not a measured resonance. */
     var lastRfNoPeak: Boolean
         get() = p.getBoolean("lastRfNoPeak", false)
         set(v) = p.put("lastRfNoPeak", v)

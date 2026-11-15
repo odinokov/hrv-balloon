@@ -10,7 +10,7 @@ class SessionRecord(
     val validMs: Long, val rmssd: Double?, val sdnn: Double?, val beats: Int,
     /**
      * [KIND_TRAINING], [KIND_RF_SEARCH] (converged; [rateBpm] is the rate found), [KIND_RF_NO_PEAK] (no peak after
-     * enough probes; [rateBpm] is the 5.5 default) or [KIND_RF_INCOMPLETE].
+     * enough probes; [rateBpm] is the answer near the search's start) or [KIND_RF_INCOMPLETE].
      */
     val kind: Int = KIND_TRAINING,
     /** Search probes as (rate, score), in probe order. */

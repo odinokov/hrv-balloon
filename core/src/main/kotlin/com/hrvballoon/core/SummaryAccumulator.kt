@@ -8,10 +8,10 @@ class Summary(
     val meanP: Double?, val meanShape: Double?, val rmssd: Double?, val sdnn: Double?, val stars: Int,
     /** Time with a live estimate (signal OK and window full), ms. */
     val validMs: Long,
-    /** Resonance-search result (posterior-mean best rate), when the session was a search. */
+    /** Resonance-search answer (the straddle fit's best rate), when the session was a search. */
     val rfBest: Double?,
     val rfConverged: Boolean,
-    /** The search ended without a peak after enough probes; [rfBest] is then the 5.5 default. */
+    /** The search ended without a peak after enough probes; [rfBest] then stays near the search's start. */
     val rfNoPeak: Boolean,
     val rfProbes: List<Pair<Double, Double>>,
 )
