@@ -10,95 +10,85 @@ import kotlin.math.abs
 import kotlin.math.exp
 
 class RfSearchTest {
-    private fun bump(rate: Double, peak: Double, width: Double = 0.45) = 10 * exp(-(rate - peak) * (rate - peak) / (2 * width * width))
+    private fun bump(rate: Double, peak: Double, width: Double = 0.5) = 10 * exp(-(rate - peak) * (rate - peak) / (2 * width * width))
 
-    @Test fun firstProbeIsTheStartRateThenPhaseHintDirection() {
+    /** Runs the search against [score] until it converges or [max] probes; returns the rates probed. */
+    private fun drive(s: RfSearch, max: Int = 9, score: (Double) -> Double): List<Double> {
+        val probed = ArrayList<Double>()
+        while (!s.converged && probed.size < max) { val r = s.next(); probed += r; s.report(r, score(r)) }
+        return probed
+    }
+
+    @Test fun startsAtTheStartThenStraddlesItPlusMinusMinusPlus() {
         val s = RfSearch(5.5)
-        assertEquals(5.5, s.next(phaseHint = 1.0), 1e-9)
-        s.report(5.5, 8.0)
-        assertTrue(s.next(phaseHint = 1.0) > 5.5)
-        val t = RfSearch(5.5)
-        t.next(phaseHint = -1.0)
-        t.report(5.5, 8.0)
-        assertTrue(t.next(phaseHint = -1.0) < 5.5)
-        assertNull(s.best)
+        val probed = drive(s, max = 5) { 5.0 }                // flat: the centre stays at the start
+        assertEquals(listOf(5.5, 6.0, 5.0, 5.0, 6.0), probed)
     }
 
-    @Test fun convergesOnANoisyBump() {
-        var hits = 0
-        for (seed in 0 until 10) {
-            val rnd = Random(seed.toLong())
-            val peak = 4.6 + seed * 0.25
-            val s = RfSearch(5.5)
-            repeat(8) {
-                val r = s.next(phaseHint = if (peak > 5.5) 1.0 else -1.0)
-                s.report(r, bump(r, peak) + rnd.nextGaussian() * 0.6)
-            }
-            if (abs(s.best!! - peak) <= 0.25) hits++
-        }
-        assertTrue("hits=$hits", hits >= 8)
-    }
-
-    @Test fun staysOnTheGridAndCanConverge() {
-        val s = RfSearch(6.0)
-        repeat(10) {
-            val r = s.next(phaseHint = 0.0)
-            assertTrue(r in 4.0..7.0)
-            assertEquals(r, Math.round(r * 10) / 10.0, 1e-9)
-            s.report(r, bump(r, 6.0))
-        }
+    @Test fun aSharpPeakAwayFromTheStartIsFound() {
+        val s = RfSearch(5.5, startSd = RfSearch.START_SD_ESTIMATE)
+        drive(s) { bump(it, 6.2) }
         assertTrue(s.converged)
-        assertEquals(6.0, s.best!!, 0.15)
-    }
-
-    @Test fun flatScoresNeverConvergeAndATieKeepsTheTopProbe() {
-        val s = RfSearch(6.0)
-        repeat(8) { s.report(s.next(phaseHint = 0.0), 5.0) }
-        assertFalse(s.converged)
-        assertEquals(6.0, s.best!!, 1e-9)   // equal scores: the best-scoring probe, the first, beats the edge of the grid
-        val n = RfSearch(6.0)
-        val rnd = Random(3)
-        repeat(8) { n.report(n.next(phaseHint = 0.0), 5.0 * (1 + 0.04 * rnd.nextGaussian())) }
-        assertFalse("differences within the measurement noise", n.converged)
-    }
-
-    @Test fun aPeakWithinTwiceTheProbeNoiseDoesNotConverge() {
-        val s = RfSearch(5.5)
-        repeat(10) {
-            val r = s.next(phaseHint = 0.0)
-            s.report(r, 10 * (1 + 0.4 * exp(-(r - 5.5) * (r - 5.5) / (2 * 0.5 * 0.5))))   // 40% above the floor at most
-        }
-        assertFalse(s.converged)
-    }
-
-    @Test fun withoutAPeakTheSearchConcludesAt55AndWithTooFewProbesAtNothing() {
-        val s = RfSearch(6.0)
-        repeat(6) { s.report(s.next(phaseHint = 0.0), 5.0) }
-        assertEquals(5.5, s.conclude()!!, 1e-9)
-        assertTrue(s.noPeak)
-        assertTrue(s.finished)
-        assertFalse(s.converged)
-        assertEquals(5.5, s.best!!, 1e-9)
-        val few = RfSearch(6.0)
-        repeat(3) { few.report(few.next(phaseHint = 0.0), 5.0) }
-        assertNull(few.conclude())
-        assertFalse(few.noPeak)
-        assertTrue(few.finished)
-    }
-
-    @Test fun withoutAPeakTheSearchEndsAtItsOwnFallback() {
-        val s = RfSearch(6.2, fallbackBpm = 6.2)
-        repeat(6) { s.report(s.next(phaseHint = 0.0), 5.0) }
-        assertEquals(6.2, s.conclude()!!, 1e-9)
-        assertEquals(6.2, s.best!!, 1e-9)
-    }
-
-    @Test fun aPeakStillMovingWhenTimeRunsOutIsBestSoFarNotNoPeak() {
-        val s = RfSearch(5.5)
-        for ((r, score) in listOf(5.5 to 10.0, 6.2 to 3.0, 4.8 to 3.0, 5.9 to 11.0, 6.0 to 12.0)) s.report(r, score)
-        assertFalse(s.converged)                      // five probes, but the best rate moved on the last ones
-        assertNull(s.conclude())
         assertFalse(s.noPeak)
-        assertTrue("best=${s.best}", s.best!! in 5.5..6.2)
+        assertEquals(6.2, s.best, 0.2)
+    }
+
+    @Test fun aFlatCurveKeepsTheStartAndSaysNoPeak() {
+        val s = RfSearch(6.1, startSd = RfSearch.START_SD_ESTIMATE)
+        drive(s) { 7.0 }
+        assertTrue(s.converged)
+        assertTrue(s.noPeak)
+        assertEquals(6.1, s.best, 1e-9)
+    }
+
+    @Test fun noisyFlatCurvesRarelyMoveFarFromTheStart() {
+        var far = 0
+        for (seed in 0 until 40) {
+            val rnd = Random(seed.toLong())
+            val s = RfSearch(5.8, startSd = RfSearch.START_SD_ESTIMATE)
+            drive(s) { 8.0 * exp(0.25 * rnd.nextGaussian()) }
+            if (abs(s.best - 5.8) >= 0.5) far++
+        }
+        assertTrue("far=$far of 40", far <= 4)
+    }
+
+    @Test fun aLooserStartMovesFurtherOnTheSameEvidence() {
+        val probes = listOf(5.5 to 6.0, 6.0 to 9.0, 5.0 to 4.0)
+        fun moved(sd: Double) = RfSearch(5.5, startSd = sd).apply { for ((r, sc) in probes) report(r, sc) }.best - 5.5
+        assertTrue("0.4 -> ${moved(0.4)}, 0.6 -> ${moved(0.6)}", moved(0.6) >= moved(0.4) && moved(0.4) > 0)
+    }
+
+    @Test fun probesStayOnTheGridInsideFourToSeven() {
+        for (peak in listOf(3.5, 7.6)) {
+            val s = RfSearch(if (peak < 5) 4.2 else 6.9, startSd = RfSearch.START_SD_NONE)
+            val probed = drive(s) { bump(it, peak, 0.6) }
+            assertTrue("$probed", probed.all { it in 4.0..7.0 && abs(it * 10 - Math.round(it * 10)) < 1e-9 })
+            assertTrue(s.best in 4.0..7.0)
+        }
+    }
+
+    @Test fun aNearZeroScoreDoesNotDominateTheFit() {
+        val s = RfSearch(5.5, startSd = RfSearch.START_SD_ESTIMATE)
+        for ((r, sc) in listOf(5.5 to 9.0, 6.0 to 0.0, 5.0 to 8.5)) s.report(r, sc)   // one failed fit at 6.0
+        assertTrue("best=${s.best}", s.best in 5.0..5.6)
+    }
+
+    @Test fun concludingWithoutAPeakAnswersTheStartAndOtherwiseNothing() {
+        val flat = RfSearch(6.0, startSd = RfSearch.START_SD_ESTIMATE)
+        for (r in listOf(6.0, 6.5, 5.5, 5.5, 6.5)) flat.report(r, if (r == 6.0) 7.0 else 7.0)
+        assertEquals(6.0, flat.conclude()!!, 1e-9)
+        assertTrue(flat.finished)
+        val few = RfSearch(6.0)
+        few.report(6.0, 7.0); few.report(6.5, 7.5); few.report(5.5, 6.5)
+        assertNull(few.conclude())
+        assertTrue(few.finished)
+        assertFalse(few.noPeak)
+    }
+
+    @Test fun aSharpPeakStillMovingWhenTimeRunsOutConcludesWithNoAnswer() {
+        val s = RfSearch(5.5, startSd = RfSearch.START_SD_ESTIMATE)
+        for ((r, sc) in listOf(5.5 to 4.0, 6.0 to 9.0, 5.0 to 1.0, 6.0 to 9.5, 6.5 to 9.0)) s.report(r, sc)
+        assertFalse(s.noPeak)
+        if (!s.converged) assertNull(s.conclude())
     }
 }

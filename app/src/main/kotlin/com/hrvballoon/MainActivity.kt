@@ -461,7 +461,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         engine = SessionEngine(
             SessionConfig(
                 startRate, settings.inhaleFraction, settings.durationMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
-                settings.shapeGate, settings.rfSearch, estimate?.rateBpm ?: RfSearch.FALLBACK_BPM,
+                settings.shapeGate, settings.rfSearch, if (estimate != null) RfSearch.START_SD_ESTIMATE else RfSearch.START_SD_NONE,
             ),
             csv,
         )
