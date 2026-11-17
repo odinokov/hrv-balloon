@@ -1,6 +1,7 @@
 package com.hrvballoon.core
 
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -60,28 +61,10 @@ class RfSearch(private val startRate: Double, private val startSd: Double = STAR
         scores += score
         val n = rates.size
         if (n < 3 || n % 2 == 0) return
-        // Swing does not fall by three quarters within half a breath per minute; a lower score is a failed probe. The floor
-        // keeps one from steering the log-scale fit (in simulation: reruns apart 34-39% -> 12-20% with 10% failed probes).
-        val floor = (scores.max() * FLOOR).coerceAtLeast(1e-6)
-        val logs = DoubleArray(n) { ln(scores[it].coerceAtLeast(floor)) }
-        val rm = rates.average()
-        val sxx = rates.sumOf { (it - rm) * (it - rm) }
-        if (sxx <= 0) return
-        var peak = startRate
-        var leastSse = Double.MAX_VALUE
-        for (w in WIDTHS) {
-            val w2 = w * w
-            val y = DoubleArray(n) { logs[it] + rates[it] * rates[it] / (2 * w2) }
-            val ym = y.average()
-            val slope = rates.indices.sumOf { (rates[it] - rm) * (y[it] - ym) } / sxx
-            val c = (w2 * slope).coerceIn(3.0, 8.0)   // a peak outside 3–8 /min is held at the edge and scored there
-            val res = DoubleArray(n) { logs[it] + (rates[it] - c) * (rates[it] - c) / (2 * w2) }
-            val mean = res.average()
-            val sse = res.sumOf { (it - mean) * (it - mean) }
-            if (sse < leastSse) { leastSse = sse; peak = c; se = w2 * NOISE_SD / sqrt(sxx) }
-        }
+        val fit = rfFit(probes) ?: return
+        se = fit.se
         val s2 = startSd * startSd
-        best = snap(startRate + (peak - startRate) * s2 / (s2 + se * se))
+        best = snap(startRate + (fit.centre - startRate) * s2 / (s2 + se * se))
         converged = n >= MIN_PROBES && abs(best - previous) <= 0.1 + 1e-9
         previous = best
         centre = best.coerceIn(4.0 + DELTA, 7.0 - DELTA)
@@ -102,8 +85,46 @@ class RfSearch(private val startRate: Double, private val startSd: Double = STAR
         const val START_SD_NONE = 0.6
         const val MIN_PROBES = 5
         private const val DELTA = 0.5
-        private const val FLOOR = 0.25
-        private const val NOISE_SD = 0.25   // probe-to-probe spread of 18–36 % at 9 breaths on a recorded session
-        private val WIDTHS = doubleArrayOf(0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
+        /** A score below this fraction of the best one is a failed probe. */
+        const val FLOOR = 0.25
+        /** SD of ln(score) between probes at one rate. */
+        const val NOISE_SD = 0.25   // probe-to-probe spread of 18–36 % at 9 breaths on a recorded session
+        internal val WIDTHS = doubleArrayOf(0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
     }
+}
+
+/** The bump [RfSearch] fits: ln score = [lnPeak] − (rate − [centre])² / 2[width]²; [se] = standard error of [centre], /min. */
+class RfFit(val centre: Double, val width: Double, val lnPeak: Double, val se: Double) {
+    fun scoreAt(rateBpm: Double) = exp(lnPeak - (rateBpm - centre) * (rateBpm - centre) / (2 * width * width))
+}
+
+/**
+ * The fit [RfSearch] makes after the third probe and after each pair: over all [probes] (rate, score) when their count is odd,
+ * all but the last when even. Null with fewer than three probes or no spread in rate.
+ */
+fun rfFit(probes: List<Pair<Double, Double>>): RfFit? {
+    val n = if (probes.size % 2 == 0) probes.size - 1 else probes.size
+    if (n < 3) return null
+    val rates = DoubleArray(n) { probes[it].first }
+    // Swing does not fall by three quarters within half a breath per minute; a lower score is a failed probe. The floor
+    // keeps one from steering the log-scale fit (in simulation: reruns apart 34-39% -> 12-20% with 10% failed probes).
+    val floor = ((0 until n).maxOf { probes[it].second } * RfSearch.FLOOR).coerceAtLeast(1e-6)
+    val logs = DoubleArray(n) { ln(probes[it].second.coerceAtLeast(floor)) }
+    val rm = rates.average()
+    val sxx = rates.sumOf { (it - rm) * (it - rm) }
+    if (sxx <= 0) return null
+    var fit: RfFit? = null
+    var leastSse = Double.MAX_VALUE
+    for (w in RfSearch.WIDTHS) {
+        val w2 = w * w
+        val y = DoubleArray(n) { logs[it] + rates[it] * rates[it] / (2 * w2) }
+        val ym = y.average()
+        val slope = rates.indices.sumOf { (rates[it] - rm) * (y[it] - ym) } / sxx
+        val c = (w2 * slope).coerceIn(3.0, 8.0)   // a peak outside 3–8 /min is held at the edge and scored there
+        val res = DoubleArray(n) { logs[it] + (rates[it] - c) * (rates[it] - c) / (2 * w2) }
+        val mean = res.average()
+        val sse = res.sumOf { (it - mean) * (it - mean) }
+        if (sse < leastSse) { leastSse = sse; fit = RfFit(c, w, mean, w2 * RfSearch.NOISE_SD / sqrt(sxx)) }
+    }
+    return fit
 }
