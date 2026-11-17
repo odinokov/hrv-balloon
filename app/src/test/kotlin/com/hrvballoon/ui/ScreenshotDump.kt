@@ -60,6 +60,10 @@ class ScreenshotDump {
         val ranks = RankScene(W, H, TestText.scene)
         save("ranks", ranks.render(records, 1, 5_000))
         save("result", ranks.renderResult(records[1], 2, records.size, records[0], 5_000, 212))
+        // A search from a height estimate of 5.0 /min that converged at 4.6, its best single probe at 4.2.
+        val probes = listOf(5.0 to 1.1, 5.5 to 0.6, 4.5 to 1.3, 4.2 to 1.4, 5.2 to 1.2)
+        val search = SessionRecord(at, 900_000, 4.6, 1.2, 0.78, 9, 63.0, 0.4, 880_000, 44.0, 55.0, 900, SessionRecord.KIND_RF_SEARCH, probes, 5.0)
+        save("search", ranks.renderResult(search, -1, records.size, null, 5_000, 212))
     }
 
     private companion object {

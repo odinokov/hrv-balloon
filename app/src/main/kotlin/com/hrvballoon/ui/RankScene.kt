@@ -1,11 +1,18 @@
 package com.hrvballoon.ui
 
+import com.hrvballoon.core.RfSearch
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.rfFit
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.Random
+import kotlin.math.ceil
+import kotlin.math.exp
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /** Star rankings and results card: violet night sky with twinkling stars over rolling hills, 4×6 pixel font. */
@@ -81,7 +88,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
     /**
      * End-of-session card. Training: hero star count (2×), star rank, lifetime total and date.
      * Search: the found rate as hero only when converged, "no clear peak" with the rate the search kept, or an honest "incomplete";
-     * then the probe curve. [offer]: the card ends with "tap to use" its rate.
+     * then the probe chart. [offer]: the card ends with "tap to use" its rate.
      */
     fun renderResult(
         r: SessionRecord, rankPos: Int, total: Int, best: SessionRecord?, timeMs: Long, lifetimeStars: Int,
@@ -102,15 +109,24 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
                 else -> String.format(Locale.ROOT, t.bestSoFar, r.rateBpm)
             }
             text(centred(hero, 2), 22, hero, if (converged) HIGHLIGHT else DIM, 2)
-            val sub = when {
-                converged -> String.format(Locale.ROOT, t.modelVsProbe, r.rateBpm, bestProbe?.first ?: r.rateBpm)
-                noPeak -> String.format(Locale.ROOT, if (r.rfEstimateBpm != null) t.estimateProbes else t.defaultProbes, r.rateBpm, r.probes.size)
-                bestProbe != null -> String.format(Locale.ROOT, t.bestProbe, bestProbe.first, r.probes.size)
-                else -> t.noProbes
+            if (converged) {
+                // The sub line is the chart's legend: each run in the colour of its mark.
+                val model = String.format(Locale.ROOT, t.modelRate, r.rateBpm)
+                val probe = String.format(Locale.ROOT, t.bestProbeRate, bestProbe?.first ?: r.rateBpm)
+                var x = centred("$model - $probe")
+                for ((run, c) in listOf(model to CARET, " - " to DIM, probe to HIGHLIGHT)) {
+                    text(x, 38, run, c)
+                    x += run.length * PixelFont.ADVANCE
+                }
+            } else {
+                val sub = when {
+                    noPeak -> String.format(Locale.ROOT, if (r.rfEstimateBpm != null) t.estimateProbes else t.defaultProbes, r.rateBpm, r.probes.size)
+                    bestProbe != null -> String.format(Locale.ROOT, t.bestProbe, bestProbe.first, r.probes.size)
+                    else -> t.noProbes
+                }
+                text(centred(sub), 38, sub, DIM)
             }
-            text(centred(sub), 38, sub, if (converged) TEXT else DIM)
-            if (r.probes.isNotEmpty()) surface(4, 48, w - 4, 68 + minOf(12, r.probes.size) * 8, SURFACE)
-            probeCurve(r, 52, if (converged) r.rateBpm else null)
+            probeChart(r, converged)
             if (offer) {
                 val use = String.format(Locale.ROOT, t.tapToUse, r.rateBpm)
                 text(centred(use), h - 30, use, HIGHLIGHT)
@@ -138,22 +154,80 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         return frame
     }
 
-    /** Score by rate, sorted by rate: a bar per probe, the best probe highlighted; a caret marks the model's peak rate. */
-    private fun probeCurve(r: SessionRecord, y0: Int, modelPeak: Double?) {
+    /**
+     * Score against rate on a fixed 4–7 /min axis: a point per probe (best: diamond, failed: hollow), the bump [rfFit] puts
+     * through them with a dithered band of ± [RfSearch.NOISE_SD] in ln score, and a dashed line at the reported rate,
+     * [CARET] once converged. The reported rate is the fitted centre pulled toward the start, so it can sit off the curve's top.
+     */
+    private fun probeChart(r: SessionRecord, converged: Boolean) {
         if (r.probes.isEmpty()) return
-        text(20, y0, t.rateScore, DIM)
-        val maxScore = r.probes.maxOf { it.second }.coerceAtLeast(1e-9)
-        val sorted = r.probes.sortedBy { it.first }.take(12)
-        val peakRow = modelPeak?.let { peak -> sorted.indices.minByOrNull { kotlin.math.abs(sorted[it].first - peak) } }
-        for ((i, p) in sorted.withIndex()) {
-            val y = y0 + 10 + i * 8
-            text(20, y, String.format(Locale.ROOT, "%.1f", p.first), TEXT)
-            val len = (p.second / maxScore * 70).roundToInt()
-            val best = p.second == maxScore
-            for (x in 46 until 46 + len) for (dy in 1..4) put(x, y + dy, if (best) HIGHLIGHT else BAR)
-            text(120, y, String.format(Locale.ROOT, "%.1f", p.second), if (best) HIGHLIGHT else TEXT)
-            if (i == peakRow) text(12, y, "^", CARET)
+        surface(4, 48, w - 4, PANEL_BOTTOM, SURFACE)
+        val fit = rfFit(r.probes)
+        val rates = r.probes.map { it.first } + r.rateBpm
+        val lo = minOf(4.0, floor(rates.min() * 2) / 2)
+        val hi = maxOf(7.0, ceil(rates.max() * 2) / 2)
+        val x1 = w - 12
+        fun xOf(rate: Double) = PLOT_LEFT + ((rate - lo) / (hi - lo) * (x1 - PLOT_LEFT)).roundToInt()
+        fun rateAt(x: Int) = lo + (x - PLOT_LEFT).toDouble() / (x1 - PLOT_LEFT) * (hi - lo)
+        val span = if (fit == null) IntRange.EMPTY
+            else xOf(maxOf(lo, r.probes.minOf { it.first } - 0.5))..xOf(minOf(hi, r.probes.maxOf { it.first } + 0.5))
+        val band = exp(RfSearch.NOISE_SD)
+        val bestScore = r.probes.maxOf { it.second }
+        val top = if (bestScore <= 0) 1.0 else niceTop(maxOf(bestScore, span.maxOfOrNull { fit!!.scoreAt(rateAt(it)) * band } ?: 0.0))
+        fun yOf(score: Double) = PLOT_BASE - (score / top * (PLOT_BASE - PLOT_TOP)).roundToInt()
+        fun plot(x: Int, y: Int, c: Int) { if (y in PLOT_TOP until PLOT_BASE) put(x, y, c) }
+
+        for (x in PLOT_LEFT..x1) {
+            if ((x - PLOT_LEFT) % 4 == 0) { put(x, PLOT_TOP, SEPARATOR); put(x, (PLOT_TOP + PLOT_BASE) / 2, SEPARATOR) }
+            put(x, PLOT_BASE, SEPARATOR)
         }
+        for (k in 0..((hi - lo) * 2).roundToInt()) xOf(lo + k * 0.5).let { put(it, PLOT_BASE + 1, SEPARATOR); put(it, PLOT_BASE + 2, SEPARATOR) }
+        if (fit != null) {
+            for (x in span) {
+                val s = fit.scoreAt(rateAt(x))
+                for (y in yOf(s * band)..yOf(s / band)) if ((x + y) % 2 == 0) plot(x, y, SEPARATOR)
+            }
+            var prev = 0
+            for (x in span) {
+                val y = yOf(fit.scoreAt(rateAt(x)))
+                // One pixel thick without gaps: a steep step fills the column back to the previous one.
+                val run = if (x == span.first) y..y else if (y > prev) prev + 1..y else y..maxOf(y, prev - 1)
+                for (yy in run) plot(x, yy, BAR)
+                prev = y
+            }
+            val mx = xOf(r.rateBpm)
+            for (y in PLOT_TOP until PLOT_BASE) if ((y - PLOT_TOP) % 4 < 2) put(mx, y, if (converged) CARET else DIM)
+        }
+        for ((rate, score) in r.probes) {
+            val x = xOf(rate)
+            val y = yOf(score)
+            when {
+                score == bestScore -> { diamond(x, y, 3, SURFACE); diamond(x, y, 2, HIGHLIGHT) }
+                score < RfSearch.FLOOR * bestScore -> { surface(x - 2, y - 2, x + 3, y + 3, SURFACE); surface(x - 1, y - 1, x + 2, y + 2, DIM); put(x, y, SURFACE) }
+                else -> { surface(x - 2, y - 2, x + 3, y + 3, SURFACE); surface(x - 1, y - 1, x + 2, y + 2, TEXT) }
+            }
+        }
+
+        text(8, 52, t.axisScore, DIM)
+        if (fit != null) {
+            val label = String.format(Locale.ROOT, "%.1f", r.rateBpm)
+            val lx = (xOf(r.rateBpm) - PixelFont.width(label) / 2).coerceAtMost(w - 8 - PixelFont.width(label)).coerceAtLeast(38)
+            text(lx, 52, label, if (converged) CARET else DIM)
+        }
+        rightText(23, PLOT_TOP - 2, if (top < 10) String.format(Locale.ROOT, "%.1f", top) else top.roundToInt().toString(), DIM)
+        rightText(23, PLOT_BASE - 5, "0", DIM)
+        for (k in ceil(lo).toInt()..floor(hi).toInt()) "$k".let { text(xOf(k.toDouble()) - PixelFont.width(it) / 2, PLOT_BASE + 5, it, DIM) }
+        text((PLOT_LEFT + x1 - PixelFont.width(t.axisRate)) / 2, PLOT_BASE + 14, t.axisRate, DIM)
+    }
+
+    /** The smallest of 1, 1.5, 2, 3, 4, 5, 6, 8 × 10^k that is at least [v] > 0. */
+    private fun niceTop(v: Double): Double {
+        val p = 10.0.pow(floor(log10(v)))
+        return doubleArrayOf(1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0).first { it * p >= v * (1 - 1e-9) } * p
+    }
+
+    private fun diamond(cx: Int, cy: Int, r: Int, c: Int) {
+        for (dy in -r..r) for (dx in -r..r) if (kotlin.math.abs(dx) + kotlin.math.abs(dy) <= r) put(cx + dx, cy + dy, c)
     }
 
     private fun backdrop(timeMs: Long) {
@@ -205,6 +279,11 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         const val MAX_ROWS = 7
         const val ROW_H = 18
         private const val TEXT_BOTTOM = 192   // below the pinned row (30 + 8 × ROW_H + glyph)
+        // Search chart: score 0 at PLOT_BASE, the axis top at PLOT_TOP; the panel ends above TEXT_BOTTOM.
+        private const val PLOT_LEFT = 26
+        private const val PLOT_TOP = 64
+        private const val PLOT_BASE = 120
+        private const val PANEL_BOTTOM = 143
         private val BAYER = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
         val NIGHT = intArrayOf(0xFF100F29.toInt(), 0xFF1A173C.toInt(), 0xFF27204F.toInt(), 0xFF38275F.toInt(), 0xFF4A316C.toInt(), 0xFF5F3A72.toInt())
         const val RIDGE = 0xFF1C193E.toInt()

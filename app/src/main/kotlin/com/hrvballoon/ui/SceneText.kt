@@ -41,7 +41,8 @@ class SceneText(get: (Int) -> String) {
     val noClearPeak = get(R.string.scene_no_clear_peak)
     val noEstimate = get(R.string.scene_no_estimate)
     val bestSoFar = get(R.string.scene_best_so_far)
-    val modelVsProbe = get(R.string.scene_model_vs_probe)
+    val modelRate = get(R.string.scene_model_rate)
+    val bestProbeRate = get(R.string.scene_best_probe_rate)
     val defaultProbes = get(R.string.scene_default_probes)
     val estimateProbes = get(R.string.scene_estimate_probes)
     val bestProbe = get(R.string.scene_best_probe)
@@ -56,5 +57,6 @@ class SceneText(get: (Int) -> String) {
     val rankOf = get(R.string.scene_rank_of)
     val rhythm = get(R.string.scene_rhythm)
     val lifetime = get(R.string.scene_lifetime)
-    val rateScore = get(R.string.scene_rate_score)
+    val axisScore = get(R.string.scene_axis_score)
+    val axisRate = get(R.string.scene_axis_rate)
 }

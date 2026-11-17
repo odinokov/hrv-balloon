@@ -15,11 +15,20 @@ class RankSceneTest {
 
     private fun count(px: IntArray, c: Int) = px.count { it == c }
 
+    /** The session that prompted the chart: a search from 5.0 /min that converged at 4.6, best probe 4.2. */
+    private val worked = listOf(5.0 to 1.1, 5.5 to 0.6, 4.5 to 1.3, 4.2 to 1.4, 5.2 to 1.2)
+    private fun search(kind: Int, rate: Double, probes: List<Pair<Double, Double>>) =
+        SessionRecord(1L, 900_000, rate, 1.2, 0.8, 0, 64.0, 1.0, 800_000, 40.0, 50.0, 900, kind, probes, 5.0)
+    private fun card(r: SessionRecord) = scene.renderResult(r, -1, 3, null, 5_000, 0).copyOf()
+
     @Test fun everyPixelFromThePalette() {
         val palette = RankScene.PALETTE.toSet()
         assertTrue(scene.render(records, 1, 5_000).all { it in palette })
         assertTrue(scene.render(emptyList(), -1, 5_000).all { it in palette })
         assertTrue(scene.renderResult(records[1], 2, 3, records[0], 5_000, lifetimeStars = 3).all { it in palette })
+        assertTrue(card(search(SessionRecord.KIND_RF_SEARCH, 4.6, worked)).all { it in palette })
+        assertTrue(card(search(SessionRecord.KIND_RF_NO_PEAK, 5.0, worked)).all { it in palette })
+        assertTrue(card(search(SessionRecord.KIND_RF_INCOMPLETE, 4.7, worked.take(4))).all { it in palette })
     }
 
     @Test fun rowsAreDrawnInPixelFont() {
@@ -117,6 +126,7 @@ class RankSceneTest {
         val small = RankScene(160, 120, TestText.scene)
         assertEquals(160 * 120, small.render(records, 0, 5_000).size)
         assertEquals(160 * 120, small.renderResult(records[0], 1, 3, records[0], 5_000, 1).size)
+        assertEquals(160 * 120, small.renderResult(search(SessionRecord.KIND_RF_SEARCH, 4.6, worked), -1, 3, null, 5_000, 0).size)
     }
 
     @Test fun titleColourChangesGently() {
@@ -166,5 +176,45 @@ class RankSceneTest {
             -1, 3, null, 5_000, 0, offer = false,
         ).copyOf()
         assertTrue(!card(6.2).contentEquals(card(null)))   // ESTIMATE 6.2 versus DEFAULT 6.2
+    }
+
+    // Plot on a 160-wide scene: x 26..148 for 4..7 /min, y 64 (top value) to 120 (zero).
+    @Test fun convergedCardDrawsTheFittedCurveAndMarksTheReportedRate() {
+        val px = card(search(SessionRecord.KIND_RF_SEARCH, 4.6, worked))
+        assertTrue((64 until 120).count { px[it * scene.w + 50] == RankScene.CARET } >= 20)   // dashed marker at 4.6
+        assertTrue(count(px, RankScene.BAR) > 40)
+        assertEquals(RankScene.HIGHLIGHT, px[81 * scene.w + 34])   // diamond at the 4.2 probe, score 1.4 of 2.0
+    }
+
+    @Test fun onlyAConvergedSearchGetsTheOrangeMarker() {
+        for (r in listOf(search(SessionRecord.KIND_RF_NO_PEAK, 5.0, worked), search(SessionRecord.KIND_RF_INCOMPLETE, 4.7, worked.take(4)))) {
+            val px = card(r)
+            assertEquals(0, count(px, RankScene.CARET))
+            assertTrue(count(px, RankScene.BAR) > 40)
+        }
+        val two = card(search(SessionRecord.KIND_RF_INCOMPLETE, 5.0, worked.take(2)))
+        assertEquals(0, count(two, RankScene.BAR))
+        assertEquals(0, count(two, RankScene.CARET))
+        assertTrue(count(two, RankScene.HIGHLIGHT) > 0)
+    }
+
+    @Test fun thePanelKeepsItsSizeForAnyProbeCount() {
+        fun column(px: IntArray) = IntArray(scene.h) { px[it * scene.w + 5] }
+        val three = column(card(search(SessionRecord.KIND_RF_INCOMPLETE, 4.8, worked.take(3))))
+        val seven = column(card(search(SessionRecord.KIND_RF_SEARCH, 4.6, worked + listOf(4.6 to 1.4, 4.1 to 1.3))))
+        assertArrayEquals(three, seven)
+        assertTrue((48 until 143).all { three[it] == RankScene.SURFACE })
+        assertFalse(three[143] == RankScene.SURFACE)
+    }
+
+    @Test fun unusualRecordsStillDraw() {
+        val palette = RankScene.PALETTE.toSet()
+        val cases = listOf(
+            listOf(3.5 to 1.0, 4.0 to 1.2, 4.5 to 0.9),                  // a probe below the axis widens it
+            listOf(5.0 to 0.2, 5.5 to 0.5, 6.0 to 1.4),                  // still rising: centre held at the clamp
+            listOf(5.5 to 0.0, 6.0 to 0.0, 5.0 to 0.0),                  // every score zero
+            List(13) { (4.0 + it * 0.25) to 1.0 + it % 3 },              // more probes than the old 12-row list
+        )
+        for (p in cases) assertTrue(card(search(SessionRecord.KIND_RF_INCOMPLETE, 5.0, p)).all { it in palette })
     }
 }
