@@ -93,7 +93,7 @@ class RankActivity : Activity() {
                 resources.getQuantityString(R.plurals.a11y_rank_item, s.stars, i + 1, s.stars)
             }.joinToString(". "))
             r.kind == SessionRecord.KIND_RF_SEARCH ->
-                getString(R.string.a11y_rf_done, r.rateBpm, r.probes.size, r.probes.maxByOrNull { it.second }?.first ?: r.rateBpm)
+                resources.getQuantityString(R.plurals.a11y_rf_done, r.probes.size, r.rateBpm, r.probes.size, r.probes.maxByOrNull { it.second }?.first ?: r.rateBpm)
             r.kind == SessionRecord.KIND_RF_NO_PEAK ->
                 getString(R.string.a11y_rf_no_peak, r.rateBpm, getString(if (view.offer) R.string.a11y_use_or_skip else R.string.a11y_for_table))
             r.isSearch -> resources.getQuantityString(R.plurals.a11y_rf_incomplete, r.probes.size, r.probes.size)

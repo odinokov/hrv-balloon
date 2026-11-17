@@ -198,7 +198,8 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             val mx = xOf(r.rateBpm)
             for (y in PLOT_TOP until PLOT_BASE) if ((y - PLOT_TOP) % 4 < 2) put(mx, y, if (converged) CARET else DIM)
         }
-        for ((rate, score) in r.probes) {
+        // In probe order, later on top, except that the best probes go last so a revisit cannot hide the legend's diamond.
+        for ((rate, score) in r.probes.sortedBy { it.second == bestScore }) {
             val x = xOf(rate)
             val y = yOf(score)
             when {

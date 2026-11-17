@@ -184,6 +184,8 @@ class RankSceneTest {
         assertTrue((64 until 120).count { px[it * scene.w + 50] == RankScene.CARET } >= 20)   // dashed marker at 4.6
         assertTrue(count(px, RankScene.BAR) > 40)
         assertEquals(RankScene.HIGHLIGHT, px[81 * scene.w + 34])   // diamond at the 4.2 probe, score 1.4 of 2.0
+        val revisited = card(search(SessionRecord.KIND_RF_SEARCH, 4.6, worked + (4.2 to 1.38)))
+        assertEquals("a later probe at the same spot must not hide the best", RankScene.HIGHLIGHT, revisited[81 * scene.w + 34])
     }
 
     @Test fun onlyAConvergedSearchGetsTheOrangeMarker() {

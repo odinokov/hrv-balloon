@@ -74,7 +74,6 @@
     <string name="scan_failed">Scan failed (code %d). Turn Bluetooth off and on again, then Rescan.</string>
     <string name="a11y_no_ranked">No ranked sessions yet</string>
     <string name="a11y_best">Best sessions. %s. Double-tap to open your session.</string>
-    <string name="a11y_rf_done">Resonance search done: %1$.1f per minute, from a curve fitted to %2$d probes. Highest single probe: %3$.1f per minute. Double-tap to use it, Back to skip.</string>
     <string name="a11y_rf_no_peak">Resonance search found no clear peak and ended at %1$.1f per minute. %2$s</string>
     <string name="a11y_use_or_skip">Double-tap to use it, Back to skip.</string>
     <string name="a11y_for_table">Double-tap for the table.</string>
@@ -147,6 +146,10 @@
     <plurals name="a11y_rank_item">
         <item quantity="one">%1$d: %2$d star</item>
         <item quantity="other">%1$d: %2$d stars</item>
+    </plurals>
+    <plurals name="a11y_rf_done">
+        <item quantity="one">Resonance search done: %1$.1f per minute, from a curve fitted to %2$d probe. Highest single probe: %3$.1f per minute. Double-tap to use it, Back to skip.</item>
+        <item quantity="other">Resonance search done: %1$.1f per minute, from a curve fitted to %2$d probes. Highest single probe: %3$.1f per minute. Double-tap to use it, Back to skip.</item>
     </plurals>
     <plurals name="a11y_rf_incomplete">
         <item quantity="one">Resonance search incomplete, %d probe. Double-tap for the table.</item>
