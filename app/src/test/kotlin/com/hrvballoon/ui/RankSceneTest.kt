@@ -196,6 +196,14 @@ class RankSceneTest {
         assertTrue("no y scale", blank(60 until 122, 5 until 22))
     }
 
+    @Test fun otherSearchCardsKeepOnlyWhatTheChartCannotShow() {
+        fun subLine(px: IntArray) = (38 until 44).sumOf { y -> (5 until scene.w - 5).count { x -> px[y * scene.w + x] != RankScene.SURFACE } }
+        assertEquals("best probe and count are the dots", 0, subLine(card(search(SessionRecord.KIND_RF_INCOMPLETE, 4.7, worked.take(4)))))
+        var ink = 0
+        PixelFont.draw(0, 0, "ESTIMATE 5.0", RankScene.DIM) { _, _, _ -> ink++ }
+        assertEquals("the rate kept and where it came from", ink, subLine(card(search(SessionRecord.KIND_RF_NO_PEAK, 5.0, worked))))
+    }
+
     @Test fun onlyAConvergedSearchGetsTheOrangeMarker() {
         for (r in listOf(search(SessionRecord.KIND_RF_NO_PEAK, 5.0, worked), search(SessionRecord.KIND_RF_INCOMPLETE, 4.7, worked.take(4)))) {
             val px = card(r)

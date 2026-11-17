@@ -101,7 +101,6 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         if (r.isSearch) {
             val converged = r.kind == SessionRecord.KIND_RF_SEARCH
             val noPeak = r.kind == SessionRecord.KIND_RF_NO_PEAK
-            val bestProbe = r.probes.maxByOrNull { it.second }
             val hero = when {
                 converged -> String.format(Locale.ROOT, t.resonance, r.rateBpm)
                 noPeak -> t.noClearPeak
@@ -109,14 +108,13 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
                 else -> String.format(Locale.ROOT, t.bestSoFar, r.rateBpm)
             }
             text(centred(hero, 2), 22, hero, if (converged) HIGHLIGHT else DIM, 2)
-            if (!converged) {   // a found rate needs no sub line: the hero and the chart say it
-                val sub = when {
-                    noPeak -> String.format(Locale.ROOT, if (r.rfEstimateBpm != null) t.estimateProbes else t.defaultProbes, r.rateBpm, r.probes.size)
-                    bestProbe != null -> String.format(Locale.ROOT, t.bestProbe, bestProbe.first, r.probes.size)
-                    else -> t.noProbes
-                }
-                text(centred(sub), 38, sub, DIM)
+            // Only what the hero and the chart cannot show: the rate a no-peak search kept and where it came from.
+            val sub = when {
+                noPeak -> String.format(Locale.ROOT, if (r.rfEstimateBpm != null) t.estimateRate else t.startRate, r.rateBpm)
+                r.probes.isEmpty() -> t.noProbes
+                else -> null
             }
+            sub?.let { text(centred(it), 38, it, DIM) }
             probeChart(r, converged)
             if (offer) {
                 val use = String.format(Locale.ROOT, t.tapToUse, r.rateBpm)
