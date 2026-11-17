@@ -53,14 +53,15 @@ Slow breathing at 5–6 breaths per minute should feel comfortable. If a session
 
 Settings → **Find my resonance rate (next session only)** turns the next session into a search. Treat its result as a quick estimate.
 
-**Starting point.** Before the session, the app asks your height and sex, every time and without storing them, and starts at the rate they predict [13]: 17.90 − 0.07 × height in cm for men, 15.88 − 0.06 × height for women, capped at 5 to 7 /min. The app says so when the formula's answer falls outside that range. **Skip** starts at your current rate instead. In 122 healthy Japanese adults, height and sex explained about half of the variation in resonance rate (adjusted R² 0.55 for men, 0.47 for women), with rates tested only from 5 to 7 /min [13]; taller people and men have lower rates, and the rate stayed constant across ten training sessions [14].
+**Starting point.** Before the session, the app asks your height and sex, every time and without storing them, and starts at the rate they predict [13]: 17.90 − 0.07 × height in cm for men, 15.88 − 0.06 × height for women, capped at 4.5 to 6.5 /min, so that the first pair of probes, half a breath either side, stays inside the search's 4 to 7 /min. The study tested 5 to 7 /min only, and the app says so when the formula's answer falls outside that range; the lower cap sits below it so that a tall man starts near his likely rate instead of at 5. **Skip** starts at your current rate instead. In 122 healthy Japanese adults, height and sex explained about half of the variation in resonance rate (adjusted R² 0.55 for men, 0.47 for women), with rates tested only from 5 to 7 /min [13]; taller people and men have lower rates, and the rate stayed constant across ten training sessions [14].
 
 **Probes.** Each probe holds one rate between 4.0 and 7.0 /min for nine breaths.
 
 - Breath 1 is dropped as the physiological transient and breaths 2 and 3 refill the fitting window, so for about two breaths in nine (three in the first probe) the balloon holds its height and no stars fall.
 - During breaths 4 to 9 the app scores swing × rhythm from a fit over the preceding two breaths; the probe's score is their median.
 - A signal loss or leaving the app discards the probe's scores so far, and a probe left with fewer than three scored breaths restarts.
-- A probe starts only if it can end two minutes before the session does, which leaves room for about seven probes at 5.5 /min.
+- A probe starts only if it can end two minutes before the session does. A search session lasts 18 minutes, which leaves room for about nine probes at 5.5 /min and seven at 4.5 /min.
+- When the next rate is already known (after the first probe and after the first of each pair), it begins as breath 9 ends; after a fit it begins one breath later.
 
 **Where it probes.** The search straddles its estimate instead of hunting for the top of the curve: near the top, swing barely changes with rate, so the information on where the peak lies sits on its flanks.
 
@@ -79,7 +80,7 @@ Settings → **Find my resonance rate (next session only)** turns the next sessi
 
 **Reading the card.** The card plots each probe's score against its rate, with the fitted curve and a shaded band for the 25% probe-to-probe noise the fit assumes. The dashed line marks the rate the card reports, orange once the search has settled. The diamond is the best single probe; it can sit away from the dashed line, because one probe is noisier than a curve through all of them, and the reported rate is the curve's peak pulled toward the start. A hollow square is a failed probe. With no clear peak the curve is nearly flat, so the differences between probes are about the size of the noise.
 
-**How far to trust it.** In simulations with 25% probe noise and peaks from broad to sharp, this search kept 94 to 98% of the peak swing after a height estimate. Two runs on the same person ended 0.5 /min or more apart in 1 to 7% of cases, and a search took about nine minutes. The curve-hunting search of version 2.0 kept 92 to 96%, ended that far apart in 9 to 58% of cases and took 10 to 11 minutes. Without a height estimate, sharp peaks near 4 or 7 /min are found slightly less well. These figures come from simulation only. Published protocols hold each rate for about 2 minutes [1, 2, 3, 6], where the app scores six breaths (about 65 s at 5.5 /min), and the resonance rate can change between sessions, in one trial falling from 6.0 to 5.1 breaths/min over ten training sessions [2]. Retested a week apart, it changed in 14 of 21 adults at a 0.5 /min step [17], and moved by more than 0.5 /min in about a quarter of 51 adults, some by up to 2 /min [18]. Re-run the search every week or two, under the same conditions: time of day, posture, and before caffeine. Treat differences smaller than the protocols' 0.5 /min step [1, 2, 6] as noise, and breathe exactly with the bar: the strap measures heartbeats only.
+**How far to trust it.** In simulations with 25% probe noise, peaks between 4 and 7 /min from sharp to broad (0.3 to 1.5 /min wide) and a start from a height estimate, this search kept 96 to 98% of the peak swing. Two runs on the same person ended 0.5 /min or more apart in up to 6% of cases, and a search took 9 to 10 minutes. With the 15-minute sessions of version 2.3 it kept 94 to 98% and ended that far apart in up to 7%; the curve-hunting search of version 2.0 kept 92 to 96% and ended that far apart in 9 to 58% of cases. Without a height estimate, sharp peaks near 4 or 7 /min are found slightly less well. These figures come from simulation only. Published protocols hold each rate for about 2 minutes [1, 2, 3, 6], where the app scores six breaths (about 65 s at 5.5 /min), and the resonance rate can change between sessions, in one trial falling from 6.0 to 5.1 breaths/min over ten training sessions [2]. Retested a week apart, it changed in 14 of 21 adults at a 0.5 /min step [17], and moved by more than 0.5 /min in about a quarter of 51 adults, some by up to 2 /min [18]. Re-run the search every week or two, under the same conditions: time of day, posture, and before caffeine. Treat differences smaller than the protocols' 0.5 /min step [1, 2, 6] as noise, and breathe exactly with the bar: the strap measures heartbeats only.
 
 ## How the measurement works
 
@@ -110,7 +111,7 @@ The defaults, 1 and 6, are an easy start. Swing falls steeply with age, more so 
 
 Thresholds are in beats per minute, so their RR equivalent depends on heart rate (|ΔRR| ≈ |ΔHR|·RR²/60000, with RR in ms): 1–6 beats/min is about 17–100 ms of RR swing at 60 beats/min, but 9–56 ms at 80 beats/min.
 
-Session length is fixed at 15 minutes: long enough for a resonance search, short enough to do daily.
+Session length is fixed at 15 minutes, short enough to do daily; a resonance search session lasts 18, so that its probes can finish in pairs.
 
 ## Data
 

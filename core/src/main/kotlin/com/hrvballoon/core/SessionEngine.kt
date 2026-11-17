@@ -41,6 +41,9 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     val pacer = PacerTrack(cfg.rateBpm, cfg.inhaleFraction)
     private val rf = if (cfg.rfSearch) RfSearch(cfg.rateBpm, cfg.rfStartSd) else null
     private var probeStartMs = 0.0
+    private var probeRate = cfg.rateBpm
+    /** When the next probe's rate was scheduled in this probe's last breath: the inhale start where it takes over. */
+    private var pending: Double? = null
     private var probeIndex = 1
     private var probeReset = false
     private val probeScores = ArrayList<Double>()
@@ -89,6 +92,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     fun pause(nowMs: Long) {
         if (paused) return
         paused = true
+        pending?.let { if (nowMs < it) withdraw(nowMs.toDouble()) }
         csv.event(nowMs.toDouble(), CsvEvent.PAUSE)
     }
 
@@ -107,7 +111,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         monitor.tick(nowMs)?.let { transition(it, nowMs) }
         val t = nowMs.toDouble()
         val rate = pacer.rateAt(t)
-        if (!paused) rf?.let { probe(it, t, rate) }
+        if (!paused) rf?.let { probe(it, t) }
         if (monitor.state == Signal.OK && !paused) {
             estimate = estimator.estimate(rate, pacer.cycleOffset(t))
             estimate?.let {
@@ -116,7 +120,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 summary.addValid(nowMs - lastTickMs)
                 shownP = it.p2tBpm
                 shownShape = it.shape
-                if (rf?.finished == false && t - probeStartMs >= SCORE_FROM * pacer.periodMs(t)) {
+                if (rf?.finished == false && t - probeStartMs >= SCORE_FROM * 60_000 / probeRate) {
                     if (probeScores.isEmpty()) firstScoreMs = t
                     probeScores += it.p2tBpm * it.shape
                 }
@@ -137,7 +141,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             elapsedMs = nowMs, remainingMs = remaining, finished = finished,
             traceT = DoubleArray(trace.size) { trace[it][0] }, traceHr = DoubleArray(trace.size) { trace[it][1] },
             rfProbe = rf?.let {
-                val settling = if (it.finished) 0L else (SCORE_FROM * pacer.periodMs(t) - (t - probeStartMs)).toLong().coerceAtLeast(0)
+                val settling = if (it.finished) 0L else (SCORE_FROM * 60_000 / probeRate - (t - probeStartMs)).toLong().coerceAtLeast(0)
                 RfProbe(rate, probeIndex, it.best, it.found, settling, it.finished)
             },
             rateBpm = rate,
@@ -146,31 +150,64 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     }
 
     /**
-     * One probe = 9 breath periods at a rate: period 1 is the physiological transient (then the window is cleared),
+     * One probe = 9 breath periods at [probeRate]: period 1 is the physiological transient (then the window is cleared),
      * periods 2–3 refill the window, periods 4–9 are measured (median of P × rhythm, four two-breath windows of data).
-     * Then the next rate is scheduled for the following inhale start. A signal loss or a return to the app discards the
-     * probe's scores. Once converged the pacer moves to the best rate and the search stops; it also stops when the next
-     * probe could not end [FINAL_MS] before the session does; without a peak it then ends near its start.
+     * When the next rate does not hang on this probe's score (no fit follows it), it is scheduled during the last breath and
+     * takes over as breath 9 ends; otherwise it is scheduled at the end and starts at the following inhale, a breath later.
+     * A signal loss or a return to the app discards the probe's scores and withdraws an early change. Once converged the
+     * pacer moves to the best rate and the search stops; it also stops when the next probe could not end [FINAL_MS] before
+     * the session does; without a peak it then ends near its start.
      */
-    private fun probe(search: RfSearch, t: Double, rate: Double) {
-        val period = pacer.periodMs(t)
+    private fun probe(search: RfSearch, t: Double) {
+        val period = 60_000 / probeRate
         val elapsed = t - probeStartMs
         if (!probeReset && elapsed >= period) { estimator.reset(); estimate = null; probeReset = true }
-        if (search.finished || elapsed < PROBE_BREATHS * period) return
+        if (search.finished) return
+        val end = pending ?: (probeStartMs + PROBE_BREATHS * period)
+        val endBy = cfg.durationMs?.let { it - FINAL_MS }
+        if (t < end) {
+            val scheduled = pending
+            if (scheduled != null) { if (short(scheduled, period)) withdraw(t) }
+            else if (elapsed >= (PROBE_BREATHS - 1) * period && !short(end, period)) {
+                val next = search.following()
+                // Only once the next inhale is the one that ends breath 9: a restart that began mid-breath runs on to the
+                // inhale after its nominal end, as before.
+                val at = t + (1 - pacer.phase(t)) * period
+                if (next != null && next != probeRate && at >= end - 1 && (endBy == null || at + PROBE_BREATHS * 60_000 / next <= endBy)) pending = pacer.changeRate(next, t)
+            }
+            return
+        }
         // Under three breaths scored (signal loss or time away late in the probe): probe the same rate again.
-        val restart = probeScores.isEmpty() || t - firstScoreMs < MIN_SCORED * period
-        if (!restart) search.report(rate, probeScores.sorted().let { it[it.size / 2] })
+        val restart = short(t, period)
+        if (!restart) { search.report(probeRate, probeScores.sorted().let { it[it.size / 2] }); probeIndex++ }
         probeScores.clear()
+        val scheduled = pending
+        pending = null
+        if (scheduled != null && !restart) {   // already under way: the change took effect at the end of breath 9
+            probeRate = pacer.rateAt(scheduled)
+            probeStartMs = scheduled
+            probeReset = false
+            return
+        }
         var next = when {
-            restart -> rate
+            restart -> probeRate
             search.converged -> search.best
             else -> search.next()
         }
-        val endBy = cfg.durationMs?.let { it - FINAL_MS }
-        if (!search.converged && endBy != null && t + period + PROBE_BREATHS * 60_000 / next > endBy) { next = search.conclude() ?: rate }
-        probeStartMs = if (next != rate) pacer.changeRate(next, t) else t
-        probeReset = search.finished && next == rate   // staying at the rate: no transient to clear
-        if (!restart) probeIndex++
+        if (!search.converged && endBy != null && t + pacer.periodMs(t) + PROBE_BREATHS * 60_000 / next > endBy) { next = search.conclude() ?: probeRate }
+        val current = pacer.rateAt(t)   // differs from probeRate only when a restart follows a change already in effect
+        probeStartMs = if (next != current) pacer.changeRate(next, t) else t
+        probeReset = search.finished && next == current   // staying at the rate: no transient to clear
+        probeRate = next
+    }
+
+    /** Under [MIN_SCORED] breaths of scores by [end]: the probe would have to restart. */
+    private fun short(end: Double, period: Double) = probeScores.isEmpty() || end - firstScoreMs < MIN_SCORED * period
+
+    /** Takes back a change scheduled in the last breath, before it takes effect; the restart rule then applies as before. */
+    private fun withdraw(t: Double) {
+        pacer.changeRate(probeRate, t)
+        pending = null
     }
 
     /** The drawn balloon touched the ceiling (decided by the UI, which owns the smoothed height). */

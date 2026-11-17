@@ -282,8 +282,8 @@ class SessionEngineTest {
         assertTrue("base=${base.summary.beats} away=${away.summary.beats}", away.summary.beats < base.summary.beats - 30)
     }
 
-    /** HR follows the pacer by ±5 beats/min at whatever rate it runs, so every probe scores alike: a curve with no peak. */
-    private fun runFollower(durationMs: Long, start: Double = 5.5, startSd: Double = RfSearch.START_SD_NONE): Run {
+    /** HR follows the pacer by ±[amp] beats/min at whatever rate it runs; with the default every probe scores alike: no peak. */
+    private fun runFollower(durationMs: Long, start: Double = 5.5, startSd: Double = RfSearch.START_SD_NONE, amp: (Double) -> Double = { 5.0 }): Run {
         val out = ByteArrayOutputStream()
         val engine = SessionEngine(SessionConfig(start, 0.5, durationMs, 0.0, 15.0, true, true, rfStartSd = startSd), SessionCsvWriter(out))
         val rnd = java.util.Random(7)
@@ -295,7 +295,7 @@ class SessionEngineTest {
             while (beatEnd + rr + 500 <= t) {
                 beatEnd += rr
                 engine.onPacket((beatEnd + 500).toLong(), packet(rr))
-                rr = 60000 / (62 + 5 * sin(2 * PI * engine.pacer.cycles(beatEnd))) + rnd.nextGaussian() * 3
+                rr = 60000 / (62 + amp(engine.pacer.rateAt(beatEnd)) * sin(2 * PI * engine.pacer.cycles(beatEnd))) + rnd.nextGaussian() * 3
             }
             val st = engine.tick(t)
             states += st
@@ -310,6 +310,46 @@ class SessionEngineTest {
         assertEquals(1, r.at(95_000).rfProbe!!.index)   // 9 breaths at 5.5 /min take 98.2 s
         val second = r.states.first { it.rfProbe!!.index == 2 }.tMs
         assertTrue("second probe began at $second", second in 98_000L..100_000L)
+        assertEquals(5.5, r.at(98_000).rateBpm, 1e-9)
+        assertEquals("the next rate begins as breath nine ends", 6.0, r.at(98_250).rateBpm, 1e-9)
+    }
+
+    /** Rate changes as (first tick at the new rate, rate). */
+    private fun changes(r: Run) = r.states.zipWithNext().filter { (a, b) -> a.rateBpm != b.rateBpm }.map { it.second.tMs to it.second.rateBpm }
+
+    @Test fun pairedProbesFollowWithoutAnIdleBreathAndAFitTakesOne() {
+        val r = run(synthBeats(60.0, 10.0, 6.0, 600.0), durationMs = 900_000, stopAtMs = 450_000, rfSearch = true)
+        val c = changes(r)
+        // Probe 1: 9 breaths at 5.5 end at 98.2 s; probe 2: 9 at 6.0 end at 188.2 s; probe 3: 9 at 5.0 end at 296.2 s.
+        assertEquals(6.0, c[0].second, 1e-9)
+        assertTrue("probe 2 began at ${c[0].first}", c[0].first in 98_182L..98_432L)
+        assertEquals(5.0, c[1].second, 1e-9)
+        assertTrue("probe 3 began at ${c[1].first}", c[1].first in 188_182L..188_432L)
+        assertTrue("probe 4 began at ${c[2].first}, after one breath at 5.0", c[2].first in 308_182L..308_432L)
+        assertEquals(listOf(5.5, 6.0, 5.0), r.summary.rfProbes.take(3).map { it.first })
+    }
+
+    @Test fun aLossOrAPauseInTheLastBreathKeepsTheRateAndProbesItAgain() {
+        // Probe 1's last breath at 5.5 /min runs from 87.3 s to 98.2 s; the next rate is scheduled as it begins.
+        val lost = run(clean, durationMs = 900_000, stopAtMs = 130_000, rfSearch = true, suppress = { it in 88_000L..101_000L })
+        val away = run(clean, durationMs = 900_000, stopAtMs = 130_000, rfSearch = true, pause = 90_000L..99_000L)
+        for (r in listOf(lost, away)) {
+            assertTrue(r.states.filter { it.tMs >= 87_500 }.all { it.rateBpm == 5.5 })
+            assertEquals(1, r.at(120_000).rfProbe!!.index)
+        }
+    }
+
+    @Test fun aRestartThatBeginsMidBreathStillRunsNineBreaths() {
+        // Back at 125 s, half a breath into one: probe 1 starts again there and must run to 125 + 98.2 s before 6.0 begins.
+        val c = changes(run(clean, durationMs = 900_000, stopAtMs = 240_000, rfSearch = true, pause = 50_000L..125_000L))
+        assertEquals(6.0, c.first().second, 1e-9)
+        assertTrue("6.0 began at ${c.first().first}", c.first().first >= 223_182)
+    }
+
+    @Test fun anEighteenMinuteSearchFromFourAndAHalfHasRoomForItsPairs() {
+        val r = runFollower(1_080_000, start = 4.5, amp = { 2 + 3 * (it - 4) })   // swing grows with rate: the estimate keeps moving
+        assertFalse(r.summary.rfConverged)
+        assertTrue("probes=${r.summary.rfProbes.map { it.first }}", r.summary.rfProbes.size >= 7)
     }
 
     @Test fun noProbeRunsIntoTheLastTwoMinutes() {

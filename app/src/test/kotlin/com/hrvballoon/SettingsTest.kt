@@ -26,6 +26,14 @@ class SettingsTest {
         assertEquals(0.4, s.inhaleFraction, 1e-9)
     }
 
+    @Test fun aSearchSessionLasts18MinutesAndTrainingLasts15() {
+        val s = Settings(MapPrefs())
+        assertEquals(18 * 60_000L, s.searchDurationMs)
+        assertEquals("18", s.searchDurationLabel)
+        assertEquals(15 * 60_000L, s.durationMs)
+        assertEquals("15", s.durationLabel)
+    }
+
     @Test fun liftThresholdAndSkyCeilingKeepFiveApartWithinTheirBounds() {
         val s = Settings(MapPrefs())   // defaults 1 and 6
         s.stepFloor(+1)

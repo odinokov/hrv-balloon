@@ -96,6 +96,8 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private var engine: SessionEngine? = null
     private var sessionEstimate: Double? = null
+    /** This session's length, fixed at its start: [Settings.rfSearch] is cleared when a search ends. */
+    private var sessionMs = 15 * 60_000L
     private val sceneText by lazy { SceneText { resources.getString(it) } }
     private var backGuard: Any? = null   // OnBackInvokedCallback on Android 13+, set while a session runs
     private var startElapsed = 0L
@@ -294,7 +296,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (startStop.isEnabled != enabled) { startStop.isEnabled = enabled; styleStart() }
         if (engine == null) {
             val status = getString(linkStatusRes(link, rrFresh, neverRr))
-            balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(settings.durationMs)) else Hud(dot, status)
+            balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(if (settings.rfSearch) settings.searchDurationMs else settings.durationMs)) else Hud(dot, status)
             describe(status)
         } else {
             hudDot = dot
@@ -384,7 +386,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 balloon.pacerCycleOffset = p.cycleOffset(t)
                 balloon.pacerPhaseAt = { tt -> p.phase(tt) }
                 balloon.traceNowMs = t.toLong()
-                balloon.progress = (t / settings.durationMs).coerceIn(0.0, 1.0)   // the sunset is the session
+                balloon.progress = (t / sessionMs).coerceIn(0.0, 1.0)   // the sunset is the session
                 balloon.rising = !frozen && target - balloon.height01 > 0.01
                 if (!frozen) {
                     val h = smoother.step(target, dt)
@@ -439,6 +441,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     /** [estimate]: a search's height-and-sex start; the search begins there and ends there if it finds no peak. */
     private fun startSession(estimate: RfEstimate?) {
         val startRate = estimate?.rateBpm ?: settings.rateBpm
+        sessionMs = if (settings.rfSearch) settings.searchDurationMs else settings.durationMs
         val now = OffsetDateTime.now()
         csvName = if (settings.saveCsv) "hrv_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv" else ""
         val csv = if (!settings.saveCsv) SessionCsvWriter(NULL_STREAM) else try {
@@ -452,7 +455,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         csv.writeHeader(
             SessionMeta(
                 version, settings.deviceAddress ?: "?", settings.deviceName, now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-                startRate, settings.inhaleFraction, settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                startRate, settings.inhaleFraction, if (settings.rfSearch) settings.searchDurationLabel else settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
                 estimate?.rateBpm,
             ),
         )
@@ -460,7 +463,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         startWall = System.currentTimeMillis()
         engine = SessionEngine(
             SessionConfig(
-                startRate, settings.inhaleFraction, settings.durationMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                startRate, settings.inhaleFraction, sessionMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
                 settings.shapeGate, settings.rfSearch, if (estimate != null) RfSearch.START_SD_ESTIMATE else RfSearch.START_SD_NONE,
             ),
             csv,

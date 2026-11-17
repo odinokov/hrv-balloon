@@ -51,10 +51,20 @@ class RfSearch(private val startRate: Double, private val startSd: Double = STAR
 
     fun next(): Double {
         val n = rates.size
-        if (n == 0) return startRate
-        val up = (n - 1) % 4 == 0 || (n - 1) % 4 == 3
-        return snap(centre + if (up) DELTA else -DELTA)
+        return if (n == 0) startRate else straddle(n)
     }
+
+    /**
+     * The rate [next] will give once the probe in progress is reported, or null when a fit follows that probe and decides
+     * it (the third, fifth, …): lets the pacer move on as the probe ends instead of a breath later.
+     */
+    fun following(): Double? {
+        val k = rates.size + 1
+        return if (k >= 3 && k % 2 == 1) null else straddle(k)
+    }
+
+    /** The probe after [n] reported: the answer ± [DELTA] in the order + − − + + − …. */
+    private fun straddle(n: Int) = snap(centre + if ((n - 1) % 4 == 0 || (n - 1) % 4 == 3) DELTA else -DELTA)
 
     fun report(rateBpm: Double, score: Double) {
         rates += rateBpm

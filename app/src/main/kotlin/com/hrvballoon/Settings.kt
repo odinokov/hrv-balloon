@@ -84,9 +84,13 @@ class Settings(private val p: Prefs) {
     val rateBpm get() = rateTenths / 10.0
     val inhaleFraction get() = if (inhale5050) 0.5 else 0.4
 
-    /** Sessions are a fixed 15 minutes: long enough for a resonance search, short enough to do daily. */
+    /** Training sessions are a fixed 15 minutes, short enough to do daily. */
     val durationMs = 15 * 60_000L
     val durationLabel = "15"
+
+    /** A resonance search gets 18: room to finish its pairs of probes near 4.5 /min, where nine breaths take two minutes. */
+    val searchDurationMs = 18 * 60_000L
+    val searchDurationLabel = "18"
 
     private companion object {
         const val MIN_GAP = 5
