@@ -109,16 +109,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
                 else -> String.format(Locale.ROOT, t.bestSoFar, r.rateBpm)
             }
             text(centred(hero, 2), 22, hero, if (converged) HIGHLIGHT else DIM, 2)
-            if (converged) {
-                // The sub line is the chart's legend: each run in the colour of its mark.
-                val model = String.format(Locale.ROOT, t.modelRate, r.rateBpm)
-                val probe = String.format(Locale.ROOT, t.bestProbeRate, bestProbe?.first ?: r.rateBpm)
-                var x = centred("$model - $probe")
-                for ((run, c) in listOf(model to CARET, " - " to DIM, probe to HIGHLIGHT)) {
-                    text(x, 38, run, c)
-                    x += run.length * PixelFont.ADVANCE
-                }
-            } else {
+            if (!converged) {   // a found rate needs no sub line: the hero and the chart say it
                 val sub = when {
                     noPeak -> String.format(Locale.ROOT, if (r.rfEstimateBpm != null) t.estimateProbes else t.defaultProbes, r.rateBpm, r.probes.size)
                     bestProbe != null -> String.format(Locale.ROOT, t.bestProbe, bestProbe.first, r.probes.size)
@@ -198,7 +189,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             val mx = xOf(r.rateBpm)
             for (y in PLOT_TOP until PLOT_BASE) if ((y - PLOT_TOP) % 4 < 2) put(mx, y, if (converged) CARET else DIM)
         }
-        // In probe order, later on top, except that the best probes go last so a revisit cannot hide the legend's diamond.
+        // In probe order, later on top, except that the best probes go last so a revisit cannot hide the best one's diamond.
         for ((rate, score) in r.probes.sortedBy { it.second == bestScore }) {
             val x = xOf(rate)
             val y = yOf(score)
@@ -209,14 +200,6 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             }
         }
 
-        text(8, 52, t.axisScore, DIM)
-        if (fit != null) {
-            val label = String.format(Locale.ROOT, "%.1f", r.rateBpm)
-            val lx = (xOf(r.rateBpm) - PixelFont.width(label) / 2).coerceAtMost(w - 8 - PixelFont.width(label)).coerceAtLeast(38)
-            text(lx, 52, label, if (converged) CARET else DIM)
-        }
-        rightText(23, PLOT_TOP - 2, if (top < 10) String.format(Locale.ROOT, "%.1f", top) else top.roundToInt().toString(), DIM)
-        rightText(23, PLOT_BASE - 5, "0", DIM)
         for (k in ceil(lo).toInt()..floor(hi).toInt()) "$k".let { text(xOf(k.toDouble()) - PixelFont.width(it) / 2, PLOT_BASE + 5, it, DIM) }
         text((PLOT_LEFT + x1 - PixelFont.width(t.axisRate)) / 2, PLOT_BASE + 14, t.axisRate, DIM)
     }

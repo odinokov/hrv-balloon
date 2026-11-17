@@ -120,8 +120,6 @@
     <string name="scene_no_clear_peak">NO CLEAR PEAK</string>
     <string name="scene_no_estimate">NO ESTIMATE YET</string>
     <string name="scene_best_so_far">BEST SO FAR %.1f</string>
-    <string name="scene_model_rate">MODEL %.1f</string>
-    <string name="scene_best_probe_rate">BEST PROBE %.1f</string>
     <string name="scene_default_probes">START %1$.1f - %2$d PROBES</string>
     <string name="scene_estimate_probes">ESTIMATE %1$.1f - %2$d PROBES</string>
     <string name="scene_best_probe">BEST PROBE %1$.1f - %2$d PROBES</string>
@@ -136,7 +134,6 @@
     <string name="scene_rank_of">#%1$d OF %2$d BY STARS</string>
     <string name="scene_rhythm">RHYTHM %d%%</string>
     <string name="scene_lifetime">LIFETIME *%d</string>
-    <string name="scene_axis_score">SCORE</string>
     <string name="scene_axis_rate">BREATHS/MIN</string>
 
     <plurals name="scanning_seen">

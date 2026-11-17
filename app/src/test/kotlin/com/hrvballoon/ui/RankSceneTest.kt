@@ -188,6 +188,14 @@ class RankSceneTest {
         assertEquals("a later probe at the same spot must not hide the best", RankScene.HIGHLIGHT, revisited[81 * scene.w + 34])
     }
 
+    @Test fun theSearchCardCarriesNoScoreScaleOrRepeatedRates() {
+        val px = card(search(SessionRecord.KIND_RF_SEARCH, 4.6, worked))
+        fun blank(rows: IntRange, cols: IntRange) = rows.all { y -> cols.all { x -> px[y * scene.w + x] == RankScene.SURFACE } }
+        assertTrue("no MODEL - BEST PROBE line under the hero", blank(38 until 44, 5 until scene.w - 5))
+        assertTrue("no SCORE title or marker rate above the plot", blank(52 until 58, 5 until scene.w - 5))
+        assertTrue("no y scale", blank(60 until 122, 5 until 22))
+    }
+
     @Test fun onlyAConvergedSearchGetsTheOrangeMarker() {
         for (r in listOf(search(SessionRecord.KIND_RF_NO_PEAK, 5.0, worked), search(SessionRecord.KIND_RF_INCOMPLETE, 4.7, worked.take(4)))) {
             val px = card(r)
