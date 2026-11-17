@@ -17,7 +17,6 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
   <img src="docs/screenshots/dusk.png" width="200" alt="Late in the session at dusk: the balloon lower, stars out, 01:12 left on the countdown">
   <img src="docs/screenshots/ranks.png" width="200" alt="Best sessions table ranked by stars">
   <img src="docs/screenshots/result.png" width="200" alt="Results card: stars this session, rank among sessions, lifetime stars, mean rhythm">
-  <img src="docs/screenshots/search.png" width="200" alt="Resonance search card: probe scores as dots against breathing rate, the fitted curve in a shaded noise band, a dashed line at the reported 4.6 /min and a diamond at the best single probe, 4.2 /min">
 </p>
 <p align="center"><sub>Frames rendered by the scene renderer at its native 160 × 284 px, scaled 3×.</sub></p>
 
