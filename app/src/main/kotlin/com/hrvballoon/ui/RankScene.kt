@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 11) {
     private val background = IntArray(w * h)
     private val frame = IntArray(w * h)
-    private val twinkles: List<IntArray>
+    internal val twinkles: List<IntArray>   // x, y, phase; internal for the tests
     private val dateFmt = DateTimeFormatter.ofPattern("MM-dd", Locale.ROOT)
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT)
     private val fullFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT)
@@ -203,7 +203,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
     }
 
     /** The smallest of 1, 1.5, 2, 3, 4, 5, 6, 8 × 10^k that is at least [v] > 0. */
-    private fun niceTop(v: Double): Double {
+    internal fun niceTop(v: Double): Double {
         val p = 10.0.pow(floor(log10(v)))
         return doubleArrayOf(1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0).first { it * p >= v * (1 - 1e-9) } * p
     }
@@ -226,7 +226,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
     private fun titleColor(timeMs: Long) = TITLE_CYCLE[((timeMs / 2000) % TITLE_CYCLE.size).toInt()]
 
     /** Large counts remain visibly approximate rather than losing their final digits at the edge. */
-    private fun compactCount(n: Int) = when {
+    internal fun compactCount(n: Int) = when {
         n < 1_000 -> n.toString()
         n < 1_000_000 -> "${n / 1_000}K+"
         else -> "${n / 1_000_000}M+"

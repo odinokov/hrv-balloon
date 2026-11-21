@@ -327,6 +327,18 @@ class SessionEngineTest {
         assertTrue(out.toString("UTF-8").lines().count { it.startsWith("beat,") } > 230)   // the CSV stayed open
     }
 
+    @Test fun aSearchEndedEarlyWhileItShowsNoPeakIsIncomplete() {
+        // Swing grows with rate, so the estimate keeps moving; stopped in probe 6, long before the search would conclude.
+        val r = runFollower(1_080_000, start = 4.5, startSd = RfSearch.START_SD_ESTIMATE, stopAtMs = 700_000, amp = { 2 + 3 * (it - 4) })
+        val probes = r.summary.rfProbes
+        assertTrue("probes=${probes.size}", probes.size >= RfSearch.MIN_PROBES)
+        assertTrue("the fit places no peak: se=${rfFit(probes)!!.se} probes=$probes", rfFit(probes)!!.se > RfSearch.START_SD_ESTIMATE)
+        assertFalse(r.summary.rfConverged)
+        assertFalse("only a search that ran to its end reports no clear peak", r.summary.rfNoPeak)
+        val outcome = sessionOutcome(true, r.states.last().rateBpm, 5.5, r.summary.rfBest, r.summary.rfConverged, r.summary.rfNoPeak, probes)
+        assertEquals(SessionRecord.KIND_RF_INCOMPLETE, outcome.kind)
+    }
+
     @Test fun aProbeLastsNineBreaths() {
         val r = run(clean, durationMs = 900_000, stopAtMs = 120_000, rfSearch = true)
         assertEquals(1, r.at(95_000).rfProbe!!.index)   // 9 breaths at 5.5 /min take 98.2 s

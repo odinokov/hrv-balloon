@@ -140,7 +140,7 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
     private fun text(x: Int, y: Int, s: String, color: Int) = PixelFont.draw(x, y, s, color) { px, py, c -> put(px, py, c) }
 
     /** Keep long statuses inside the scene's horizontal padding. */
-    private fun fit(s: String, px: Int) = if (PixelFont.width(s) <= px) s else s.take((px + 1) / PixelFont.ADVANCE).trimEnd()
+    internal fun fit(s: String, px: Int) = if (PixelFont.width(s) <= px) s else s.take((px + 1) / PixelFont.ADVANCE).trimEnd()
 
     // ---- static layers ----
 
