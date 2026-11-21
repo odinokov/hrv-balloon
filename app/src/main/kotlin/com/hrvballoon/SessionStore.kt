@@ -3,6 +3,7 @@ package com.hrvballoon
 import com.hrvballoon.core.SessionHistory
 import com.hrvballoon.core.SessionRecord
 import java.io.File
+import java.io.IOException
 
 /**
  * Session history in [dir] (app-private storage): sessions.csv in the [SessionHistory] format. An old sessions.txt
@@ -21,6 +22,9 @@ class SessionStore(private val dir: File) {
         if (!file.exists()) file.writeText(SessionHistory.header())
         file.appendText(SessionHistory.row(record) + "\n")
     }
+
+    /** As [append], for the row saved when the app is left mid-session: a failed write must not end the session. */
+    fun checkpoint(record: SessionRecord) = try { append(record); true } catch (_: IOException) { false }
 
     private fun migrate() {
         val legacy = File(dir, "sessions.txt")

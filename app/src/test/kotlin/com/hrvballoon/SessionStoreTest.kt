@@ -4,7 +4,10 @@ import com.hrvballoon.core.SessionRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 
 class SessionStoreTest {
@@ -32,6 +35,16 @@ class SessionStoreTest {
         val back = SessionStore(dir).load()
         assertEquals(listOf(5L, 9L), back.map { it.startMs })
         assertEquals(12, back.last().stars)
+    }
+
+    @Test fun aCheckpointThatCannotBeWrittenIsSkippedQuietly() {
+        val blocker = Files.createTempFile("store", ".tmp").toFile().apply { deleteOnExit() }
+        val store = SessionStore(File(blocker, "sub"))   // a directory below a regular file can never be created
+        assertFalse(store.checkpoint(record(1)))
+        assertThrows(IOException::class.java) { store.append(record(1)) }
+        val dir = Files.createTempDirectory("store").toFile()
+        assertTrue(SessionStore(dir).checkpoint(record(2)))   // a writable store keeps the row
+        assertEquals(listOf(2L), SessionStore(dir).load().map { it.startMs })
     }
 
     @Test fun aFreshStoreStartsWithTheSchemaAndHeader() {

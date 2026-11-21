@@ -174,7 +174,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         engine?.let {
             leftAtMs = sessionNow()
             it.pause(leftAtMs)
-            save(it, it.snapshot(leftAtMs), leftAtMs)   // kept if the app is swiped away or killed before the session ends
+            save(it, it.snapshot(leftAtMs), leftAtMs, checkpoint = true)   // kept if the app is swiped away or killed before the session ends
             main.postDelayed(graceStop, GRACE_MS)
         }
         super.onStop()
@@ -565,21 +565,23 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     /**
      * Writes the session's history row as it stands at [endAtMs]: on leaving the app, so that a session survives the app
-     * being swiped away or killed, and at the end, when the later row replaces the earlier one (SessionHistory.parse).
+     * being swiped away or killed (a failed write is then ignored), and at the end, when the later row replaces the earlier one
+     * (SessionHistory.parse).
      */
-    private fun save(e: SessionEngine, summary: Summary, endAtMs: Long): SessionOutcome {
+    private fun save(e: SessionEngine, summary: Summary, endAtMs: Long, checkpoint: Boolean = false): SessionOutcome {
         val wasSearch = settings.rfSearch
         val finalRate = e.pacer.rateAt(endAtMs.toDouble())   // exclude any change still waiting for the next inhale
         val outcome = sessionOutcome(wasSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
-        SessionStore(filesDir).append(
+        val record =
             SessionRecord(
                 startWall, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape,
                 summary.stars, summary.meanHr, summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats,
                 outcome.kind,
                 summary.rfProbes,
                 if (wasSearch) sessionEstimate else null,
-            ),
-        )
+            )
+        val store = SessionStore(filesDir)
+        if (checkpoint) store.checkpoint(record) else store.append(record)
         return outcome
     }
 
