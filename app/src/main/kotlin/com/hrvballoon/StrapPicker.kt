@@ -71,7 +71,7 @@ class StrapPicker(
     }
 
     private fun scan() {
-        hint.setText(R.string.scanning)
+        hint.setText(if (devices.isEmpty()) R.string.scanning else R.string.tap_your_strap)   // a rescan keeps the list
         main.removeCallbacks(timeout)
         main.postDelayed(timeout, SCAN_TIMEOUT_MS)
         // Android refuses more than five scan starts in 30 s; a quick second tap just keeps the running scan.

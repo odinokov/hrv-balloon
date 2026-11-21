@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -651,6 +652,8 @@ class MainActivity : Activity(), HrmClient.Listener {
             } catch (_: SecurityException) {
                 link = Link.NO_PERMISSION
                 renderStatus()
+            } catch (_: ActivityNotFoundException) {
+                // No screen to turn Bluetooth on (a device or emulator without an adapter): stay at "Bluetooth is off".
             }
             return
         }
