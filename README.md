@@ -117,7 +117,7 @@ Session length is fixed at 15 minutes, short enough to do daily; a resonance sea
 
 Nothing leaves the phone.
 
-- **History.** `sessions.csv` in app-private storage, one row per session, shown on the Ranks screen and the per-session results card. Its first line names the format version (`# hrv-sessions v2`) and the next names the columns, which are read by name; the older one-line-per-session `sessions.txt` is converted once and kept as `sessions.v1.txt`.
+- **History.** `sessions.csv` in app-private storage, shown on the Ranks screen and the per-session results card. Its first line names the format version (`# hrv-sessions v2`) and the next names the columns, which are read by name. A session gets a row when it ends and one each time you leave the app while it runs; rows are only ever added, and the last row for a `start_ms` is the session's record. The older one-line-per-session `sessions.txt` is converted once and kept as `sessions.v1.txt`.
 - **CSV** (optional). `Download/HRV/hrv_YYYYMMDD_HHMMSS.csv`, flushed after every row so a crash loses nothing. Header lines `# key=value` give `app_version`, `device_address`, `device_name`, `start`, `rate_bpm`, `inhale_fraction`, `duration`, `floor_bpm`, `ceiling_bpm`, and `rf_estimate_bpm` when a resonance search started from a height estimate. Then:
 
   ```
