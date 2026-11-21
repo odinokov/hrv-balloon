@@ -1,6 +1,8 @@
 package com.hrvballoon
 
+import com.hrvballoon.ui.TestText
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -25,5 +27,14 @@ class AppResourcesTest {
             val handled = a.getNamedItem("android:configChanges").nodeValue.split("|").toSet()
             assertEquals(a.getNamedItem("android:name").nodeValue, emptySet<String>(), all - handled)
         }
+    }
+
+    @Test fun helpOpensWithTheMedicalNotice() {
+        assertTrue(
+            TestText.strings.getValue("help_text").startsWith(
+                "Not a medical device. It does not diagnose, treat, cure or prevent any medical condition. " +
+                    "Ask a healthcare professional for medical advice.\n\n",
+            ),
+        )
     }
 }
