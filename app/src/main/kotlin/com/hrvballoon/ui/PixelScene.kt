@@ -615,11 +615,11 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         private fun watch(starX: Int) { state = WATCH; facing = if (starX >= x) 1 else -1 }
         private fun runOn(now: Long) { state = RUN; until = now + decision() }
 
-        /** The basket is coming down on it: it bolts out from under, three times its running pace, for a second. */
+        /** The basket is coming down on it: it bolts out from under at three times its running pace, slows to twice, then runs on at its own (0.6 s each). */
         fun fleeFrom(bx: Int, now: Long) {
             if (state == HIDDEN || now < dashUntil || kotlin.math.abs(x + 4 - bx) > 9) return
             dir = if (x + 4 < bx) -1 else 1
-            dashUntil = now + DASH_MS
+            dashUntil = now + FLEE_FAST_MS + FLEE_EASE_MS
             runOn(now)
         }
 
@@ -634,7 +634,7 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
                     runOn(now)
                 }
                 RUN -> if (starX != null && now >= dashUntil) watch(starX) else {
-                    val speed = if (now < dashUntil) SPEED * 3 else SPEED
+                    val speed = SPEED * fleePace(dashUntil - now)
                     x += dir * speed * dt / 1000
                     ran += speed * dt / 1000
                     if (x > w + 1 || x < -9) { state = HIDDEN; until = now + wait() }
@@ -680,7 +680,6 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
             const val SPEED = 22.0   // px/s
             const val JUMP_CHANCE = 0.75
             const val JUMP_MS = 400L
-            const val DASH_MS = 1000L
             // Facing right: '#' fur, '+' tail, 'o' eye. Ears back while running, up while sitting.
             val RUN_A = arrayOf("...##...", "....####", "+#####o#", ".######.", ".#....#.")
             val RUN_B = arrayOf("...##...", "....####", "+#####o#", "..#####.", "...##...")
@@ -735,6 +734,10 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         private const val BASKET_H = 6
         private const val FALL_MS = 1800
         private const val TRACE_MS = 30_000
+        private const val FLEE_FAST_MS = 600L
+        private const val FLEE_EASE_MS = 600L
+        /** A fleeing rabbit's pace multiple; msLeft is the time before the whole dash ends. */
+        internal fun fleePace(msLeft: Long): Int = when { msLeft > FLEE_EASE_MS -> 3; msLeft > 0 -> 2; else -> 1 }
         /** Gaussian σ for the trace line, ms: well above a beat (~1 s), well below a breath (~11 s). */
         private const val SMOOTH_MS = 600.0
         private const val JOIN_MS = 1000.0

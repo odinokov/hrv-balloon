@@ -50,4 +50,10 @@ class PixelScenePinsTest {
         assertEquals(246, row)
         assertEquals(PixelScene.TRACE_DIM, px[row * w + 142])
     }
+
+    /** A rabbit bolting from the basket runs 3x for 600 ms, 2x for the next 600 ms, then 1x; msLeft is the time before the dash ends. */
+    @Test fun aFleeingRabbitSlowsFromThreeToTwoTimesItsPace() {
+        listOf(1200L to 3, 601L to 3, 600L to 2, 1L to 2, 0L to 1, -250L to 1)
+            .forEach { (msLeft, pace) -> assertEquals("msLeft $msLeft", pace, PixelScene.fleePace(msLeft)) }
+    }
 }
