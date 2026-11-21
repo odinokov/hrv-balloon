@@ -24,6 +24,12 @@ class SessionHistoryTest {
         assertEquals(SessionRecord.KIND_RF_NO_PEAK, back[2].kind)
     }
 
+    @Test fun aLaterRowForTheSameSessionReplacesTheEarlierOne() {
+        val onLeaving = SessionRecord(training.startMs, 300000, 5.5, 8.0, 0.8, 9, 68.0, 1.0, 280000, 40.0, 50.0, 320)
+        val back = SessionHistory.parse(SessionHistory.write(listOf(sparse, onLeaving, training, search)))
+        assertEquals(rows(listOf(sparse, training, search)), rows(back))
+    }
+
     @Test fun migratesTheFourPositionalLayoutsOfVersionOne() {
         val v1 = listOf(
             "1761400000000,300000,5.5,9.63,0.842,3,68.2,1.8",                                   // 8 fields

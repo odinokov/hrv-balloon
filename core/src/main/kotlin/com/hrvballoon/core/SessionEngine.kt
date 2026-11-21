@@ -219,6 +219,11 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     fun stop(nowMs: Long): Summary {
         filter.flush().forEach { record(it) }
         csv.close()
+        return snapshot(nowMs)
+    }
+
+    /** The summary as it stands, without ending the session: what [stop] would give, less the beats the filter still holds. */
+    fun snapshot(nowMs: Long): Summary {
         rf?.let { summary.rfBest = it.best; summary.rfConverged = it.found; summary.rfNoPeak = it.noPeak && it.finished; summary.rfProbes = it.probes }
         return summary.result(nowMs)
     }

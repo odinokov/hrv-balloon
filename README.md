@@ -28,7 +28,7 @@ Slow breathing at about six breaths a minute is a well-studied way to ease stres
 - **Ranks.** Tap a row to open its results card; a training session's card shows the mean rhythm (R², %).
 - **Status line.** `HR 68 Pace 5.5/min` with the countdown on the right. HR is the strap's own reading; the trace and the swing use beat-to-beat HR from RR. Labels when they apply: `Settling` (window refilling), `Steady` (the swing does not follow the pacer), `Search` (resonance search), `No signal`, `Done`.
 - **Trace.** The last 30 s of heart rate; light bands are inhales, dark bands exhales. The line trails real time by about five seconds, because each beat is confirmed by the next two and smoothed before it is drawn. Dim dashes bridge that stretch with a forecast, and real beats replace them as they arrive. They appear after one full breath of good signal, at the start and after a loss. The forecast is display only: the balloon and the stars use measured beats, and the dashes disappear while the signal is lost.
-- **Signal loss.** Link down, no skin contact, no RR for over 4 s, a gap of over 3 s in the beats, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses the cues, the statistics and the resonance search; beats received meanwhile are written to the CSV only. After a minute away the session ends.
+- **Signal loss.** Link down, no skin contact, no RR for over 4 s, a gap of over 3 s in the beats, or five rejected beats in a row: the balloon holds its height, the statistics pause, and recovery warms up again. Leaving the app pauses the cues, the statistics and the resonance search; beats received meanwhile are written to the CSV only. After a minute away the session ends. If the app is swiped away or closed by Android while you are gone, the session is kept in the history as it stood when you left.
 
 ## Quick start
 
@@ -117,7 +117,7 @@ Session length is fixed at 15 minutes, short enough to do daily; a resonance sea
 
 Nothing leaves the phone.
 
-- **History.** `sessions.csv` in app-private storage, one row per finished session, shown on the Ranks screen and the per-session results card. Its first line names the format version (`# hrv-sessions v2`) and the next names the columns, which are read by name; the older one-line-per-session `sessions.txt` is converted once and kept as `sessions.v1.txt`.
+- **History.** `sessions.csv` in app-private storage, one row per session, shown on the Ranks screen and the per-session results card. Its first line names the format version (`# hrv-sessions v2`) and the next names the columns, which are read by name; the older one-line-per-session `sessions.txt` is converted once and kept as `sessions.v1.txt`.
 - **CSV** (optional). `Download/HRV/hrv_YYYYMMDD_HHMMSS.csv`, flushed after every row so a crash loses nothing. Header lines `# key=value` give `app_version`, `device_address`, `device_name`, `start`, `rate_bpm`, `inhale_fraction`, `duration`, `floor_bpm`, `ceiling_bpm`, and `rf_estimate_bpm` when a resonance search started from a height estimate. Then:
 
   ```

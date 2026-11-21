@@ -4,8 +4,9 @@ import kotlin.math.roundToInt
 
 /**
  * The session history file. Version 2: a schema line, a header of named columns, one row per session; readers match
- * columns by name, so a new optional column needs no migration and unknown columns are skipped. Version 1 is the
- * old positional sessions.txt (four layouts, see [SessionRecord.fromLine]); [parse] reads both, [write] writes v2.
+ * columns by name, so a new optional column needs no migration and unknown columns are skipped. A session saved again
+ * (on leaving the app, then at its end) is appended again and its last row counts. Version 1 is the old positional
+ * sessions.txt (four layouts, see [SessionRecord.fromLine]); [parse] reads both, [write] writes v2.
  */
 object SessionHistory {
     const val SCHEMA = "# hrv-sessions v2"
@@ -44,7 +45,7 @@ object SessionHistory {
             } catch (e: RuntimeException) {
                 null
             }
-        }
+        }.associateBy { it.startMs }.values.toList()   // the last row of a session, in the place of its first
     }
 
     private fun f(x: Double) = ((x * 1000).roundToInt() / 1000.0).toString()

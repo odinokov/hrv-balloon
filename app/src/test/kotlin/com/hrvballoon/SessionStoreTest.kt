@@ -22,6 +22,18 @@ class SessionStoreTest {
         assertEquals(listOf(1L, 2L, 3L), SessionStore(dir).load().map { it.startMs })
     }
 
+    @Test fun aSessionSavedOnLeavingTheAppIsReplacedWhenItEnds() {
+        val dir = Files.createTempDirectory("store").toFile()
+        val store = SessionStore(dir)
+        store.append(record(5))
+        store.append(SessionRecord(9, 300000, 5.5, 8.0, 0.8, 4, 66.0, 1.0, 280000, 40.0, 50.0, 320))   // left after 5 min
+        assertEquals(listOf(5L, 9L), SessionStore(dir).load().map { it.startMs })                      // kept if it never ends
+        store.append(SessionRecord(9, 900000, 5.5, 9.0, 0.8, 12, 66.0, 1.0, 800000, 40.0, 50.0, 900))
+        val back = SessionStore(dir).load()
+        assertEquals(listOf(5L, 9L), back.map { it.startMs })
+        assertEquals(12, back.last().stars)
+    }
+
     @Test fun aFreshStoreStartsWithTheSchemaAndHeader() {
         val dir = Files.createTempDirectory("store").toFile()
         val store = SessionStore(dir)

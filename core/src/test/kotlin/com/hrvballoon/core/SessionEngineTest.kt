@@ -283,7 +283,10 @@ class SessionEngineTest {
     }
 
     /** HR follows the pacer by ±[amp] beats/min at whatever rate it runs; with the default every probe scores alike: no peak. */
-    private fun runFollower(durationMs: Long, start: Double = 5.5, startSd: Double = RfSearch.START_SD_NONE, amp: (Double) -> Double = { 5.0 }): Run {
+    private fun runFollower(
+        durationMs: Long, start: Double = 5.5, startSd: Double = RfSearch.START_SD_NONE, stopAtMs: Long = Long.MAX_VALUE,
+        amp: (Double) -> Double = { 5.0 },
+    ): Run {
         val out = ByteArrayOutputStream()
         val engine = SessionEngine(SessionConfig(start, 0.5, durationMs, 0.0, 15.0, true, true, rfStartSd = startSd), SessionCsvWriter(out))
         val rnd = java.util.Random(7)
@@ -299,10 +302,29 @@ class SessionEngineTest {
             }
             val st = engine.tick(t)
             states += st
-            if (st.finished) break
+            if (st.finished || t >= stopAtMs) break
             t += 250
         }
         return Run(states, out.toString("UTF-8").lines(), engine.stop(t))
+    }
+
+    @Test fun aSnapshotLeavesTheSessionRunning() {
+        val out = ByteArrayOutputStream()
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, 300_000, 0.0, 15.0, true, false), SessionCsvWriter(out))
+        val beats = clean.beats(500)
+        var bi = 0
+        var mid: Summary? = null
+        for (t in 0L..240_000L step 250) {
+            while (bi < beats.size && beats[bi].arrivalMs <= t) { engine.onPacket(beats[bi].arrivalMs, packet(beats[bi].rrMs)); bi++ }
+            engine.tick(t)
+            if (t == 120_000L) mid = engine.snapshot(t)
+        }
+        val end = engine.stop(240_000)
+        assertEquals(120_000L, mid!!.durationMs)
+        assertTrue("beats at the snapshot: ${mid.beats}", mid.beats in 110..125)
+        assertTrue("mean swing at the snapshot: ${mid.meanP}", mid.meanP!! in 8.8..10.2)
+        assertTrue("the session went on: ${end.beats} beats", end.beats > mid.beats + 100)
+        assertTrue(out.toString("UTF-8").lines().count { it.startsWith("beat,") } > 230)   // the CSV stayed open
     }
 
     @Test fun aProbeLastsNineBreaths() {

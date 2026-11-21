@@ -45,12 +45,14 @@ import com.hrvballoon.core.SessionConfig
 import com.hrvballoon.core.SessionCsvWriter
 import com.hrvballoon.core.SessionEngine
 import com.hrvballoon.core.SessionMeta
+import com.hrvballoon.core.SessionOutcome
 import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.SessionStatus
 import com.hrvballoon.core.Sex
 import com.hrvballoon.core.Signal
 import com.hrvballoon.core.Smoother
 import com.hrvballoon.core.StarCounter
+import com.hrvballoon.core.Summary
 import com.hrvballoon.core.UiState
 import com.hrvballoon.core.hasuoEstimate
 import com.hrvballoon.core.rhythmLimited
@@ -171,6 +173,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         engine?.let {
             leftAtMs = sessionNow()
             it.pause(leftAtMs)
+            save(it, it.snapshot(leftAtMs), leftAtMs)   // kept if the app is swiped away or killed before the session ends
             main.postDelayed(graceStop, GRACE_MS)
         }
         super.onStop()
@@ -538,9 +541,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     /** [cue] = long vibration: Stop button and timer end, not a session cut short by leaving the app. */
     private fun stopSession(cue: Boolean, endAtMs: Long = sessionNow()) {
         val e = engine ?: return
-        val summary = e.stop(endAtMs)
-        val wasSearch = settings.rfSearch
-        val finalRate = e.pacer.rateAt(endAtMs.toDouble())   // exclude any change still waiting for the next inhale
+        val outcome = save(e, e.stop(endAtMs), endAtMs)
         engine = null
         guardBack(false)
         frozen = false
@@ -554,10 +555,21 @@ class MainActivity : Activity(), HrmClient.Listener {
         settingsButton.visibility = View.VISIBLE
         controls.visibility = View.GONE
         if (cue && foreground) endCue()   // the timer can end while you are in another app: no blind buzz there
-        val outcome = sessionOutcome(wasSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
-        if (wasSearch) settings.rfSearch = false
+        if (settings.rfSearch) settings.rfSearch = false
         outcome.offerTenths?.let { settings.lastRfTenths = it; settings.lastRfNoPeak = outcome.kind == SessionRecord.KIND_RF_NO_PEAK }
         styleStart()
+        if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()
+        main.postDelayed(landing, if (foreground) LANDING_MS else 0)
+    }
+
+    /**
+     * Writes the session's history row as it stands at [endAtMs]: on leaving the app, so that a session survives the app
+     * being swiped away or killed, and at the end, when the later row replaces the earlier one (SessionHistory.parse).
+     */
+    private fun save(e: SessionEngine, summary: Summary, endAtMs: Long): SessionOutcome {
+        val wasSearch = settings.rfSearch
+        val finalRate = e.pacer.rateAt(endAtMs.toDouble())   // exclude any change still waiting for the next inhale
+        val outcome = sessionOutcome(wasSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
         SessionStore(filesDir).append(
             SessionRecord(
                 startWall, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape,
@@ -567,8 +579,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 if (wasSearch) sessionEstimate else null,
             ),
         )
-        if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()
-        main.postDelayed(landing, if (foreground) LANDING_MS else 0)
+        return outcome
     }
 
     private fun cue(inhale: Boolean) {
