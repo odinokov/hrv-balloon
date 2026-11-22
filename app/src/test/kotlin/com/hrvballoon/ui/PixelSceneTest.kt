@@ -154,7 +154,6 @@ class PixelSceneTest {
         PixelFont.draw(12, 4, "SETTLING HR 168 5.5/MIN", PixelScene.HUD_TEXT) { x, y, color -> longInk++; assertEquals(color, long[y * scene.w + x]) }
         PixelFont.draw(scene.w - PixelFont.width("00:59") - 4, 4, "00:59", PixelScene.HUD_TEXT) { _, _, _ -> longInk++ }
         assertEquals(longInk, count(long, PixelScene.HUD_TEXT))
-        assertEquals(0, count(px, PixelScene.HUD_DIM))
         assertEquals(16, scene.topMargin)
     }
 

@@ -727,7 +727,6 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         const val PACER_OUT = 0xFF7FDDF2.toInt()
         const val PLATE = 0xFF1A1033.toInt()
         const val HUD_TEXT = 0xFFFFF1DC.toInt()
-        const val HUD_DIM = 0xFFC9A6E0.toInt()
         const val LOST_TEXT = 0xFFFFB84D.toInt()
         const val DOT_GREEN = 0xFF5FD38A.toInt()
         const val DOT_AMBER = 0xFFFFA62B.toInt()
@@ -752,7 +751,7 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
             GROUND, GROUND_DOT, GROUND_DARK, GRASS_LIGHT, SHADOW,
             CORAL, CORAL_LIGHT, CORAL_DARK, CREAM, CREAM_LIGHT, CREAM_DARK, WHITE, DARK, WICKER_A, WICKER_B, FLAME_A, FLAME_B, RABBIT, RABBIT_DARK,
             STAR, STAR_DARK, PANEL, PANEL_EDGE, PANEL_INHALE, TRACE, TRACE_DIM, PACER_FRAME, PACER_BG, PACER_IN, PACER_OUT,
-            PLATE, HUD_TEXT, HUD_DIM, LOST_TEXT, DOT_GREEN, DOT_AMBER, DOT_RED,
+            PLATE, HUD_TEXT, LOST_TEXT, DOT_GREEN, DOT_AMBER, DOT_RED,
         )
 
         /** Every base colour plus its dusk tints. */
