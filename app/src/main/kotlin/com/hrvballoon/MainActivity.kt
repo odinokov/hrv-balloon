@@ -289,7 +289,6 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (!running) startStop.text = if (settings.rfSearch) getString(R.string.find_my_rate) else fmt(R.string.start_at, settings.rateBpm)
     }
 
-    /** Secondary buttons dim visibly when disabled. */
     /** A stray tap can't end a session: Stop asks first (tap outside = keep going). */
     private fun confirmStop() {
         AlertDialog.Builder(this).setMessage(R.string.end_session_q)
@@ -302,8 +301,6 @@ class MainActivity : Activity(), HrmClient.Listener {
         controlsUntil = SystemClock.elapsedRealtime() + CONTROLS_MS
         controls.visibility = View.VISIBLE
     }
-
-    private fun up(s: String) = s.uppercase(Locale.ROOT)
 
     private fun freshHr(now: Long = SystemClock.elapsedRealtime()): Int? = latestHr?.takeIf {
         link == Link.CONNECTED && lastHrAt >= connectedAt && now - lastHrAt in 0..4000
@@ -723,10 +720,6 @@ class MainActivity : Activity(), HrmClient.Listener {
     override fun onScanProgress(seen: Int) { picker?.progress(seen) }
 
     override fun onScanFailed(code: Int) { picker?.failed(code) }
-
-    override fun onBle(note: String) {
-        renderStatus()
-    }
 
     override fun onLink(connected: Boolean) {
         latestHr = null

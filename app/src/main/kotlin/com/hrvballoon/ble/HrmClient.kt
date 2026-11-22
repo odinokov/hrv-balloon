@@ -37,8 +37,6 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         fun onLink(connected: Boolean)
         /** Bluetooth was switched on while no strap was being tracked (e.g. from quick settings). */
         fun onBluetoothOn()
-        /** One short line about the latest step of the connection (GATT status codes, retries), for the status band. */
-        fun onBle(note: String)
         /** [nowMs] is SystemClock.elapsedRealtime() captured when the notification arrived. */
         fun onPacket(nowMs: Long, packet: HrsPacket)
     }
@@ -60,7 +58,6 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         if (seeking == null) return@Runnable
         seeking = null
         stopScan()
-        note("NOT SEEN IN ${SEEK_MS / 1000}S, TRYING ANYWAY")
         open(false)
     }
     private var scanning = false
@@ -69,16 +66,16 @@ class HrmClient(private val context: Context, private val listener: Listener) {
     /** Devices seen by the scan: they carry the address type (the strap's is static random); getRemoteDevice(address) assumes public. */
     private val found = HashMap<String, BluetoothDevice>()
     /** A pending direct connect that never answered, or a link that never reached streaming: close it ourselves and retry — a cancelled connect does not reliably call back. */
-    private fun stalled(what: String) = Runnable {
+    private fun stalled() = Runnable {
         val g = gatt ?: return@Runnable
         if (streaming) return@Runnable   // this link is fine; an earlier one having streamed says nothing about it
         g.close()
         gatt = null
         linked = false
-        retryOrWait(what)
+        retryOrWait()
     }
-    private val connectTimeout = stalled("NO ANSWER IN ${CONNECT_TIMEOUT_MS / 1000}S")
-    private val setupTimeout = stalled("NO SERVICES IN ${SETUP_TIMEOUT_MS / 1000}S")
+    private val connectTimeout = stalled()
+    private val setupTimeout = stalled()
 
     val bluetoothEnabled get() = adapter?.isEnabled == true
 
@@ -96,8 +93,6 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         else context.registerReceiver(btState, filter)
     }
 
-    private fun note(s: String) = main.post { if (!closed) listener.onBle(s) }
-
     private fun scheduleOpen(autoConnect: Boolean) {
         reopenAuto = autoConnect
         main.removeCallbacks(reopen)
@@ -113,13 +108,11 @@ class HrmClient(private val context: Context, private val listener: Listener) {
     }
 
     /** On main, with [gatt] already null: a fresh link that never streamed gets a few quick direct attempts before autoConnect. */
-    private fun retryOrWait(what: String) {
+    private fun retryOrWait() {
         listener.onLink(false)
         if (!streamed && tries < DIRECT_TRIES) {
-            note("$what, RETRY $tries/$DIRECT_TRIES")
             scheduleOpen(false)
         } else {
-            note("$what, WAITING FOR STRAP")
             open(true)
         }
     }
@@ -146,7 +139,6 @@ class HrmClient(private val context: Context, private val listener: Listener) {
                     main.removeCallbacks(seekTimeout)
                     stopScan()
                     target = d
-                    note("STRAP SEEN")
                     open(false)
                     return@post
                 }
@@ -167,8 +159,8 @@ class HrmClient(private val context: Context, private val listener: Listener) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     linked = true
                     main.removeCallbacks(connectTimeout)
-                    if (g.discoverServices()) { note("LINKED, READING SERVICES"); main.postDelayed(setupTimeout, SETUP_TIMEOUT_MS) }
-                    else { note("DISCOVER REFUSED"); g.disconnect() }
+                    if (g.discoverServices()) main.postDelayed(setupTimeout, SETUP_TIMEOUT_MS)
+                    else g.disconnect()
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     linked = false
@@ -179,7 +171,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
                         main.removeCallbacks(connectTimeout)
                         main.removeCallbacks(setupTimeout)
                         gatt = null
-                        retryOrWait("GATT $status")
+                        retryOrWait()
                     }
                 }
             }
@@ -192,17 +184,16 @@ class HrmClient(private val context: Context, private val listener: Listener) {
             val ch = service?.getCharacteristic(HRM)
             val cccd = ch?.getDescriptor(CCCD)
             if (ch == null || cccd == null) {
-                note("SERVICES $status, HR ${if (service == null) "MISSING" else "INCOMPLETE"}")
                 // A stale GATT cache hides the service; the hidden refresh() drops it before the next discovery.
                 if (!refreshed) refreshed = runCatching { g.javaClass.getMethod("refresh").invoke(g) }.getOrNull() == true
                 g.disconnect()
                 return
             }
-            if (!g.setCharacteristicNotification(ch, true)) { note("NOTIFY REFUSED"); g.disconnect(); return }
+            if (!g.setCharacteristicNotification(ch, true)) { g.disconnect(); return }
             if (Build.VERSION.SDK_INT >= 33) {
                 // Refused writes give no callback on 33+: the return code is the only word.
                 val rc = g.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                if (rc != BluetoothStatusCodes.SUCCESS) { note("CCCD WRITE $rc"); g.disconnect() }
+                if (rc != BluetoothStatusCodes.SUCCESS) g.disconnect()
             } else {
                 @Suppress("DEPRECATION")
                 cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -213,10 +204,9 @@ class HrmClient(private val context: Context, private val listener: Listener) {
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
             if (g !== gatt) return
-            if (status != BluetoothGatt.GATT_SUCCESS) { note("NOTIFY FAILED $status"); g.disconnect(); return }
+            if (status != BluetoothGatt.GATT_SUCCESS) { g.disconnect(); return }
             streamed = true
             streaming = true
-            note("STREAMING")
             main.post { main.removeCallbacks(setupTimeout); if (!closed) listener.onLink(true) }
         }
 
@@ -280,7 +270,6 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         refreshed = false
         if (found[address] != null) { open(false); return }
         seeking = address
-        note("LOOKING FOR STRAP")
         beginScan()
         main.postDelayed(seekTimeout, SEEK_MS)
     }
@@ -300,9 +289,8 @@ class HrmClient(private val context: Context, private val listener: Listener) {
     private fun open(autoConnect: Boolean) {
         val device = target ?: return
         if (!autoConnect) tries++
-        note(if (autoConnect) "WAITING FOR STRAP" else "CONNECTING $tries/$DIRECT_TRIES")
         gatt = device.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE)
-        if (gatt == null) { note("NO GATT, RETRY"); scheduleOpen(autoConnect) }
+        if (gatt == null) scheduleOpen(autoConnect)
         else if (!autoConnect) main.postDelayed(connectTimeout, CONNECT_TIMEOUT_MS)
     }
 
