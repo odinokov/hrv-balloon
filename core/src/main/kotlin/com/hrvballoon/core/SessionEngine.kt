@@ -62,6 +62,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private var finished = false
     private var lastTickMs = 0L
     private var paused = false
+    private var freshFromMs = 0L // beats that arrived earlier were classified late; they stay out of the metric path
 
     fun onPacket(nowMs: Long, packet: HrsPacket) {
         hr = packet.hrBpm
@@ -101,6 +102,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     fun resume(nowMs: Long) {
         if (!paused) return
         paused = false
+        freshFromMs = nowMs
         csv.event(nowMs.toDouble(), CsvEvent.RESUME)
         estimator.reset()
         kalman.reset()
@@ -256,7 +258,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         if (b.paused || b.afterGap) summary.breakChain()   // a skipped paused beat breaks the chain
         if (!b.paused) summary.addBeat(b.rrMs, usable)   // by the state at arrival, not at classification
         csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg)
-        return usable && !b.paused
+        return usable && !b.paused && b.arrivalMs >= freshFromMs
     }
 
     private companion object {

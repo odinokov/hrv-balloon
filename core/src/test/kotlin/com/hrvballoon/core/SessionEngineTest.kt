@@ -212,6 +212,25 @@ class SessionEngineTest {
         assertTrue(trace.none { Math.abs(it - hr(20)) < 1e-9 || Math.abs(it - hr(21)) < 1e-9 })
     }
 
+    @Test fun beatsArrivedBeforeAPauseAndClassifiedAfterResumeStayOutOfTheMetricPathButAreBooked() {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        fun rr(i: Int) = ((1000 + i) * 1024 / 1000.0).roundToInt() * 1000.0 / 1024
+        var st: UiState? = null
+        for (i in 0 until 26) {   // pause 21.5-21.9 s, no beat arrives paused; beats 19 (20 s) and 20 (21 s) are classified at 22 s and 23 s, after the resume
+            val t = 1000L * (i + 1)
+            if (t == 22_000L) { engine.pause(21_500); engine.resume(21_900) }
+            engine.onPacket(t, HrsPacket(60, Contact.DETECTED, intArrayOf(((1000 + i) * 1024 / 1000.0).roundToInt())))
+            st = engine.tick(t)
+        }
+        val trace = st!!.traceHr.toList()
+        fun inTrace(i: Int) = trace.any { Math.abs(it - 60000 / rr(i)) < 1e-9 }
+        assertTrue(inTrace(18) && inTrace(21))
+        assertFalse(inTrace(19) || inTrace(20))
+        val s = engine.stop(27_000)
+        assertEquals(26, s.beats)   // the summary books them as before
+        assertEquals(60000 / (0 until 26).map { rr(it) }.average(), s.meanHr!!, 1e-9)
+    }
+
     @Test fun aPausedBeatBreaksTheRmssdChainEvenWhenItIsTheOnlyOne() {
         val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
         fun ms(i: Int) = ((1000 + i) * 1024 / 1000.0).roundToInt() * 1000.0 / 1024
