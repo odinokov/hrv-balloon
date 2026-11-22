@@ -74,6 +74,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         if (streaming) return@Runnable   // this link is fine; an earlier one having streamed says nothing about it
         g.close()
         gatt = null
+        linked = false
         retryOrWait(what)
     }
     private val connectTimeout = stalled("NO ANSWER IN ${CONNECT_TIMEOUT_MS / 1000}S")

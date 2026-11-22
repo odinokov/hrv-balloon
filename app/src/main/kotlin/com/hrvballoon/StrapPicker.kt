@@ -70,6 +70,10 @@ class StrapPicker(
         hint.text = activity.getString(R.string.scan_failed, code)
     }
 
+    fun pauseScan() { stopScan(); main.removeCallbacks(timeout); lastScan = 0 }   // a quick return may restart the scan
+
+    fun rescan() = scan()
+
     private fun scan() {
         hint.setText(if (devices.isEmpty()) R.string.scanning else R.string.tap_your_strap)   // a rescan keeps the list
         main.removeCallbacks(timeout)

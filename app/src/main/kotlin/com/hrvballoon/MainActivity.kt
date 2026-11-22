@@ -142,6 +142,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     override fun onStart() {
         super.onStart()
         foreground = true
+        picker?.rescan()
         main.removeCallbacks(graceStop)
         main.removeCallbacks(ticker)
         main.post(ticker)
@@ -157,6 +158,7 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     override fun onResume() {
         super.onResume()
+        lastInhale = null   // returning mid-inhale after leaving mid-exhale must not buzz off-phase
         balloon.reducedMotion = SysSettings.Global.getFloat(contentResolver, SysSettings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
         lastFrame = SystemClock.elapsedRealtime()
         Choreographer.getInstance().postFrameCallback(frame)
@@ -170,6 +172,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     /** Leaving the app pauses the statistics and cues (beats are still recorded); the session ends if you're gone a minute. */
     override fun onStop() {
         foreground = false
+        picker?.pauseScan()   // keep the picker open, but not its scan
         if (engine == null) main.removeCallbacks(ticker)   // idle in the background: nothing to tick for
         engine?.let {
             leftAtMs = sessionNow()
@@ -364,7 +367,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 applyState(st)
                 if (st.finished) stopSession(cue = true)
             }
-            main.postDelayed(this, 250)
+            if (foreground || engine != null) main.postDelayed(this, 250)   // a session that ended in the background stops ticking
         }
     }
 
@@ -412,7 +415,7 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private fun sessionNow() = SystemClock.elapsedRealtime() - startElapsed
 
-    /** Visible text with numbers: Locale.ROOT, like the pixel HUD, so decimals look the same everywhere. */
+    /** Stored and drawn numbers use Locale.ROOT, like the pixel HUD; spoken (TalkBack) text follows the device locale. */
     private fun fmt(id: Int, vararg args: Any?) = String.format(Locale.ROOT, getString(id), *args)
 
     private fun mmss(ms: Long) = String.format(Locale.ROOT, "%02d:%02d", ms / 60_000, ms / 1000 % 60)
