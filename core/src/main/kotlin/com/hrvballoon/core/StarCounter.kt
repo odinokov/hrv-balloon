@@ -21,3 +21,6 @@ class StarCounter(private val hit: Double = 0.985) {
         return true
     }
 }
+
+/** One frame's star decision at session time [tMs] and smoothed height [h]: a frozen balloon (signal lost) never pays; see [StarCounter.update]. */
+fun StarCounter.starThisFrame(h: Double, tMs: Double, live: Boolean, frozen: Boolean): Boolean = !frozen && update(h, starSlot(tMs), live)

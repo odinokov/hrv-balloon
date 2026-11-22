@@ -59,7 +59,7 @@ import com.hrvballoon.core.hasuoEstimate
 import com.hrvballoon.core.rhythmLimited
 import com.hrvballoon.core.sessionOutcome
 import com.hrvballoon.core.sessionStatus
-import com.hrvballoon.core.starSlot
+import com.hrvballoon.core.starThisFrame
 import com.hrvballoon.ui.BalloonView
 import com.hrvballoon.ui.Chrome.NAVY
 import com.hrvballoon.ui.Chrome.RED
@@ -399,7 +399,7 @@ class MainActivity : Activity(), HrmClient.Listener {
                 balloon.rising = !frozen && target - balloon.height01 > 0.01
                 if (!frozen) {
                     val h = smoother.step(target, dt)
-                    if (starCounter.update(h, starSlot(t), live)) {
+                    if (starCounter.starThisFrame(h, t, live, frozen)) {
                         bounce.hit(now)
                         balloon.ceilingHitAtMs = now
                         earnStar(now)
