@@ -31,9 +31,11 @@ android {
     }
 
     buildTypes {
-        // Play bundle: signed with the upload key when keystore.properties exists, unsigned otherwise. No R8: no libraries to shrink.
+        // Play bundle: signed with the upload key when keystore.properties exists, unsigned otherwise. R8 shrinks but does not obfuscate, so CrashLog traces stay readable.
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("upload")
         }
         // GitHub APK: the release build signed with the debug key every earlier GitHub APK used, so installs update in place.
