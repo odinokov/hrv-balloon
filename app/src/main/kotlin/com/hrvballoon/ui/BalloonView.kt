@@ -65,8 +65,9 @@ class BalloonView(context: Context) : View(context) {
         val s = scene ?: return
         val b = bitmap ?: return
         val state = SceneState(
-            height01, rising, pacerLevel, inhale, running, frozen, timeMs, stars, falling,
-            traceT, traceHr, traceNowMs, pacerPeriodMs, inhaleFraction, pacerCycleOffset, pacerPhaseAt, hud, reducedMotion, progress, ceilingHitAtMs, forecast,
+            height01 = height01, rising = rising, pacerLevel = pacerLevel, inhale = inhale, running = running, frozen = frozen, timeMs = timeMs, stars = stars, falling = falling,
+            traceT = traceT, traceHr = traceHr, traceNowMs = traceNowMs, pacerPeriodMs = pacerPeriodMs, inhaleFraction = inhaleFraction, pacerCycleOffset = pacerCycleOffset,
+            pacerPhaseAt = pacerPhaseAt, hud = hud, reducedMotion = reducedMotion, progress = progress, ceilingHitAtMs = ceilingHitAtMs, forecast = forecast,
         )
         b.setPixels(s.render(state), 0, s.w, 0, 0, s.w, s.h)
         c.drawColor(PixelScene.SKY[0])
