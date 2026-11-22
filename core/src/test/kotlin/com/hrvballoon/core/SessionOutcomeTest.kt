@@ -44,4 +44,14 @@ class SessionOutcomeTest {
         assertEquals(62, o.offerTenths)
         assertEquals(0, sessionOutcome(true, 6.2, 6.2, 6.2, false, true, probes).offerTenths)
     }
+
+    @Test fun aFoundRateIsAlwaysOfferedAndANoPeakOneOnlyAwayFromTheCurrentRate() {
+        val kind = SessionRecord.KIND_RF_NO_PEAK
+        assertEquals(true, offersRate(SessionRecord.KIND_RF_SEARCH, 5.5, 5.5))
+        assertEquals(true, offersRate(kind, 5.5, 6.0))
+        assertEquals(true, offersRate(kind, 5.5, 5.4))
+        assertEquals(false, offersRate(kind, 5.5, 5.5))
+        assertEquals(false, offersRate(SessionRecord.KIND_TRAINING, 5.5, 6.0))
+        assertEquals(false, offersRate(SessionRecord.KIND_RF_INCOMPLETE, 5.5, 6.0))
+    }
 }

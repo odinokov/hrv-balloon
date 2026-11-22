@@ -8,10 +8,10 @@ import android.provider.Settings as SysSettings
 import android.view.Choreographer
 import android.view.MotionEvent
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.offersRate
 import com.hrvballoon.core.rankSessions
 import com.hrvballoon.ui.RankView
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -69,8 +69,7 @@ class RankActivity : Activity() {
         view.rankPos = pos + 1
         view.total = ranked.size
         view.best = ranked.firstOrNull()
-        // A search without a peak offers its answer, near its start, only to someone breathing at another rate.
-        view.offer = r.kind == SessionRecord.KIND_RF_SEARCH || (r.kind == SessionRecord.KIND_RF_NO_PEAK && abs(currentRate - r.rateBpm) > 0.05)
+        view.offer = offersRate(r.kind, r.rateBpm, currentRate)
         view.invalidate()
         describe()
     }
