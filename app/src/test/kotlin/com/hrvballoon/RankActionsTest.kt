@@ -21,6 +21,13 @@ class RankActionsTest {
         for ((i, p) in TrendPeriod.values().withIndex()) assertEquals(1 to p, RankActions.perform(RankActions.available(1)[i + 1].first, 1, TrendPeriod.D30))
     }
 
+    @Test fun tappingTheShownTabClosesAndTheOtherSwitches() {
+        assertEquals(1, RankActions.tabTap(1, 0))
+        assertEquals(0, RankActions.tabTap(0, 1))
+        assertNull(RankActions.tabTap(0, 0))
+        assertNull(RankActions.tabTap(1, 1))
+    }
+
     @Test fun anActionNotOfferedOnThePageDoesNothing() {
         assertNull(RankActions.perform(RankActions.SHOW_BEST, 0, TrendPeriod.D30))
         assertNull(RankActions.perform(RankActions.SHOW_TREND, 1, TrendPeriod.D30))

@@ -151,7 +151,8 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
 
     /** The tab row: BEST and TREND, one per half of the title bar; the active one in the drifting title colour, underlined. */
     private fun tabs(active: Int, timeMs: Long) {
-        for ((i, label) in listOf(t.tabBest, t.tabTrend).withIndex()) {
+        for (i in 0..1) {
+            val label = if (i == 0) t.tabBest else t.tabTrend
             val x = (w / 2 - PixelFont.width(label)) / 2 + i * (w / 2)
             text(x, 5, label, if (i == active) titleColor(timeMs) else DIM)
             if (i == active) surface(x, 13, x + PixelFont.width(label), 14, titleColor(timeMs))
@@ -188,7 +189,8 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         surface(0, 0, w, 17, SURFACE)
         tabs(1, timeMs)
         val cell = (w - 8) / 4
-        for ((i, p) in TrendPeriod.values().withIndex()) {
+        for (i in PERIODS.indices) {
+            val p = PERIODS[i]
             val label = t.periods[i]
             if (p == period) surface(4 + i * cell, CHIP_TOP, 4 + (i + 1) * cell, CHIP_BOTTOM, SELECTION)
             text(4 + i * cell + (cell - PixelFont.width(label)) / 2, CHIP_TOP + 5, label, if (p == period) HIGHLIGHT else DIM)
@@ -225,7 +227,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             for ((i, b) in bins.withIndex()) b.value?.let { surface(x0(i), minOf(yOf(it), TREND_BASE - 1), maxOf(x0(i) + 1, x0(i + 1) - 1), TREND_BASE, BAR) }
             for ((i, b) in bins.withIndex()) {
                 val month = b.start.monthValue
-                val changed = if (i > 0) bins[i - 1].start.monthValue != month else bins.drop(1).take(2).all { it.start.monthValue == month }
+                val changed = if (i > 0) bins[i - 1].start.monthValue != month else bins[1].start.monthValue == month && bins[2].start.monthValue == month
                 if (changed) text(x0(i), TREND_BASE + 5, t.monthInitials[month - 1].toString(), DIM)
             }
             return
@@ -397,6 +399,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         private const val TREND_H = 72
         private const val TREND_BASE = 172
         private const val TREND_PANEL_BOTTOM = 190
+        private val PERIODS = TrendPeriod.values()
         private val BAYER = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
         val NIGHT = intArrayOf(0xFF100F29.toInt(), 0xFF1A173C.toInt(), 0xFF27204F.toInt(), 0xFF38275F.toInt(), 0xFF4A316C.toInt(), 0xFF5F3A72.toInt())
         const val RIDGE = 0xFF1C193E.toInt()
@@ -422,7 +425,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
 
         /** Which period chip a logical point hits, or null; the 4 chips share the width, the hit area spans the row. */
         fun chipAt(x: Int, y: Int, w: Int): TrendPeriod? =
-            if (y !in 17 until 38 || x !in 4 until w - 4) null else TrendPeriod.values()[((x - 4) * 4 / (w - 8)).coerceAtMost(3)]
+            if (y !in 17 until 38 || x !in 4 until w - 4) null else PERIODS[((x - 4) * 4 / (w - 8)).coerceAtMost(3)]
 
         /** Which table row (0-based) a logical y hits, or -1. */
         fun rowAt(y: Int, count: Int): Int {

@@ -15,6 +15,9 @@ object RankActions {
         if (tab == 0) listOf(SHOW_TREND to R.string.a11y_action_trend)
         else listOf(SHOW_BEST to R.string.a11y_action_best) + TrendPeriod.values().map { PERIOD_BASE + it.ordinal to periodLabels[it.ordinal] }
 
+    /** A tap on [tapped] while [shown] is on screen: the page to switch to, or null = close (the shown tab acts like the title bar did in 2.7). */
+    fun tabTap(tapped: Int, shown: Int): Int? = tapped.takeIf { it != shown }
+
     /** The (tab, period) after performing [id] on [tab], or null when [id] is not offered there. */
     fun perform(id: Int, tab: Int, period: TrendPeriod): Pair<Int, TrendPeriod>? = when {
         available(tab).none { it.first == id } -> null

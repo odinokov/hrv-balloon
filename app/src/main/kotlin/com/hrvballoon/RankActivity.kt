@@ -80,7 +80,6 @@ class RankActivity : Activity() {
                 if (next == null) return super.performAccessibilityAction(host, action, args)
                 settings.trendPeriod = next.second
                 showTab(next.first)
-                view.announceForAccessibility(view.contentDescription)
                 return true
             }
         }
@@ -106,7 +105,7 @@ class RankActivity : Activity() {
             view.result = null; view.invalidate(); describe(); return
         }
         val tab = view.tabAtView(x, y)
-        if (tab >= 0) { if (tab != view.tab) showTab(tab); return }
+        if (tab >= 0) { RankActions.tabTap(tab, view.tab)?.let { showTab(it) } ?: finish(); return }
         if (view.tab == 1) {
             view.chipAtView(x, y)?.let { settings.trendPeriod = it; showTab(1) } ?: finish()
             return
