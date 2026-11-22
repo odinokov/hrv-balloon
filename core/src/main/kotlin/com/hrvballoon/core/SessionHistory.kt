@@ -27,14 +27,21 @@ object SessionHistory {
 
     fun parse(text: String): List<SessionRecord> {
         val lines = text.lines().filter { it.isNotBlank() }
-        if (lines.firstOrNull() != SCHEMA) return lines.mapNotNull(SessionRecord::fromLine)   // v1: positional lines
-        val col = lines.getOrNull(1)?.split(",")?.withIndex()?.associate { (i, name) -> name to i } ?: return emptyList()
-        return lines.drop(2).mapNotNull { line ->
+        val first = lines.firstOrNull()
+        val cutSchema = first != null && first != SCHEMA && SCHEMA.startsWith(first)   // no v1 line can match: it starts with a digit and has commas
+        if (first != SCHEMA && !cutSchema) return lines.mapNotNull(SessionRecord::fromLine)   // v1: positional lines
+        val defaultHeader = COLUMNS.joinToString(",")
+        val cutHeader = !cutSchema && lines.getOrNull(1)?.let { it != defaultHeader && defaultHeader.startsWith(it) } == true
+        val noHeader = !cutSchema && lines.getOrNull(1)?.substringBefore(",")?.toLongOrNull() != null   // line 2 is already a data row
+        val names = if (cutSchema || cutHeader || noHeader) COLUMNS else lines.getOrNull(1)?.split(",") ?: return emptyList()
+        val col = names.withIndex().associate { (i, name) -> name to i }
+        return lines.drop(if (cutSchema || noHeader) 1 else 2).mapNotNull { line ->
             val v = line.split(",")
+            if (v.size < names.size) return@mapNotNull null
             fun s(name: String) = col[name]?.let { v.getOrNull(it) } ?: ""
             try {
                 val duration = s("duration_ms").toLong()
-                SessionRecord(
+                val rec = SessionRecord(
                     s("start_ms").toLong(), duration, s("rate_bpm").toDouble(), s("mean_p").toDoubleOrNull(), s("mean_shape").toDoubleOrNull(),
                     s("stars").toInt(), s("mean_hr").toDoubleOrNull(), s("rejected_pct").toDoubleOrNull(),
                     s("valid_ms").toLongOrNull() ?: duration, s("rmssd").toDoubleOrNull(), s("sdnn").toDoubleOrNull(),
@@ -42,6 +49,9 @@ object SessionHistory {
                     s("probes").takeIf { it.isNotEmpty() }?.split(";")?.map { it.split(":").let { (r, sc) -> r.toDouble() to sc.toDouble() } } ?: emptyList(),
                     s("rf_estimate_bpm").toDoubleOrNull(),
                 )
+                val doubles = listOfNotNull(rec.rateBpm, rec.meanP, rec.meanShape, rec.meanHr, rec.rejectedPct, rec.rmssd, rec.sdnn, rec.rfEstimateBpm) +
+                    rec.probes.flatMap { listOf(it.first, it.second) }
+                rec.takeIf { doubles.all(Double::isFinite) && rec.stars >= 0 && rec.durationMs >= 0 }
             } catch (e: RuntimeException) {
                 null
             }

@@ -61,4 +61,47 @@ class SessionHistoryTest {
         assertTrue(SessionHistory.parse("").isEmpty())
         assertTrue(SessionHistory.parse(SessionHistory.write(emptyList())).isEmpty())
     }
+
+    private val hdr = SessionHistory.COLUMNS.joinToString(",")
+
+    @Test fun aCutSchemaLineStillYieldsTheRowsAfterIt() {
+        val back = SessionHistory.parse("# hrv-ses\n" + SessionHistory.row(training) + "\n" + SessionHistory.row(sparse) + "\n")
+        assertEquals(rows(listOf(training, sparse)), rows(back))
+    }
+
+    @Test fun aCutHeaderLineStillYieldsTheRowsAfterIt() {
+        val back = SessionHistory.parse("# hrv-sessions v2\n" + hdr.take(20) + "\n" + SessionHistory.row(training) + "\n")
+        assertEquals(rows(listOf(training)), rows(back))
+    }
+
+    @Test fun aRowCutShortIsSkipped() {
+        val cut = SessionHistory.row(training).split(",").take(6).joinToString(",")
+        val back = SessionHistory.parse(SessionHistory.header() + cut + "\n" + SessionHistory.row(sparse) + "\n")
+        assertEquals(rows(listOf(sparse)), rows(back))
+    }
+
+    @Test fun aMissingHeaderLineStillYieldsTheRowsAfterTheSchema() {
+        val back = SessionHistory.parse("# hrv-sessions v2\n" + SessionHistory.row(training) + "\n" + SessionHistory.row(sparse) + "\n")
+        assertEquals(rows(listOf(training, sparse)), rows(back))
+    }
+
+    @Test fun aHeaderCutMidNameStillYieldsTheRows() {
+        val back = SessionHistory.parse("# hrv-sessions v2\nstart_ms,durat\n" + SessionHistory.row(training) + "\n")
+        assertEquals(rows(listOf(training)), rows(back))
+    }
+
+    @Test fun aFileOfOnlyACutSchemaLineIsEmpty() {
+        assertTrue(SessionHistory.parse("# hrv-sess").isEmpty())
+    }
+
+    @Test fun rowsWithNonFiniteNumbersOrNegativeCountsAreSkipped() {
+        fun withCell(name: String, value: String) =
+            SessionHistory.row(search).split(",").toMutableList().also { it[SessionHistory.COLUMNS.indexOf(name)] = value }.joinToString(",")
+        val bad = listOf("rate_bpm", "mean_p", "mean_shape", "mean_hr", "rejected_pct", "rmssd", "sdnn", "rf_estimate_bpm").flatMap {
+            listOf(withCell(it, "NaN"), withCell(it, "Infinity"))
+        } + listOf(withCell("probes", "NaN:8.1"), withCell("probes", "6.2:Infinity"), withCell("stars", "-1"), withCell("duration_ms", "-5"))
+        val back = SessionHistory.parse(SessionHistory.header() + bad.joinToString("") { it + "\n" } + SessionHistory.row(sparse) + "\n")
+        assertEquals(rows(listOf(sparse)), rows(back))
+        bad.forEach { assertTrue(it, SessionHistory.parse(SessionHistory.header() + it + "\n").isEmpty()) }
+    }
 }
