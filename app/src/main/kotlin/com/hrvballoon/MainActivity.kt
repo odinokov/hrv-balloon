@@ -70,6 +70,7 @@ import com.hrvballoon.ui.Chrome.SLATE_TEXT
 import com.hrvballoon.ui.Chrome.YELLOW
 import com.hrvballoon.ui.Hud
 import com.hrvballoon.ui.MediaStoreCsv
+import com.hrvballoon.ui.Palette
 import com.hrvballoon.ui.PixelScene
 import com.hrvballoon.ui.SceneText
 import com.hrvballoon.ui.SettingsWidgets
@@ -259,7 +260,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(px(16), px(8), px(16), px(12))
-            setBackgroundColor(PixelScene.PLATE)
+            setBackgroundColor(Palette.PLATE)
             for ((i, button) in listOf(startStop, ranksButton, settingsButton).withIndex()) {
                 button.isAllCaps = false
                 button.setSingleLine()
@@ -316,9 +317,9 @@ class MainActivity : Activity(), HrmClient.Listener {
         val rrFresh = connected && lastRrAt >= connectedAt && now - lastRrAt in 0..SignalMonitor.STALE_MS
         val neverRr = connected && lastRrAt < connectedAt && now - connectedAt >= 10_000
         val dot = when {
-            rrFresh -> PixelScene.DOT_GREEN
-            connected || link == Link.CONNECTING || link == Link.SCANNING -> PixelScene.DOT_AMBER
-            else -> PixelScene.DOT_RED
+            rrFresh -> Palette.DOT_GREEN
+            connected || link == Link.CONNECTING || link == Link.SCANNING -> Palette.DOT_AMBER
+            else -> Palette.DOT_RED
         }
         val enabled = engine != null || rrFresh
         if (startStop.isEnabled != enabled) { startStop.isEnabled = enabled; styleStart() }
@@ -331,7 +332,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         }
     }
 
-    private var hudDot = PixelScene.DOT_RED
+    private var hudDot = Palette.DOT_RED
 
     private fun onStripTap() {
         when (link) {

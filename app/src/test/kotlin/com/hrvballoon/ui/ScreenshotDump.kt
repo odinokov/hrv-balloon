@@ -35,7 +35,7 @@ class ScreenshotDump {
                 SceneState(
                     0.82, true, 0.7, true, true, false, 12_345, stars = 24, falling = listOf(11_900),
                     traceT = t1, traceHr = hr1, traceNowMs = 450_000, pacerPeriodMs = period, inhaleFraction = 0.5, progress = 0.5, forecast = f1,
-                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 68, 5.5, "07:30"),
+                    hud = Hud.session(TestText.scene, Palette.DOT_GREEN, "", 68, 5.5, "07:30"),
                 ),
             ),
         )
@@ -46,7 +46,7 @@ class ScreenshotDump {
                 SceneState(
                     0.38, false, 0.25, false, true, false, 98_765, stars = 31,
                     traceT = t2, traceHr = hr2, traceNowMs = 828_000, pacerPeriodMs = period, inhaleFraction = 0.5, progress = 0.92, forecast = f2,
-                    hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, "", 63, 5.5, "01:12"),
+                    hud = Hud.session(TestText.scene, Palette.DOT_GREEN, "", 63, 5.5, "01:12"),
                 ),
             ),
         )

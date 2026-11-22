@@ -31,7 +31,7 @@ class PixelScenePinsTest {
     @Test fun theTraceCentreFollowsTheMedianWithAnEightSecondTimeConstant() {
         val scene = PixelScene(w, 284)
         fun rows(now: Long, hr: Double) =
-            scene.render(state(now, hr, 10_909.0)).let { px -> px.indices.filter { px[it] == PixelScene.TRACE }.map { it / w }.toSet() }
+            scene.render(state(now, hr, 10_909.0)).let { px -> px.indices.filter { px[it] == Palette.TRACE }.map { it / w }.toSet() }
         assertEquals(254, (274 - (68 - (68 - 15)) / 30.0 * 41).roundToInt())
         assertEquals(setOf(254), rows(100_000, 68.0))
         val centre = 68 + (80 - 68) * (1 - exp(-1000 / 8000.0))
@@ -48,7 +48,7 @@ class PixelScenePinsTest {
         val v = 98 + (68 - 98) * exp(-0.2)
         val row = (274 - (v - 53) / 30 * 41).roundToInt()
         assertEquals(246, row)
-        assertEquals(PixelScene.TRACE_DIM, px[row * w + 142])
+        assertEquals(Palette.TRACE_DIM, px[row * w + 142])
     }
 
     /** A rabbit bolting from the basket runs 3x for 600 ms, 2x for the next 600 ms, then 1x; msLeft is the time before the dash ends. */

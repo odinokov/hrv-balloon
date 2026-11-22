@@ -53,7 +53,7 @@ class DrawnTextFormatTest {
     @Test fun theStatusLineFramesDoNotDependOnTheDefaultLocale() {
         for (status in listOf("", "No signal")) {
             val (root, de) = underGermany {
-                PixelScene(160, 284).render(SceneState(0.3, false, 0.5, true, true, false, 12_345, hud = Hud.session(TestText.scene, PixelScene.DOT_GREEN, status, 62, 5.5)))
+                PixelScene(160, 284).render(SceneState(0.3, false, 0.5, true, true, false, 12_345, hud = Hud.session(TestText.scene, Palette.DOT_GREEN, status, 62, 5.5)))
             }
             assertArrayEquals("status '$status'", root, de)
         }

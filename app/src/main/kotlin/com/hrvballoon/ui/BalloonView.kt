@@ -70,7 +70,7 @@ class BalloonView(context: Context) : View(context) {
             pacerPhaseAt = pacerPhaseAt, hud = hud, reducedMotion = reducedMotion, progress = progress, ceilingHitAtMs = ceilingHitAtMs, forecast = forecast,
         )
         b.setPixels(s.render(state), 0, s.w, 0, 0, s.w, s.h)
-        c.drawColor(PixelScene.SKY[0])
+        c.drawColor(Palette.SKY[0])
         c.drawBitmap(b, null, dst, paint)
     }
 

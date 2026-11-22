@@ -79,9 +79,9 @@ internal class Rabbit(private val dice: Random, private val w: Int, private val 
         for ((r, row) in sprite.withIndex()) for ((c, ch) in row.withIndex()) {
             val col = if (f > 0) c else row.length - 1 - c
             when (ch) {
-                '#' -> s.put(x0 + col, top + r, PixelScene.RABBIT)
-                '+' -> s.put(x0 + col, top + r, PixelScene.RABBIT_DARK)
-                'o' -> s.put(x0 + col, top + r, PixelScene.DARK)
+                '#' -> s.put(x0 + col, top + r, Palette.RABBIT)
+                '+' -> s.put(x0 + col, top + r, Palette.RABBIT_DARK)
+                'o' -> s.put(x0 + col, top + r, Palette.DARK)
             }
         }
     }
