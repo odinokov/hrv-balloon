@@ -99,6 +99,8 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private var engine: SessionEngine? = null
     private var sessionEstimate: Double? = null
+    /** Whether this session is a resonance search, fixed at its start (not re-read from [Settings.rfSearch]). */
+    private var sessionSearch = false
     /** This session's length, fixed at its start: [Settings.rfSearch] is cleared when a search ends. */
     private var sessionMs = 15 * 60_000L
     private val sceneText by lazy { SceneText { resources.getString(it) } }
@@ -448,7 +450,8 @@ class MainActivity : Activity(), HrmClient.Listener {
     /** [estimate]: a search's height-and-sex start; the search begins there and ends there if it finds no peak. */
     private fun startSession(estimate: RfEstimate?) {
         val startRate = estimate?.rateBpm ?: settings.rateBpm
-        sessionMs = if (settings.rfSearch) settings.searchDurationMs else settings.durationMs
+        sessionSearch = settings.rfSearch
+        sessionMs = if (sessionSearch) settings.searchDurationMs else settings.durationMs
         val now = OffsetDateTime.now()
         csvName = if (settings.saveCsv) "hrv_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv" else ""
         val csv = if (!settings.saveCsv) SessionCsvWriter(NULL_STREAM) else try {
@@ -462,7 +465,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         csv.writeHeader(
             SessionMeta(
                 version, settings.deviceAddress ?: "?", settings.deviceName, now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-                startRate, settings.inhaleFraction, if (settings.rfSearch) settings.searchDurationLabel else settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                startRate, settings.inhaleFraction, if (sessionSearch) settings.searchDurationLabel else settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
                 estimate?.rateBpm,
             ),
         )
@@ -471,7 +474,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         engine = SessionEngine(
             SessionConfig(
                 startRate, settings.inhaleFraction, sessionMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
-                settings.shapeGate, settings.rfSearch, if (estimate != null) RfSearch.START_SD_ESTIMATE else RfSearch.START_SD_NONE,
+                settings.shapeGate, sessionSearch, if (estimate != null) RfSearch.START_SD_ESTIMATE else RfSearch.START_SD_NONE,
             ),
             csv,
         )
@@ -572,17 +575,9 @@ class MainActivity : Activity(), HrmClient.Listener {
      * (SessionHistory.parse).
      */
     private fun save(e: SessionEngine, summary: Summary, endAtMs: Long, checkpoint: Boolean = false): SessionOutcome {
-        val wasSearch = settings.rfSearch
         val finalRate = e.pacer.rateAt(endAtMs.toDouble())   // exclude any change still waiting for the next inhale
-        val outcome = sessionOutcome(wasSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
-        val record =
-            SessionRecord(
-                startWall, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape,
-                summary.stars, summary.meanHr, summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats,
-                outcome.kind,
-                summary.rfProbes,
-                if (wasSearch) sessionEstimate else null,
-            )
+        val outcome = sessionOutcome(sessionSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
+        val record = SessionRecord.of(startWall, summary, outcome, sessionSearch, sessionEstimate)
         val store = SessionStore(filesDir)
         if (checkpoint) store.checkpoint(record) else store.append(record)
         return outcome

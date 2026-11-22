@@ -42,6 +42,13 @@ class SessionRecord(
         const val KIND_RF_INCOMPLETE = 2
         const val KIND_RF_NO_PEAK = 3
 
+        /** The record a finished session saves; the starting estimate belongs to a search only. */
+        fun of(startMs: Long, summary: Summary, outcome: SessionOutcome, wasSearch: Boolean, estimate: Double?) = SessionRecord(
+            startMs, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape, summary.stars, summary.meanHr,
+            summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats, outcome.kind, summary.rfProbes,
+            if (wasSearch) estimate else null,
+        )
+
         /** Accepts the current 14-field line and the older 13-, 12- and 8-field ones (8 = fully valid, no RMSSD/SDNN/beats). */
         fun fromLine(line: String): SessionRecord? {
             val p = line.split(",")
