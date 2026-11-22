@@ -10,7 +10,7 @@ class BounceTest {
         assertEquals(0.0, b.offset(1_000), 0.0)
         b.hit(1_000)
         val dip = b.offset(1_150)
-        assertTrue(dip > 0.02)               // pulled down right after the hit
+        assertEquals(0.043, dip, 1e-4)       // pulled down right after the hit: amp 0.06 x exp(-1/3)
         assertTrue(b.offset(1_450) < 0.0)    // overshoots upward on the way back
         assertTrue(kotlin.math.abs(b.offset(1_750)) < dip)   // second dip is smaller
         assertEquals(0.0, b.offset(4_000), 1e-3)

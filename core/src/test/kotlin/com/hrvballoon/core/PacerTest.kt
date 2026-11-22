@@ -77,4 +77,18 @@ class PacerTest {
         org.junit.Assert.assertEquals(false, rhythmLimited(null, 0.30, 3.0, false))
         org.junit.Assert.assertEquals(false, rhythmLimited(5.0, null, 3.0, true))
     }
+
+    @Test fun rhythmHysteresisSwitchesOnBelowFiftyFiveAndOffAboveSixtyFive() {
+        assertEquals(true, rhythmLimited(5.0, 0.54, 3.0, false))
+        assertEquals(false, rhythmLimited(5.0, 0.55, 3.0, false))
+        assertEquals(false, rhythmLimited(5.0, 0.56, 3.0, false))
+        assertEquals(true, rhythmLimited(5.0, 0.64, 3.0, true))
+        assertEquals(true, rhythmLimited(5.0, 0.65, 3.0, true))
+        assertEquals(false, rhythmLimited(5.0, 0.66, 3.0, true))
+    }
+
+    @Test fun aSwingAtTheLiftThresholdCountsAsLiftingSoRhythmCanLimit() {
+        assertEquals(true, rhythmLimited(3.0, 0.30, 3.0, false))
+        assertEquals(false, rhythmLimited(2.99, 0.30, 3.0, false))
+    }
 }

@@ -56,4 +56,20 @@ class ArtifactFilterTest {
         assertTrue(d[1].accepted)
         assertFalse(d[2].accepted)
     }
+
+    private fun middleAccepted(x: Double, around: Double = 1000.0) = classify(doubleArrayOf(around, around, x, around, around))[2].accepted
+
+    @Test fun theToleranceIsTwentyPercentOfTheMedian() {
+        assertTrue(middleAccepted(1190.0))
+        assertFalse(middleAccepted(1210.0))
+        assertTrue(middleAccepted(810.0))
+        assertFalse(middleAccepted(790.0))
+    }
+
+    @Test fun theRangeIsThreeHundredToTwoThousandMilliseconds() {
+        assertFalse(middleAccepted(299.9, around = 300.0))
+        assertTrue(middleAccepted(300.0, around = 300.0))
+        assertTrue(middleAccepted(2000.0, around = 2000.0))
+        assertFalse(middleAccepted(2000.1, around = 2000.0))
+    }
 }
