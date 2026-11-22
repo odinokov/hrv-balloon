@@ -63,7 +63,9 @@ class ScreenshotDump {
         )
         val ranks = RankScene(W, H, TestText.scene)
         save("ranks", ranks.render(records, 1, 5_000))
-        save("result", ranks.renderResult(records[1], 2, records.size, records[0], 5_000, 212))
+        val shown = records[1].copy(coherence = 2.7)
+        val weekAt = listOf(2.1, 2.8, 1.9, 3.4, 4.1, 2.5, 2.7).mapIndexed { i, c -> TrendPoint(shown.startMs - (6 - i) * day, 900_000, c) }
+        save("result", ranks.renderResult(shown, 2, records.size, records[0], 5_000, 212, week = coherenceTrend(weekAt, shown.startMs, ZoneOffset.UTC, TrendPeriod.D7)))
 
         // 2.8: the coherence strip and the TREND page, for the owner's approval.
         val now = Instant.parse("2026-11-22T12:00:00Z").toEpochMilli()
