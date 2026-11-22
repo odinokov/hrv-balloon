@@ -450,6 +450,7 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     /** [estimate]: a search's height-and-sex start; the search begins there and ends there if it finds no peak. */
     private fun startSession(estimate: RfEstimate?) {
+        if (engine != null) return   // a second start (two stacked estimate dialogs) would orphan the running session
         val startRate = estimate?.rateBpm ?: settings.rateBpm
         sessionSearch = settings.rfSearch
         sessionMs = if (sessionSearch) settings.searchDurationMs else settings.durationMs
@@ -625,6 +626,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (results.isNotEmpty() && results.all { it == PackageManager.PERMISSION_GRANTED }) { connectOrPick(); return }
         link = Link.NO_PERMISSION
         renderStatus()
+        if (results.isEmpty()) return   // request interrupted (Home, rotation): not a denial; the status strip re-requests
         val permanent = !shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_SCAN)
         AlertDialog.Builder(this)
             .setMessage(if (permanent) R.string.perm_denied else R.string.perm_required)
@@ -639,7 +641,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
-            REQ_BT -> if (resultCode == RESULT_OK) connectOrPick() else { link = Link.BT_OFF; renderStatus() }
+            REQ_BT -> if (resultCode == RESULT_OK) { if (link == Link.BT_OFF) connectOrPick() } else { link = Link.BT_OFF; renderStatus() }
             REQ_RANKS -> if (resultCode == RESULT_OK) data?.getDoubleExtra(RankActivity.EXTRA_USE_RATE, 0.0)?.takeIf { it > 0 }?.let { useRate(it) }
         }
     }
@@ -721,7 +723,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         latestHr = packet.hrBpm
         lastHrAt = nowMs
         if (packet.rr1024.isNotEmpty()) lastRrAt = nowMs
-        engine?.onPacket(nowMs - startElapsed, packet)
+        if (nowMs >= startElapsed) engine?.onPacket(nowMs - startElapsed, packet)   // captured while the CSV was opening: before t = 0
     }
 
     private companion object {
