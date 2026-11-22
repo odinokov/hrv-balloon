@@ -130,12 +130,13 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val crash = CrashLog(filesDir).also { it.install() }
         settings = Settings(AndroidPrefs(this))
         buildUi()
         client = HrmClient(this, this)
         if (hasPermissions()) connectOrPick() else requestPermissions(PERMS, REQ_PERMS)
         main.post(ticker)
-        CrashLog(filesDir).apply { install(); take()?.let { showCrash(it) } }
+        crash.take()?.let { showCrash(it) }
     }
 
     private fun showCrash(report: String) {
