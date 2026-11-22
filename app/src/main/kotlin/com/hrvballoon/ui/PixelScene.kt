@@ -32,8 +32,10 @@ data class SceneState(
     val forecast: ((Double) -> Double)? = null,
 )
 
-/** One status line; session headers include live HR and pacer rate, with loss guidance on its own plate. */
-/** [timer] is drawn right-aligned on the same line (the countdown in a session, the session length when ready). */
+/**
+ * One status line; session headers include live HR and pacer rate, with loss guidance on its own plate. [timer] is
+ * drawn right-aligned on the same line (the countdown in a session, the session length when ready).
+ */
 class Hud(val dot: Int, val status: String, val timer: String = "", val lost: List<String> = emptyList()) {
     companion object {
         /** One line: "<label> HR <n> [Pace] <rate>/min". The plain running state has no label; with a label the word Pace goes, so the line still fits beside the timer. */

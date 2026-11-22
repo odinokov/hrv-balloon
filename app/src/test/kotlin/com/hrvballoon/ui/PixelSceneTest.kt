@@ -1,7 +1,6 @@
 package com.hrvballoon.ui
 
 import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
