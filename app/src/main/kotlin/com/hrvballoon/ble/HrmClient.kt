@@ -85,13 +85,15 @@ class HrmClient(private val context: Context, private val listener: Listener) {
     /** Bluetooth toggled off and on: connectGatt returned null while off, so nothing else would ever reconnect. */
     private val btState = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
-            if (i.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) != BluetoothAdapter.STATE_ON || closed || gatt != null) return
+            if (i.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) != BluetoothAdapter.STATE_ON || closed || gatt != null || seeking != null) return
             if (target != null) open(false) else listener.onBluetoothOn()
         }
     }
 
     init {
-        context.registerReceiver(btState, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED), Context.RECEIVER_EXPORTED)
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(btState, filter, Context.RECEIVER_EXPORTED)
+        else context.registerReceiver(btState, filter)
     }
 
     private fun note(s: String) = main.post { if (!closed) listener.onBle(s) }
@@ -135,6 +137,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
             val d = result.device
             val strap = isStrap(result)
             main.post {
+                if (closed) return@post
                 if (heard.add(d.address)) listener.onScanProgress(heard.size)
                 if (!strap) return@post
                 found[d.address] = d
@@ -153,7 +156,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
 
         override fun onScanFailed(errorCode: Int) {
             scanning = false
-            main.post { listener.onScanFailed(errorCode) }
+            main.post { if (!closed) listener.onScanFailed(errorCode) }
         }
     }
 
@@ -191,7 +194,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
             if (ch == null || cccd == null) {
                 note("SERVICES $status, HR ${if (service == null) "MISSING" else "INCOMPLETE"}")
                 // A stale GATT cache hides the service; the hidden refresh() drops it before the next discovery.
-                if (!refreshed) { refreshed = true; runCatching { g.javaClass.getMethod("refresh").invoke(g) } }
+                if (!refreshed) refreshed = runCatching { g.javaClass.getMethod("refresh").invoke(g) }.getOrNull() == true
                 g.disconnect()
                 return
             }
@@ -214,7 +217,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
             streamed = true
             streaming = true
             note("STREAMING")
-            main.post { main.removeCallbacks(setupTimeout); listener.onLink(true) }
+            main.post { main.removeCallbacks(setupTimeout); if (!closed) listener.onLink(true) }
         }
 
         override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) {
@@ -229,7 +232,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         private fun deliver(value: ByteArray) {
             val now = SystemClock.elapsedRealtime()
             val packet = try { parseHrm(value) } catch (e: IllegalArgumentException) { return }
-            main.post { listener.onPacket(now, packet) }
+            main.post { if (!closed) listener.onPacket(now, packet) }
         }
     }
 
