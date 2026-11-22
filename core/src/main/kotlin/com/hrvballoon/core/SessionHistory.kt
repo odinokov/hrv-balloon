@@ -58,6 +58,6 @@ object SessionHistory {
         }.associateBy { it.startMs }.values.toList()   // the last row of a session, in the place of its first
     }
 
-    private fun f(x: Double) = ((x * 1000).roundToInt() / 1000.0).toString()
+    internal fun f(x: Double) = ((x * 1000).roundToInt() / 1000.0).toString()
     private fun o(x: Double?) = x?.let(::f) ?: ""
 }

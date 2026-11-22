@@ -1,6 +1,6 @@
 package com.hrvballoon.core
 
-import kotlin.math.roundToInt
+import com.hrvballoon.core.SessionHistory.f
 
 /** One finished session, as kept in the local history (one comma-separated line, Locale-independent). */
 class SessionRecord(
@@ -32,8 +32,6 @@ class SessionRecord(
         meanHr?.let(::f) ?: "", rejectedPct?.let(::f) ?: "", validMs, rmssd?.let(::f) ?: "", sdnn?.let(::f) ?: "", beats, kind,
         probes.joinToString(";") { "${f(it.first)}:${f(it.second)}" },
     ).joinToString(",")
-
-    private fun f(x: Double) = ((x * 1000).roundToInt() / 1000.0).toString()
 
     companion object {
         const val MIN_RANKED_MS = 120_000L
