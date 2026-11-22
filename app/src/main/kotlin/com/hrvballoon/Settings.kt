@@ -1,5 +1,7 @@
 package com.hrvballoon
 
+import com.hrvballoon.core.TrendPeriod
+
 /** Key-value store behind [Settings]; [AndroidPrefs] on the phone, a map in tests. */
 interface Prefs {
     fun getInt(key: String, def: Int): Int
@@ -68,6 +70,11 @@ class Settings(private val p: Prefs) {
     var saveCsv: Boolean
         get() = p.getBoolean("saveCsv", false)
         set(v) = p.put("saveCsv", v)
+
+    /** The TREND page's last period; an unknown or missing value reads as 30 days. */
+    var trendPeriod: TrendPeriod
+        get() = TrendPeriod.values().firstOrNull { it.name == p.getString("trendPeriod", null) } ?: TrendPeriod.D30
+        set(v) = p.put("trendPeriod", v.name)
 
     var lifetimeStars: Int
         get() = p.getInt("lifetimeStars", 0)

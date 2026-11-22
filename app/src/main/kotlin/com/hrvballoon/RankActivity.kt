@@ -8,6 +8,7 @@ import android.provider.Settings as SysSettings
 import android.view.Choreographer
 import android.view.MotionEvent
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.Trend
 import com.hrvballoon.core.TrendPeriod
 import com.hrvballoon.core.TrendPoint
 import com.hrvballoon.core.coherenceTrend
@@ -29,6 +30,7 @@ class RankActivity : Activity() {
     private lateinit var view: RankView
     private lateinit var ranked: List<SessionRecord>
     private lateinit var points: List<TrendPoint>
+    private lateinit var settings: Settings
     private var pos = -1
 
     private val frame = object : Choreographer.FrameCallback {
@@ -47,7 +49,7 @@ class RankActivity : Activity() {
         val start = intent.getLongExtra(EXTRA_START, -1)
         val mine = all.lastOrNull { it.startMs == start }
         pos = ranked.indexOfFirst { it.startMs == start }
-        val settings = Settings(AndroidPrefs(this))
+        settings = Settings(AndroidPrefs(this))
         currentRate = settings.rateBpm
         view = RankView(this).apply {
             records = ranked
@@ -55,12 +57,12 @@ class RankActivity : Activity() {
             hasUnranked = all.any { !it.ranked }
             lifetimeStars = settings.lifetimeStars
             blink = SysSettings.Global.getFloat(contentResolver, SysSettings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
-            var touchY: Float? = null
-            setOnTouchListener { v, ev -> if (ev.actionMasked == MotionEvent.ACTION_UP) { touchY = ev.y; v.performClick() }; true }
+            var touch: Pair<Float, Float>? = null
+            setOnTouchListener { v, ev -> if (ev.actionMasked == MotionEvent.ACTION_UP) { touch = ev.x to ev.y; v.performClick() }; true }
             // A touch clicks at its y; an accessibility click (TalkBack double-tap) has none: act on the card, or open your own session.
             setOnClickListener {
-                val y = touchY.also { touchY = null }
-                if (y != null) tap(y) else if (view.result != null) tap(0f) else if (pos >= 0) show(ranked[pos], pos) else finish()
+                val at = touch.also { touch = null }
+                if (at != null) tap(at.first, at.second) else if (view.result != null) tap(0f, 0f) else if (pos >= 0) show(ranked[pos], pos) else finish()
             }
         }
         // After the assignment: show() reads `view`, which is still unset inside the apply block above.
@@ -81,19 +83,35 @@ class RankActivity : Activity() {
         describe()
     }
 
-    private fun tap(y: Float) {
+    private fun tap(x: Float, y: Float) {
         view.result?.let { r ->
             if (view.offer) { setResult(RESULT_OK, Intent().putExtra(EXTRA_USE_RATE, r.rateBpm)); finish(); return }
             view.result = null; view.invalidate(); describe(); return
         }
+        val tab = view.tabAtView(x, y)
+        if (tab >= 0) { if (tab != view.tab) showTab(tab); return }
+        if (view.tab == 1) {
+            view.chipAtView(x, y)?.let { settings.trendPeriod = it; showTab(1) } ?: finish()
+            return
+        }
         val row = view.rowAtViewY(y)
         if (row >= 0) show(ranked[row], row) else finish()
+    }
+
+    /** Switches the page; the TREND page is read afresh, for the saved period. */
+    private fun showTab(tab: Int) {
+        view.tab = tab
+        view.period = settings.trendPeriod
+        view.trend = coherenceTrend(points, System.currentTimeMillis(), ZoneId.systemDefault(), view.period)
+        view.invalidate()
+        describe()
     }
 
     /** The bitmap is opaque to TalkBack, so the description carries what it says. */
     private fun describe() {
         val r = view.result
         view.contentDescription = when {
+            r == null && view.tab == 1 -> trendDescription({ getString(it) }, view.trend!!, view.period, Locale.getDefault())
             r == null && ranked.isEmpty() -> getString(R.string.a11y_no_ranked)
             r == null -> getString(R.string.a11y_best, ranked.take(7).mapIndexed { i, s ->
                 resources.getQuantityString(R.plurals.a11y_rank_item, s.stars, i + 1, s.stars)
@@ -127,4 +145,12 @@ class RankActivity : Activity() {
         const val EXTRA_RESULT = "result"
         const val EXTRA_USE_RATE = "useRate"
     }
+}
+
+/** TalkBack's one sentence for the TREND page; numbers follow [locale], the device's. */
+internal fun trendDescription(text: (Int) -> String, trend: Trend, period: TrendPeriod, locale: Locale): String {
+    fun n(v: Double) = String.format(locale, "%.1f", v)
+    if (trend.daysPractised == 0) return String.format(locale, text(R.string.a11y_trend_none), period.days)
+    val prev = trend.previousMedian?.let { String.format(locale, text(R.string.a11y_trend_prev), period.days, n(it)) } ?: ""
+    return String.format(locale, text(R.string.a11y_trend), period.days, n(trend.median!!), trend.daysPractised, prev)
 }

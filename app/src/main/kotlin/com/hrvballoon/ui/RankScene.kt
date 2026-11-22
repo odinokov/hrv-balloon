@@ -3,8 +3,10 @@ package com.hrvballoon.ui
 import com.hrvballoon.core.RfSearch
 import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.Trend
+import com.hrvballoon.core.TrendPeriod
 import com.hrvballoon.core.rfFit
 import java.time.Instant
+import java.time.DayOfWeek
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -52,7 +54,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
     fun render(records: List<SessionRecord>, highlight: Int, timeMs: Long, hasUnranked: Boolean = false, blink: Boolean = true): IntArray {
         backdrop(timeMs)
         surface(0, 0, w, 17, SURFACE)
-        text(centred(t.bestSessions), 8, t.bestSessions, titleColor(timeMs))
+        tabs(0, timeMs)
         val shown = records.take(MAX_ROWS).withIndex().toMutableList()
         val pinned = highlight >= MAX_ROWS && highlight < records.size
         if (pinned) shown += IndexedValue(highlight, records[highlight])
@@ -147,6 +149,15 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         return frame
     }
 
+    /** The tab row: BEST and TREND, one per half of the title bar; the active one in the drifting title colour, underlined. */
+    private fun tabs(active: Int, timeMs: Long) {
+        for ((i, label) in listOf(t.tabBest, t.tabTrend).withIndex()) {
+            val x = (w / 2 - PixelFont.width(label)) / 2 + i * (w / 2)
+            text(x, 5, label, if (i == active) titleColor(timeMs) else DIM)
+            if (i == active) surface(x, 13, x + PixelFont.width(label), 14, titleColor(timeMs))
+        }
+    }
+
     /** Training card: the session's coherence, then seven day bars (0-6 scale, the last day highlighted, a dash for no practice), initials and the week's median. */
     private fun strip(coherence: Double, week: Trend) {
         val line = String.format(Locale.ROOT, t.coherence, coherence)
@@ -166,6 +177,86 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
 
     /** Bar height in px for a coherence on the fixed 0-6 scale; a day with practice is at least 2 px, so it never looks like the 1 px dash. */
     internal fun stripBarHeight(v: Double) = maxOf(2, (v.coerceIn(0.0, MAX_COHERENCE) / MAX_COHERENCE * STRIP_H).roundToInt())
+
+    /**
+     * The TREND page: tabs, period chips, headline, days practised, the previous period's median when there is one, and the chart
+     * on a fixed 0-6 scale (days without practice are gaps). 7D/14D/30D: a mark per day (30D adds the rolling 7-day median as a line);
+     * 1Y: 52 weekly bars with month initials.
+     */
+    fun renderTrend(trend: Trend, period: TrendPeriod, timeMs: Long): IntArray {
+        backdrop(timeMs)
+        surface(0, 0, w, 17, SURFACE)
+        tabs(1, timeMs)
+        val cell = (w - 8) / 4
+        for ((i, p) in TrendPeriod.values().withIndex()) {
+            val label = t.periods[i]
+            if (p == period) surface(4 + i * cell, CHIP_TOP, 4 + (i + 1) * cell, CHIP_BOTTOM, SELECTION)
+            text(4 + i * cell + (cell - PixelFont.width(label)) / 2, CHIP_TOP + 5, label, if (p == period) HIGHLIGHT else DIM)
+        }
+        if (trend.daysPractised == 0) {
+            surface(4, 40, w - 4, 70, SURFACE)
+            text(centred(t.noCoherence), 52, t.noCoherence, DIM)
+        } else {
+            surface(4, 40, w - 4, TREND_PANEL_BOTTOM, SURFACE)
+            val head = String.format(Locale.ROOT, t.median, trend.median)
+            text(centred(head, 2), 44, head, HIGHLIGHT, 2)
+            val days = String.format(Locale.ROOT, t.daysOf, trend.daysPractised, period.days)
+            text(centred(days), 62, days, TEXT)
+            trend.previousMedian?.let { String.format(Locale.ROOT, t.prev, period.days, it).let { s -> text(centred(s), 72, s, DIM) } }
+            trendChart(trend, period)
+        }
+        text(centred(t.tapPeriod), h - 30, t.tapPeriod, DIM)
+        text(centred(t.tapClose), h - 20, t.tapClose, DIM)
+        return frame
+    }
+
+    private fun trendChart(trend: Trend, period: TrendPeriod) {
+        val left = PLOT_X
+        val pw = w - 10 - left
+        fun yOf(v: Double) = TREND_BASE - (v.coerceIn(0.0, MAX_COHERENCE) / MAX_COHERENCE * TREND_H).roundToInt()
+        for (g in 0..6 step 2) {
+            for (x in left..left + pw) if (g == 0 || (x - left) % 4 == 0) put(x, yOf(g.toDouble()), SEPARATOR)
+            rightText(left - 3, yOf(g.toDouble()) - 3, "$g", DIM)
+        }
+        val bins = trend.bins
+        val n = bins.size
+        if (period == TrendPeriod.Y1) {
+            fun x0(i: Int) = left + i * pw / n
+            for ((i, b) in bins.withIndex()) b.value?.let { surface(x0(i), minOf(yOf(it), TREND_BASE - 1), maxOf(x0(i) + 1, x0(i + 1) - 1), TREND_BASE, BAR) }
+            for ((i, b) in bins.withIndex()) {
+                val month = b.start.monthValue
+                val changed = if (i > 0) bins[i - 1].start.monthValue != month else bins.drop(1).take(2).all { it.start.monthValue == month }
+                if (changed) text(x0(i), TREND_BASE + 5, t.monthInitials[month - 1].toString(), DIM)
+            }
+            return
+        }
+        fun cx(i: Int) = left + (2 * i + 1) * pw / (2 * n)
+        trend.rolling?.let { r ->
+            for (i in r.indices) {
+                val v = r[i] ?: continue
+                val prev = r.getOrNull(i - 1)
+                if (prev == null) put(cx(i), yOf(v), HIGHLIGHT) else segment(cx(i - 1), yOf(prev), cx(i), yOf(v), HIGHLIGHT)
+            }
+        }
+        val mark = if (n <= 14) 3 else 2
+        for ((i, b) in bins.withIndex()) {
+            b.value?.let { surface(cx(i) - mark / 2, yOf(it) - mark / 2, cx(i) - mark / 2 + mark, yOf(it) - mark / 2 + mark, BAR) }
+            if (n <= 14) {
+                val initial = t.dayInitials[b.start.dayOfWeek.value - 1].toString()
+                text(cx(i) - PixelFont.width(initial) / 2, TREND_BASE + 5, initial, DIM)
+            } else if (b.start.dayOfWeek == DayOfWeek.MONDAY) for (y in TREND_BASE + 1..TREND_BASE + 3) put(cx(i), y, SEPARATOR)
+        }
+    }
+
+    /** One pixel thick line from column [x0] to [x1] (> x0), filling any steep step so it has no gaps. */
+    private fun segment(x0: Int, y0: Int, x1: Int, y1: Int, c: Int) {
+        fun at(x: Double) = y0 + (y1 - y0) * ((x - x0) / (x1 - x0)).coerceIn(0.0, 1.0)
+        for (x in x0..x1) {
+            val a = at(x - 0.5).roundToInt()
+            val b = at(x + 0.5).roundToInt()
+            for (y in minOf(a, b)..maxOf(a, b)) put(x, y, c)
+        }
+    }
 
     /**
      * Score against rate on a fixed 4–7 /min axis: a point per probe (best: diamond, failed: hollow), the bump [rfFit] puts
@@ -299,6 +390,13 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         private const val STRIP_BASE = 138
         private const val STRIP_PANEL_BOTTOM = 161
         private const val MAX_COHERENCE = 6.0
+        // TREND page: chips CHIP_TOP until CHIP_BOTTOM (the hit area is a little larger), the plot's 0 at TREND_BASE and 6 TREND_H px above.
+        private const val CHIP_TOP = 19
+        private const val CHIP_BOTTOM = 35
+        private const val PLOT_X = 24
+        private const val TREND_H = 72
+        private const val TREND_BASE = 172
+        private const val TREND_PANEL_BOTTOM = 190
         private val BAYER = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
         val NIGHT = intArrayOf(0xFF100F29.toInt(), 0xFF1A173C.toInt(), 0xFF27204F.toInt(), 0xFF38275F.toInt(), 0xFF4A316C.toInt(), 0xFF5F3A72.toInt())
         const val RIDGE = 0xFF1C193E.toInt()
@@ -318,6 +416,13 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         val TITLE_CYCLE = intArrayOf(0xFFFFD83B.toInt(), 0xFFF9B07C.toInt(), 0xFFE88A96.toInt(), 0xFFCDB0F0.toInt())
         val AURORA = intArrayOf(0xFF405A78.toInt(), 0xFF426D67.toInt(), 0xFF674A79.toInt())
         val PALETTE = NIGHT + TITLE_CYCLE + AURORA + intArrayOf(RIDGE, RIDGE_EDGE, GROUND, STAR_BRIGHT, STAR_DIM, TITLE, TEXT, HIGHLIGHT, DIM, BAR, CARET, SURFACE, SEPARATOR, SELECTION)
+
+        /** Which tab a logical point hits (0 BEST, 1 TREND), or -1: the title bar, split in halves. */
+        fun tabAt(x: Int, y: Int, w: Int) = if (y !in 0 until 17 || x !in 0 until w) -1 else if (x < w / 2) 0 else 1
+
+        /** Which period chip a logical point hits, or null; the 4 chips share the width, the hit area spans the row. */
+        fun chipAt(x: Int, y: Int, w: Int): TrendPeriod? =
+            if (y !in 17 until 38 || x !in 4 until w - 4) null else TrendPeriod.values()[((x - 4) * 4 / (w - 8)).coerceAtMost(3)]
 
         /** Which table row (0-based) a logical y hits, or -1. */
         fun rowAt(y: Int, count: Int): Int {

@@ -6,7 +6,8 @@ import com.hrvballoon.R
 class SceneText(get: (Int) -> String) {
     val hudLine = get(R.string.hud_line)
     val hudLineStatus = get(R.string.hud_line_status)
-    val bestSessions = get(R.string.scene_best_sessions)
+    val tabBest = get(R.string.scene_tab_best)
+    val tabTrend = get(R.string.scene_tab_trend)
     val colSession = get(R.string.scene_col_session)
     val colStars = get(R.string.scene_col_stars)
     val noRanked = get(R.string.scene_no_ranked)
@@ -36,4 +37,11 @@ class SceneText(get: (Int) -> String) {
     val coherence = get(R.string.scene_coherence)
     val weekMedian = get(R.string.scene_week_median)
     val dayInitials = get(R.string.scene_day_initials)
+    val median = get(R.string.scene_median)
+    val daysOf = get(R.string.scene_days_of)
+    val prev = get(R.string.scene_prev)
+    val noCoherence = get(R.string.scene_no_coherence)
+    val tapPeriod = get(R.string.scene_tap_period)
+    val monthInitials = get(R.string.scene_month_initials)
+    val periods = listOf(R.string.scene_period_7d, R.string.scene_period_14d, R.string.scene_period_30d, R.string.scene_period_1y).map(get)
 }

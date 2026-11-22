@@ -86,6 +86,9 @@
     <string name="a11y_session_done">Session done. %1$s, %2$s. %3$s.%4$s Double-tap for the table.</string>
     <string name="a11y_rank">number %1$d of %2$d by stars</string>
     <string name="a11y_not_ranked">not ranked</string>
+    <string name="a11y_trend">Coherence, last %1$d days: median %2$s on %3$d of %1$d days%4$s.</string>
+    <string name="a11y_trend_prev">; previous %1$d days %2$s</string>
+    <string name="a11y_trend_none">Coherence, last %1$d days: no sessions yet.</string>
 
     <!-- Drawn in the pixel font (HUD, ranks, results card): uppercase A-Z, digits, space and # . - % : > / + * ^ only.
          The app uppercases the hud_ lines; SceneTextTest fails on any other character. Numbers are formatted with Locale.ROOT. -->
@@ -113,7 +116,8 @@
     <string name="hud_lost_gap">BEATS MISSING</string>
     <string name="hud_lost_rejects">BEATS IRREGULAR</string>
     <string name="hud_lost_sit_still">SIT STILL</string>
-    <string name="scene_best_sessions">BEST SESSIONS</string>
+    <string name="scene_tab_best">BEST</string>
+    <string name="scene_tab_trend">TREND</string>
     <string name="scene_col_session">SESSION</string>
     <string name="scene_col_stars">STARS</string>
     <string name="scene_no_ranked">NO RANKED SESSIONS YET</string>
@@ -143,6 +147,16 @@
     <string name="scene_coherence">COHERENCE %.1f</string>
     <string name="scene_week_median">7D MEDIAN %.1f</string>
     <string name="scene_day_initials">MTWTFSS</string>
+    <string name="scene_median">MEDIAN %.1f</string>
+    <string name="scene_days_of">%1$d OF %2$d DAYS</string>
+    <string name="scene_prev">PREV %1$dD %2$.1f</string>
+    <string name="scene_no_coherence">NO COHERENCE YET</string>
+    <string name="scene_tap_period">TAP A TAB OR PERIOD</string>
+    <string name="scene_month_initials">JFMAMJJASOND</string>
+    <string name="scene_period_7d">7D</string>
+    <string name="scene_period_14d">14D</string>
+    <string name="scene_period_30d">30D</string>
+    <string name="scene_period_1y">1Y</string>
 
     <plurals name="scanning_seen">
         <item quantity="one">Scanning… %d Bluetooth device nearby, no heart-rate strap yet. Wear it and wet the electrodes.</item>
