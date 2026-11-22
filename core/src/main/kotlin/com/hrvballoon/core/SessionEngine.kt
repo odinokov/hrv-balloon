@@ -68,7 +68,6 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         monitor.onNotification(nowMs, packet.contact, packet.rr1024.isNotEmpty())?.let { transition(it, nowMs) }
         val update = timeline.onNotification(nowMs, packet.rr1024)
         if (update.gapMs > 0) {
-            update.beats.firstOrNull()?.afterGap = true   // a 1.5-3 s gap re-anchors the timeline without LOST; record() breaks the RMSSD chain at this beat
             monitor.onGap(update.gapMs, nowMs)?.let { transition(it, nowMs) }
         }
         for (beat in update.beats) for (c in filter.push(beat.also { it.paused = paused })) {
@@ -106,7 +105,6 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         estimator.reset()
         kalman.reset()
         estimate = null
-        summary.breakChain()
         probeScores.clear()
     }
 

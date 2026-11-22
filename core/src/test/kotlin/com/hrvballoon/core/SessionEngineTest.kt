@@ -223,8 +223,22 @@ class SessionEngineTest {
             engine.tick(t)
         }
         val s = engine.stop(41_000)
-        // successive differences only inside 0..19 and 22..39: the resume breaks 19|20, the paused beat 21 breaks 20|22
-        val d = (0 until 19).map { ms(it + 1) - ms(it) } + (22 until 39).map { ms(it + 1) - ms(it) }
+        // successive differences only inside 0..20 and 22..39: the resume breaks nothing, the paused beat 21 breaks 20|22
+        val d = (0 until 20).map { ms(it + 1) - ms(it) } + (22 until 39).map { ms(it + 1) - ms(it) }
+        assertEquals(Math.sqrt(d.sumOf { it * it } / d.size), s.rmssd!!, 1e-9)
+    }
+
+    @Test fun aPauseWithoutAnyBeatKeepsTheConsecutiveRmssdDifference() {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        fun ms(i: Int) = ((1000 + i) * 1024 / 1000.0).roundToInt() * 1000.0 / 1024
+        for (i in 0 until 40) {   // pause 21.2-21.6 s: shorter than a beat, no packet arrives while paused
+            val t = 1000L * (i + 1)
+            if (t == 22_000L) { engine.pause(21_200); engine.resume(21_600) }
+            engine.onPacket(t, HrsPacket(60, Contact.DETECTED, intArrayOf(((1000 + i) * 1024 / 1000.0).roundToInt())))
+            engine.tick(t)
+        }
+        val s = engine.stop(41_000)
+        val d = (0 until 39).map { ms(it + 1) - ms(it) }
         assertEquals(Math.sqrt(d.sumOf { it * it } / d.size), s.rmssd!!, 1e-9)
     }
 
