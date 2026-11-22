@@ -8,9 +8,13 @@ import android.provider.Settings as SysSettings
 import android.view.Choreographer
 import android.view.MotionEvent
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.TrendPeriod
+import com.hrvballoon.core.TrendPoint
+import com.hrvballoon.core.coherenceTrend
 import com.hrvballoon.core.offersRate
 import com.hrvballoon.core.rankSessions
 import com.hrvballoon.ui.RankView
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -24,6 +28,7 @@ class RankActivity : Activity() {
     private var currentRate = 0.0
     private lateinit var view: RankView
     private lateinit var ranked: List<SessionRecord>
+    private lateinit var points: List<TrendPoint>
     private var pos = -1
 
     private val frame = object : Choreographer.FrameCallback {
@@ -38,6 +43,7 @@ class RankActivity : Activity() {
         super.onCreate(savedInstanceState)
         val all = SessionStore(filesDir).load()
         ranked = rankSessions(all)
+        points = all.map { TrendPoint(it.startMs, it.validMs, it.coherence) }
         val start = intent.getLongExtra(EXTRA_START, -1)
         val mine = all.lastOrNull { it.startMs == start }
         pos = ranked.indexOfFirst { it.startMs == start }
@@ -70,6 +76,7 @@ class RankActivity : Activity() {
         view.total = ranked.size
         view.best = ranked.firstOrNull()
         view.offer = offersRate(r.kind, r.rateBpm, currentRate)
+        view.week = r.coherence?.let { coherenceTrend(points, r.startMs, ZoneId.systemDefault(), TrendPeriod.D7) }
         view.invalidate()
         describe()
     }

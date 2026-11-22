@@ -33,4 +33,7 @@ class SceneText(get: (Int) -> String) {
     val rhythm = get(R.string.scene_rhythm)
     val lifetime = get(R.string.scene_lifetime)
     val axisRate = get(R.string.scene_axis_rate)
+    val coherence = get(R.string.scene_coherence)
+    val weekMedian = get(R.string.scene_week_median)
+    val dayInitials = get(R.string.scene_day_initials)
 }

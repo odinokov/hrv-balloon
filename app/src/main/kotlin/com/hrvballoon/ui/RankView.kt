@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.view.View
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.Trend
 
 class RankView(context: Context) : View(context) {
     var records: List<SessionRecord> = emptyList()
@@ -18,6 +19,8 @@ class RankView(context: Context) : View(context) {
     var rankPos = 0
     var total = 0
     var best: SessionRecord? = null
+    /** The 7 days up to the shown session's day, for the results card's coherence strip. */
+    var week: Trend? = null
     var lifetimeStars = 0
     /** The shown card ends with "tap to use" its rate. */
     var offer = false
@@ -51,7 +54,7 @@ class RankView(context: Context) : View(context) {
     override fun onDraw(c: Canvas) {
         val s = scene ?: return
         val b = bitmap ?: return
-        val px = result?.let { s.renderResult(it, rankPos, total, best, timeMs, lifetimeStars, offer) } ?: s.render(records, highlight, timeMs, hasUnranked, blink)
+        val px = result?.let { s.renderResult(it, rankPos, total, best, timeMs, lifetimeStars, offer, week) } ?: s.render(records, highlight, timeMs, hasUnranked, blink)
         b.setPixels(px, 0, s.w, 0, 0, s.w, s.h)
         c.drawColor(RankScene.NIGHT[0])
         c.drawBitmap(b, null, dst, paint)

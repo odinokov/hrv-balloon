@@ -140,6 +140,9 @@
     <string name="scene_rhythm">RHYTHM %d%%</string>
     <string name="scene_lifetime">LIFETIME *%d</string>
     <string name="scene_axis_rate">BREATHS/MIN</string>
+    <string name="scene_coherence">COHERENCE %.1f</string>
+    <string name="scene_week_median">7D MEDIAN %.1f</string>
+    <string name="scene_day_initials">MTWTFSS</string>
 
     <plurals name="scanning_seen">
         <item quantity="one">Scanning… %d Bluetooth device nearby, no heart-rate strap yet. Wear it and wet the electrodes.</item>

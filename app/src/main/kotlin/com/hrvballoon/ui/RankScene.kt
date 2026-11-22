@@ -2,6 +2,7 @@ package com.hrvballoon.ui
 
 import com.hrvballoon.core.RfSearch
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.Trend
 import com.hrvballoon.core.rfFit
 import java.time.Instant
 import java.time.ZoneId
@@ -93,6 +94,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
     fun renderResult(
         r: SessionRecord, rankPos: Int, total: Int, best: SessionRecord?, timeMs: Long, lifetimeStars: Int,
         offer: Boolean = r.kind == SessionRecord.KIND_RF_SEARCH,
+        week: Trend? = null,
     ): IntArray {
         backdrop(timeMs)
         surface(0, 0, w, 17, SURFACE)
@@ -132,16 +134,38 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             }
             text(centred(line), 38, line, if (!r.ranked) DIM else if (rankPos == 1) HIGHLIGHT else TEXT)
             val stats = r.meanShape?.let { String.format(Locale.ROOT, t.rhythm, (it * 100).roundToInt()) }
-            surface(4, 48, w - 4, if (stats != null) 98 else 82, SURFACE)
+            val coherence = r.coherence?.takeIf { week != null }
+            surface(4, 48, w - 4, if (coherence != null) STRIP_PANEL_BOTTOM else if (stats != null) 98 else 82, SURFACE)
             val lifetime = String.format(Locale.ROOT, t.lifetime, lifetimeStars)
             text(centred(lifetime), 54, lifetime, TEXT)
             val whenAt = fullFmt.format(Instant.ofEpochMilli(r.startMs).atZone(zone ?: ZoneId.systemDefault()))
             text(centred(whenAt), 70, whenAt, DIM)
             stats?.let { text(centred(it), 86, it, TEXT) }
+            if (coherence != null) strip(coherence, week!!)
             text(centred(t.tapForRanks), h - 20, t.tapForRanks, DIM)
         }
         return frame
     }
+
+    /** Training card: the session's coherence, then seven day bars (0-6 scale, the last day highlighted, a dash for no practice), initials and the week's median. */
+    private fun strip(coherence: Double, week: Trend) {
+        val line = String.format(Locale.ROOT, t.coherence, coherence)
+        text(centred(line), COH_Y, line, TEXT)
+        val left = (w - (7 * STRIP_PITCH - STRIP_GAP)) / 2
+        for ((i, bin) in week.bins.withIndex()) {
+            val x = left + i * STRIP_PITCH
+            val today = i == week.bins.lastIndex
+            val v = bin.value
+            if (v == null) surface(x + 4, STRIP_BASE - 1, x + 8, STRIP_BASE, DIM)
+            else surface(x, STRIP_BASE - stripBarHeight(v), x + STRIP_BAR, STRIP_BASE, if (today) HIGHLIGHT else BAR)
+            val initial = t.dayInitials[bin.start.dayOfWeek.value - 1].toString()
+            text(x + (STRIP_BAR - PixelFont.width(initial)) / 2, STRIP_BASE + 3, initial, if (today) HIGHLIGHT else DIM)
+        }
+        week.median?.let { String.format(Locale.ROOT, t.weekMedian, it).let { m -> text(centred(m), STRIP_BASE + 13, m, TEXT) } }
+    }
+
+    /** Bar height in px for a coherence on the fixed 0-6 scale; a day with practice is at least 2 px, so it never looks like the 1 px dash. */
+    internal fun stripBarHeight(v: Double) = maxOf(2, (v.coerceIn(0.0, MAX_COHERENCE) / MAX_COHERENCE * STRIP_H).roundToInt())
 
     /**
      * Score against rate on a fixed 4–7 /min axis: a point per probe (best: diamond, failed: hollow), the bump [rfFit] puts
@@ -266,6 +290,15 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
         private const val PLOT_TOP = 64
         private const val PLOT_BASE = 120
         private const val PANEL_BOTTOM = 143
+        // Results card strip: 7 bars of STRIP_BAR px every STRIP_PITCH px, 0-6 over STRIP_H px up from STRIP_BASE.
+        private const val COH_Y = 102
+        private const val STRIP_BAR = 12
+        private const val STRIP_GAP = 6
+        private const val STRIP_PITCH = STRIP_BAR + STRIP_GAP
+        private const val STRIP_H = 24
+        private const val STRIP_BASE = 138
+        private const val STRIP_PANEL_BOTTOM = 161
+        private const val MAX_COHERENCE = 6.0
         private val BAYER = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
         val NIGHT = intArrayOf(0xFF100F29.toInt(), 0xFF1A173C.toInt(), 0xFF27204F.toInt(), 0xFF38275F.toInt(), 0xFF4A316C.toInt(), 0xFF5F3A72.toInt())
         const val RIDGE = 0xFF1C193E.toInt()
