@@ -56,6 +56,9 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private val estimator = AmplitudeEstimator()
     private val kalman = HrKalman()
     private val summary = SummaryAccumulator()
+    private val coherence = CoherenceMeter()
+    private var csSegment = 0
+    private var csLastMs = Double.NEGATIVE_INFINITY
     private var hr: Int? = null
     private val trace = ArrayDeque<DoubleArray>()
     private var estimate: Estimate? = null
@@ -82,6 +85,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 estimator.add(tMid, 60000 / c.beat.rrMs)
                 kalman.update(tMid, pacer.cycles(tMid), 60000 / c.beat.rrMs)
                 trace.addLast(doubleArrayOf(tMid, 60000 / c.beat.rrMs))
+                feedCoherence(c.beat)
             }
             monitor.onClassified(c.accepted, nowMs)?.let { transition(it, nowMs) }
         }
@@ -117,6 +121,15 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         estimator.reset()
         kalman.reset()
         estimate = null
+        csSegment++   // also splits the coherence segments at a confirmed 1.5-3 s loss: acceptable, the gap rule mostly fires there anyway
+    }
+
+    /** Same beats as the estimator; the meter needs strictly increasing times and a new segment after each gap over 3 s. */
+    private fun feedCoherence(b: Beat) {
+        if (b.tEndMs <= csLastMs) return
+        if (b.tEndMs - csLastMs > CS_GAP_MS) csSegment++
+        csLastMs = b.tEndMs
+        coherence.add(CsBeat(b.tEndMs, 60000 / b.rrMs, pacer.rateAt(b.tEndMs), csSegment))
     }
 
     fun tick(nowMs: Long): UiState {
@@ -238,6 +251,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     /** The summary as it stands, without ending the session: what [stop] would give, less the beats the filter still holds. */
     fun snapshot(nowMs: Long): Summary {
         rf?.let { summary.rfBest = it.best; summary.rfConverged = it.found; summary.rfNoPeak = it.noPeak && it.finished; summary.rfProbes = it.probes }
+        summary.coherence = coherence.median()
         return summary.result(nowMs)
     }
 
@@ -273,6 +287,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         const val PROBE_BREATHS = 9   // 1 transient + 2 to refill the two-breath window + 6 scored
         const val SCORE_FROM = 3      // breaths into a probe before scoring starts
         const val MIN_SCORED = 3      // breaths of scores a probe needs to count (of six)
+        const val CS_GAP_MS = 3_000.0
         const val FINAL_MS = 120_000L // a probe must end this long before the session does
     }
 }
