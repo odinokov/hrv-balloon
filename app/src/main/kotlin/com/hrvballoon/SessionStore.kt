@@ -19,11 +19,12 @@ class SessionStore(private val dir: File) {
 
     fun append(record: SessionRecord) {
         migrate()
-        if (!file.exists()) file.writeText(SessionHistory.header())
+        if (!file.exists() || file.length() == 0L) file.writeText(SessionHistory.header())
+        else if (!file.readText().endsWith("\n")) file.appendText("\n")   // a cut-off row must not swallow this one
         file.appendText(SessionHistory.row(record) + "\n")
     }
 
-    /** As [append], for the row saved when the app is left mid-session: a failed write must not end the session. */
+    /** As [append], for rows saved mid-session and at its end: a failed write (storage full) must not crash or end the session. */
     fun checkpoint(record: SessionRecord) = try { append(record); true } catch (_: IOException) { false }
 
     private fun migrate() {

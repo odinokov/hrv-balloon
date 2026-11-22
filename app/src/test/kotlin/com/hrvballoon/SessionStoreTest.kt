@@ -55,4 +55,23 @@ class SessionStoreTest {
         assertTrue(dir.resolve("sessions.csv").readText().startsWith("# hrv-sessions v2\nstart_ms,"))
         assertEquals(listOf(7L), store.load().map { it.startMs })
     }
+
+    @Test fun anEmptyExistingFileGetsTheHeaderBeforeTheFirstRow() {
+        val dir = Files.createTempDirectory("store").toFile()
+        dir.resolve("sessions.csv").writeText("")
+        val store = SessionStore(dir)
+        store.append(record(11))
+        assertTrue(dir.resolve("sessions.csv").readText().startsWith("# hrv-sessions v2\nstart_ms,"))
+        assertTrue(11L in store.load().map { it.startMs })
+    }
+
+    @Test fun aCutOffLastRowDoesNotSwallowTheNextOne() {
+        val dir = Files.createTempDirectory("store").toFile()
+        val store = SessionStore(dir)
+        store.append(record(1))
+        dir.resolve("sessions.csv").appendText("2,9000")   // a failed write left half a row, no newline
+        store.append(record(3))
+        val back = store.load().single { it.startMs == 3L }
+        assertEquals(record(3).toLine(), back.toLine())
+    }
 }

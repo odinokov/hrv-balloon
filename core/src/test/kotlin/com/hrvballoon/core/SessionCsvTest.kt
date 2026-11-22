@@ -93,4 +93,55 @@ class SessionCsvTest {
         assertTrue(header(6.2).contains("# rf_estimate_bpm=6.2"))
         assertTrue(header(null).none { it.startsWith("# rf_estimate") })
     }
+
+    /** Accepts [budget] bytes in all, then every write throws; [attempts] counts the writes tried. */
+    private class FailingAfter(val budget: Int, val failClose: Boolean = false) : java.io.OutputStream() {
+        val written = ByteArrayOutputStream()
+        var attempts = 0
+        override fun write(b: Int) = write(byteArrayOf(b.toByte()), 0, 1)
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            attempts++
+            if (written.size() + len > budget) throw java.io.IOException("full")
+            written.write(b, off, len)
+        }
+        override fun close() { if (failClose) throw java.io.IOException("close") }
+    }
+
+    private fun SessionCsvWriter.beat(i: Int) = beat(i.toDouble(), i.toLong(), 800.0, true, 60.0, 5.5, 0.1, null, null)
+
+    private fun bytes(block: SessionCsvWriter.() -> Unit) = ByteArrayOutputStream().also { SessionCsvWriter(it).apply(block).close() }.size()
+
+    @Test fun aFailingStreamStopsTheCsvQuietlyAndSkipsLaterRows() {
+        val out = FailingAfter(bytes { writeHeader(meta); beat(1) })   // room for the header and the first beat only
+        val w = SessionCsvWriter(out)
+        w.writeHeader(meta)
+        w.beat(1)
+        assertTrue(!w.failed)
+        w.beat(2)
+        assertTrue(w.failed)
+        val size = out.written.size()
+        val attempts = out.attempts
+        w.event(3.0, CsvEvent.STAR)
+        w.beat(4)
+        w.close()
+        assertEquals(size, out.written.size())
+        assertEquals(attempts, out.attempts)
+    }
+
+    @Test fun aFailureWritingTheHeaderIsQuietAndLaterCallsDoNothing() {
+        val out = FailingAfter(0)
+        val w = SessionCsvWriter(out)
+        w.writeHeader(meta)
+        assertTrue(w.failed)
+        val attempts = out.attempts
+        w.beat(1)
+        w.event(2.0, CsvEvent.STAR)
+        assertEquals(attempts, out.attempts)
+    }
+
+    @Test fun aFailingCloseIsQuiet() {
+        val w = SessionCsvWriter(FailingAfter(Int.MAX_VALUE, failClose = true))
+        w.close()
+        assertTrue(w.failed)
+    }
 }

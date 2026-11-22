@@ -1,6 +1,7 @@
 package com.hrvballoon.core
 
 import java.io.BufferedWriter
+import java.io.IOException
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.util.Locale
@@ -21,11 +22,21 @@ class SessionMeta(
 fun sanitizeName(name: String?): String =
     name?.takeIf { it.isNotEmpty() }?.replace(Regex("[^A-Za-z0-9_-]"), "_") ?: "unknown"
 
-/** One CSV per session, flushed per row so a crash loses nothing. Numbers are Locale.ROOT. */
+/** One CSV per session, flushed per row so a crash loses nothing. Numbers are Locale.ROOT. After a write fails (storage full) every call is a no-op and [failed] is set. */
 class SessionCsvWriter(out: OutputStream) {
     private val w = BufferedWriter(OutputStreamWriter(out, Charsets.UTF_8))
+    var failed = false
+        private set
 
-    fun writeHeader(meta: SessionMeta) {
+    private inline fun guarded(block: () -> Unit) {
+        if (failed) return
+        try { block() } catch (_: IOException) {
+            failed = true
+            try { w.close() } catch (_: IOException) {}
+        }
+    }
+
+    fun writeHeader(meta: SessionMeta) = guarded {
         val fields = listOf(
             "app_version" to meta.appVersion,
             "device_address" to meta.deviceAddress,
@@ -46,7 +57,7 @@ class SessionCsvWriter(out: OutputStream) {
     fun beat(
         tMs: Double, arrivalMs: Long, rrMs: Double, accepted: Boolean, hrBpm: Double?, rateBpm: Double,
         pacerPhase: Double, p2tBpm: Double?, phaseDeg: Double?,
-    ) {
+    ) = guarded {
         w.write(
             "beat,${f1(tMs)},$arrivalMs,${f1(rrMs)},${if (accepted) 1 else 0},${hrBpm?.let(::f1) ?: ""},${f1(rateBpm)}," +
                 "${f3(pacerPhase)},${p2tBpm?.let(::f2) ?: ""},${phaseDeg?.let(::f1) ?: ""},\n",
@@ -54,12 +65,12 @@ class SessionCsvWriter(out: OutputStream) {
         w.flush()
     }
 
-    fun event(tMs: Double, event: CsvEvent) {
+    fun event(tMs: Double, event: CsvEvent) = guarded {
         w.write("event,${f1(tMs)},,,,,,,,,${event.csv}\n")
         w.flush()
     }
 
-    fun close() = w.close()
+    fun close() = guarded { w.close() }
 
     private fun f1(x: Double) = String.format(Locale.ROOT, "%.1f", x)
     private fun f2(x: Double) = String.format(Locale.ROOT, "%.2f", x)

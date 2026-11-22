@@ -108,6 +108,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var startElapsed = 0L
     private var startWall = 0L
     private var csvName = ""
+    private var csvWriter: SessionCsvWriter? = null
     private var target = 0.0
     private var frozen = false
     private var smoother = Smoother()
@@ -179,7 +180,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         engine?.let {
             leftAtMs = sessionNow()
             it.pause(leftAtMs)
-            save(it, it.snapshot(leftAtMs), leftAtMs, checkpoint = true)   // kept if the app is swiped away or killed before the session ends
+            save(it, it.snapshot(leftAtMs), leftAtMs)   // kept if the app is swiped away or killed before the session ends
             main.postDelayed(graceStop, GRACE_MS)
         }
         super.onStop()
@@ -462,6 +463,7 @@ class MainActivity : Activity(), HrmClient.Listener {
             return
         }
         val version = packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+        csvWriter = csv
         csv.writeHeader(
             SessionMeta(
                 version, settings.deviceAddress ?: "?", settings.deviceName, now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
@@ -548,7 +550,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     /** [cue] = long vibration: Stop button and timer end, not a session cut short by leaving the app. */
     private fun stopSession(cue: Boolean, endAtMs: Long = sessionNow()) {
         val e = engine ?: return
-        val outcome = save(e, e.stop(endAtMs), endAtMs)
+        val (outcome, saved) = save(e, e.stop(endAtMs), endAtMs)
         engine = null
         guardBack(false)
         frozen = false
@@ -565,22 +567,23 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (settings.rfSearch) settings.rfSearch = false
         outcome.offerTenths?.let { settings.lastRfTenths = it; settings.lastRfNoPeak = outcome.kind == SessionRecord.KIND_RF_NO_PEAK }
         styleStart()
-        if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()
+        if (!saved) Toast.makeText(this, R.string.session_save_failed, Toast.LENGTH_LONG).show()
+        if (csvWriter?.failed == true) Toast.makeText(this, R.string.csv_stopped_early, Toast.LENGTH_LONG).show()
+        else if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()
         main.postDelayed(landing, if (foreground) LANDING_MS else 0)
     }
 
     /**
      * Writes the session's history row as it stands at [endAtMs]: on leaving the app, so that a session survives the app
-     * being swiped away or killed (a failed write is then ignored), and at the end, when the later row replaces the earlier one
-     * (SessionHistory.parse).
+     * being swiped away or killed, and at the end, when the later row replaces the earlier one
+     * (SessionHistory.parse). Returns the outcome and whether the row was written; stopSession shows a toast when it was not.
      */
-    private fun save(e: SessionEngine, summary: Summary, endAtMs: Long, checkpoint: Boolean = false): SessionOutcome {
+    private fun save(e: SessionEngine, summary: Summary, endAtMs: Long): Pair<SessionOutcome, Boolean> {
         val finalRate = e.pacer.rateAt(endAtMs.toDouble())   // exclude any change still waiting for the next inhale
         val outcome = sessionOutcome(sessionSearch, finalRate, settings.rateBpm, summary.rfBest, summary.rfConverged, summary.rfNoPeak, summary.rfProbes)
         val record = SessionRecord.of(startWall, summary, outcome, sessionSearch, sessionEstimate)
         val store = SessionStore(filesDir)
-        if (checkpoint) store.checkpoint(record) else store.append(record)
-        return outcome
+        return outcome to store.checkpoint(record)
     }
 
     private fun cue(inhale: Boolean) {

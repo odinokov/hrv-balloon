@@ -23,6 +23,8 @@
     <string name="ended_while_away">Session ended while you were away</string>
     <string name="rate_set">Breathing rate set to %.1f /min</string>
     <string name="csv_failed">Cannot create the CSV file in Download/HRV. Check storage space, or switch Save CSV off.</string>
+    <string name="csv_stopped_early">CSV stopped early: storage full</string>
+    <string name="session_save_failed">Storage full: the end of this session was not saved</string>
     <string name="csv_saved">CSV saved: Download/HRV/%s</string>
     <string name="a11y_scene">Breathing scene</string>
     <string name="a11y_star">Star</string>
