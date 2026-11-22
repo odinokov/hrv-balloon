@@ -34,6 +34,8 @@
     <string name="settings_resonance_found">Resonance found: %.1f /min</string>
     <string name="settings_no_peak">No clear peak: %.1f /min</string>
     <string name="settings_inhale_exhale">Inhale : exhale</string>
+    <string name="inhale_exhale_40_60">40:60</string>
+    <string name="inhale_exhale_50_50">50:50</string>
     <string name="settings_session">Session</string>
     <string name="settings_vibration">Vibration cues</string>
     <string name="settings_find_rate">Find my resonance rate\n(next session only)</string>
@@ -57,6 +59,7 @@
     <string name="rf_estimate_title">Start from your height</string>
     <string name="rf_estimate_message">Height and sex predict a starting rate (Hasuo et al. 2023); the search then measures yours. Nothing is stored.</string>
     <string name="height_cm">Height, cm</string>
+    <string name="height_hint">170</string>
     <string name="sex">Sex</string>
     <string name="sex_male">Male</string>
     <string name="sex_female">Female</string>

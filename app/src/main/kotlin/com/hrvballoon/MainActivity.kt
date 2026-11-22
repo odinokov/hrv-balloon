@@ -534,7 +534,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         val ui = SettingsWidgets(this, main)
         val height = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            hint = "170"
+            hint = getString(R.string.height_hint)
             minEms = 4
             contentDescription = getString(R.string.height_cm)
         }
