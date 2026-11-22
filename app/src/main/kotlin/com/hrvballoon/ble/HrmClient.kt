@@ -306,7 +306,7 @@ class HrmClient(private val context: Context, private val listener: Listener) {
         gatt = null
     }
 
-    companion object {
+    private companion object {
         val HRS: UUID = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
         val HRM: UUID = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
         val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
