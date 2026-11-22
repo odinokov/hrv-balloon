@@ -322,7 +322,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (startStop.isEnabled != enabled) { startStop.isEnabled = enabled; styleStart() }
         if (engine == null) {
             val status = getString(linkStatusRes(link, rrFresh, neverRr))
-            balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(if (settings.rfSearch) settings.searchDurationMs else settings.durationMs)) else Hud(dot, status)
+            balloon.hud = if (rrFresh) Hud.session(sceneText, dot, status, freshHr(now), settings.rateBpm, mmss(settings.lengthMs(settings.rfSearch))) else Hud(dot, status)
             describe(status)
         } else {
             hudDot = dot
@@ -470,7 +470,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (engine != null) return   // a second start (two stacked estimate dialogs) would orphan the running session
         val startRate = estimate?.rateBpm ?: settings.rateBpm
         sessionSearch = settings.rfSearch
-        sessionMs = if (sessionSearch) settings.searchDurationMs else settings.durationMs
+        sessionMs = settings.lengthMs(sessionSearch)
         val now = OffsetDateTime.now()
         csvName = if (settings.saveCsv) "hrv_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv" else ""
         val csv = if (!settings.saveCsv) SessionCsvWriter(NULL_STREAM) else try {
@@ -487,7 +487,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         csv.writeHeader(
             SessionMeta(
                 version, settings.deviceAddress ?: "?", settings.deviceName, now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-                startRate, settings.inhaleFraction, if (sessionSearch) settings.searchDurationLabel else settings.durationLabel, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
+                startRate, settings.inhaleFraction, settings.lengthLabel(sessionSearch), settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
                 estimate?.rateBpm,
             ),
         )

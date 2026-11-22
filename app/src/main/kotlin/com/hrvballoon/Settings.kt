@@ -92,6 +92,9 @@ class Settings(private val p: Prefs) {
     val searchDurationMs = 18 * 60_000L
     val searchDurationLabel = "18"
 
+    fun lengthMs(search: Boolean) = if (search) searchDurationMs else durationMs
+    fun lengthLabel(search: Boolean) = if (search) searchDurationLabel else durationLabel
+
     private companion object {
         const val MIN_GAP = 5
     }
