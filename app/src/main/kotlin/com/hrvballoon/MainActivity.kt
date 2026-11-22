@@ -436,9 +436,6 @@ class MainActivity : Activity(), HrmClient.Listener {
 
     private fun sessionNow() = SystemClock.elapsedRealtime() - startElapsed
 
-    /** Stored and drawn numbers use Locale.ROOT, like the pixel HUD; spoken (TalkBack) text follows the device locale. */
-    private fun fmt(id: Int, vararg args: Any?) = String.format(Locale.ROOT, getString(id), *args)
-
     private fun mmss(ms: Long) = String.format(Locale.ROOT, "%02d:%02d", ms / 60_000, ms / 1000 % 60)
 
     private fun earnStar(now: Long) {

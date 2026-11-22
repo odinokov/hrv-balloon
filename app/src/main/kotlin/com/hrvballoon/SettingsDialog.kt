@@ -20,7 +20,6 @@ class SettingsDialog(private val activity: Activity, private val settings: Setti
     }
 
     private fun str(id: Int) = activity.getString(id)
-    private fun fmt(id: Int, vararg args: Any?) = String.format(Locale.ROOT, activity.getString(id), *args)
 
     fun show() {
         val ui = SettingsWidgets(activity, main)
@@ -32,7 +31,7 @@ class SettingsDialog(private val activity: Activity, private val settings: Setti
             addView(ui.row(str(R.string.settings_rate), ui.stepper(str(R.string.settings_rate_short), { String.format(Locale.ROOT, "%.1f", settings.rateBpm) },
                 { settings.rateTenths = stepRateTenths(settings.rateTenths, -1) }, { settings.rateTenths = stepRateTenths(settings.rateTenths, 1) })))
             if (settings.lastRfTenths > 0) {
-                addView(ui.row(fmt(if (settings.lastRfNoPeak) R.string.settings_no_peak else R.string.settings_resonance_found, settings.lastRfTenths / 10.0),
+                addView(ui.row(activity.fmt(if (settings.lastRfNoPeak) R.string.settings_no_peak else R.string.settings_resonance_found, settings.lastRfTenths / 10.0),
                     ui.small(str(R.string.use)).apply { setOnClickListener { settings.rateTenths = settings.lastRfTenths; ui.refresh() } }))
             }
             addView(ui.row(str(R.string.settings_inhale_exhale), ui.choice(listOf(str(R.string.inhale_exhale_40_60), str(R.string.inhale_exhale_50_50)), { if (settings.inhale5050) 1 else 0 }) { settings.inhale5050 = it == 1 }))
