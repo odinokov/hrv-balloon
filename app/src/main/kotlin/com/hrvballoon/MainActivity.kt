@@ -96,6 +96,8 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var latestHr: Int? = null
     private var lastHrAt = 0L
     private var foreground = false
+    private var inRanks = false   // our own Ranks screen is open: it keeps the idle link
+    private var linkClosed = false   // idle in the background: the client is closed (it cannot reopen) and onStart makes a new one
 
     private var engine: SessionEngine? = null
     private var sessionEstimate: Double? = null
@@ -145,6 +147,12 @@ class MainActivity : Activity(), HrmClient.Listener {
     override fun onStart() {
         super.onStart()
         foreground = true
+        inRanks = false
+        if (linkClosed) {
+            linkClosed = false
+            client = HrmClient(this, this)
+            if (!client.bluetoothEnabled) link = Link.BT_OFF else settings.deviceAddress?.let(::connectTo)
+        }
         picker?.rescan()
         main.removeCallbacks(graceStop)
         main.removeCallbacks(ticker)
@@ -176,7 +184,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     override fun onStop() {
         foreground = false
         picker?.pauseScan()   // keep the picker open, but not its scan
-        if (engine == null) main.removeCallbacks(ticker)   // idle in the background: nothing to tick for
+        if (engine == null) { main.removeCallbacks(ticker); closeIdleLink() }   // idle in the background: nothing to tick for
         engine?.let {
             leftAtMs = sessionNow()
             it.pause(leftAtMs)
@@ -190,8 +198,18 @@ class MainActivity : Activity(), HrmClient.Listener {
         main.removeCallbacks(ticker)
         main.removeCallbacks(graceStop)
         main.removeCallbacks(landing)
-        client.close()
+        if (!linkClosed) client.close()   // close() unregisters the receiver: not twice
         super.onDestroy()
+    }
+
+    /**
+     * Idle in the background: no GATT link, no reconnect loop. Only a link in play is closed: a picker, the Bluetooth-enable
+     * screen and the permission dialog all need the live client (and are none of CONNECTING/CONNECTED).
+     */
+    private fun closeIdleLink() {
+        if (linkClosed || inRanks || picker != null || (link != Link.CONNECTED && link != Link.CONNECTING)) return
+        client.close()
+        linkClosed = true
     }
 
     /** Android 12 only: from Android 13 the manifest routes Back to [guardBack]'s callback (Android 16 never calls this). */
@@ -434,6 +452,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     }
 
     private fun openRanks(startMs: Long, result: Boolean) {
+        inRanks = true
         @Suppress("DEPRECATION")
         startActivityForResult(
             Intent(this, RankActivity::class.java).putExtra(RankActivity.EXTRA_START, startMs).putExtra(RankActivity.EXTRA_RESULT, result),
@@ -572,6 +591,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         if (csvWriter?.failed == true) Toast.makeText(this, R.string.csv_stopped_early, Toast.LENGTH_LONG).show()
         else if (csvName.isNotEmpty()) Toast.makeText(this, getString(R.string.csv_saved, csvName), Toast.LENGTH_LONG).show()
         main.postDelayed(landing, if (foreground) LANDING_MS else 0)
+        if (!foreground) closeIdleLink()   // the session ended while you were away
     }
 
     /**
@@ -671,6 +691,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         link = Link.CONNECTING
         renderStatus()
         client.connect(address)
+        if (!foreground && engine == null) closeIdleLink()   // connected in the background (Bluetooth or permission granted while away)
     }
 
     private fun pick() {
