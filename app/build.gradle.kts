@@ -17,8 +17,8 @@ android {
         applicationId = "com.hrvballoon"
         minSdk = 31
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.4.2"
+        versionCode = 14
+        versionName = "2.5"
     }
 
     signingConfigs {
