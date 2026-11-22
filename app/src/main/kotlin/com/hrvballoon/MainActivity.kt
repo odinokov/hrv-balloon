@@ -480,7 +480,9 @@ class MainActivity : Activity(), HrmClient.Listener {
                 .setPositiveButton(R.string.ok, null).show()
             return
         }
-        val version = packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+        val info = if (Build.VERSION.SDK_INT >= 33) packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+        else @Suppress("DEPRECATION") packageManager.getPackageInfo(packageName, 0)
+        val version = info.versionName ?: "?"
         csvWriter = csv
         csv.writeHeader(
             SessionMeta(
