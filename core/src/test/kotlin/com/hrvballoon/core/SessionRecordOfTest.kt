@@ -34,6 +34,13 @@ class SessionRecordOfTest {
         assertNull(r.rfEstimateBpm)
     }
 
+    @Test fun coherenceIsCopiedFromTheSummaryAndDefaultsToNull() {
+        val out = sessionOutcome(false, 5.5, 5.5, null, false, false, emptyList())
+        assertNull(SessionRecord.of(1, summary(emptyList()), out, false, null).coherence)
+        val acc = SummaryAccumulator().apply { coherence = 0.71 }
+        assertEquals(0.71, SessionRecord.of(1, acc.result(1000), out, false, null).coherence!!, 0.0)
+    }
+
     @Test fun searchKeepsKindProbesAndEstimate() {
         val s = summary(probes)
         val r = SessionRecord.of(1, s, sessionOutcome(true, 5.5, 5.5, 6.1, true, false, probes), true, 6.0)

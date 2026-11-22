@@ -14,6 +14,8 @@ class Summary(
     /** The search ended without a peak after enough probes; [rfBest] then stays near the search's start. */
     val rfNoPeak: Boolean,
     val rfProbes: List<Pair<Double, Double>>,
+    /** Heart-rate coherence of the session, when one was measured. */
+    val coherence: Double? = null,
 )
 
 /**
@@ -39,6 +41,7 @@ class SummaryAccumulator {
     var rfConverged = false
     var rfNoPeak = false
     var rfProbes: List<Pair<Double, Double>> = emptyList()
+    var coherence: Double? = null
 
     fun addBeat(rrMs: Double, accepted: Boolean) {
         beats++
@@ -92,5 +95,6 @@ class SummaryAccumulator {
         rfConverged = rfConverged,
         rfNoPeak = rfNoPeak,
         rfProbes = rfProbes,
+        coherence = coherence,
     )
 }

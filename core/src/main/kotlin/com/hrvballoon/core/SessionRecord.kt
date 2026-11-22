@@ -3,7 +3,7 @@ package com.hrvballoon.core
 import com.hrvballoon.core.SessionHistory.f
 
 /** One finished session, as kept in the local history (one comma-separated line, Locale-independent). */
-class SessionRecord(
+data class SessionRecord(
     val startMs: Long, val durationMs: Long, val rateBpm: Double, val meanP: Double?, val meanShape: Double?,
     val stars: Int, val meanHr: Double?, val rejectedPct: Double?,
     /** Time with a live estimate; sessions below [MIN_RANKED_MS] stay in history but are not ranked. */
@@ -17,6 +17,8 @@ class SessionRecord(
     val probes: List<Pair<Double, Double>> = emptyList(),
     /** Height-and-sex starting estimate of a search (Hasuo et al. 2023), when one was given. */
     val rfEstimateBpm: Double? = null,
+    /** Heart-rate coherence of the session (format v3); null in older rows and when not measured. */
+    val coherence: Double? = null,
 ) {
     /** Effective amplitude in bpm, retained for history and resonance-search comparisons. */
     val score get() = (meanP ?: 0.0) * (meanShape ?: 0.0)
@@ -44,7 +46,7 @@ class SessionRecord(
         fun of(startMs: Long, summary: Summary, outcome: SessionOutcome, wasSearch: Boolean, estimate: Double?) = SessionRecord(
             startMs, summary.durationMs, outcome.rateBpm, summary.meanP, summary.meanShape, summary.stars, summary.meanHr,
             summary.rejectedPct, summary.validMs, summary.rmssd, summary.sdnn, summary.beats, outcome.kind, summary.rfProbes,
-            if (wasSearch) estimate else null,
+            if (wasSearch) estimate else null, summary.coherence,
         )
 
         /** Accepts the current 14-field line and the older 13-, 12- and 8-field ones (8 = fully valid, no RMSSD/SDNN/beats). */

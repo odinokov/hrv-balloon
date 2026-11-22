@@ -15,9 +15,9 @@ class SessionHistoryTest {
     @Test fun writesASchemaLineAndNamedColumnsThenReadsItBack() {
         val text = SessionHistory.write(listOf(training, sparse, search))
         val lines = text.lines()
-        assertEquals("# hrv-sessions v2", lines[0])
+        assertEquals("# hrv-sessions v3", lines[0])
         assertTrue(lines[1].startsWith("start_ms,duration_ms,rate_bpm,"))
-        assertTrue(lines[1].endsWith(",kind,probes,rf_estimate_bpm"))
+        assertTrue(lines[1].endsWith(",kind,probes,rf_estimate_bpm,coherence"))
         val back = SessionHistory.parse(text)
         assertEquals(rows(listOf(training, sparse, search)), rows(back))
         assertEquals(6.2, back[2].rfEstimateBpm!!, 1e-9)
@@ -62,46 +62,127 @@ class SessionHistoryTest {
         assertTrue(SessionHistory.parse(SessionHistory.write(emptyList())).isEmpty())
     }
 
-    private val hdr = SessionHistory.COLUMNS.joinToString(",")
+    private class Fmt(val schema: String, val columns: List<String>, val v2: Boolean) {
+        val hdr = columns.joinToString(",")
+        fun row(r: SessionRecord) = SessionHistory.row(r, v2)
+        fun expected(r: SessionRecord) = if (v2) r.copy(coherence = null) else r
+    }
+    private val fmts = listOf(
+        Fmt(SessionHistory.SCHEMA_V2, SessionHistory.COLUMNS_V2, true), Fmt(SessionHistory.SCHEMA, SessionHistory.COLUMNS, false),
+    )
+    private val withCoh = training.copy(coherence = 0.62)
+
+    @Test fun coherenceRoundTripsInV3AndIsEmptyWhenNull() {
+        val back = SessionHistory.parse(SessionHistory.write(listOf(withCoh, sparse)))
+        assertEquals(listOf(withCoh, sparse), back)
+        assertTrue(SessionHistory.row(sparse).endsWith(",") && SessionHistory.row(withCoh).endsWith(",0.62"))
+    }
+
+    @Test fun v2RowsReadCoherenceAsNullAndKeepEveryRow() {
+        val v2 = SessionHistory.SCHEMA_V2 + "\n" + SessionHistory.COLUMNS_V2.joinToString(",") + "\n" +
+            listOf(withCoh, sparse, search).joinToString("") { SessionHistory.row(it, v2 = true) + "\n" }
+        assertEquals(listOf(withCoh, sparse, search).map { it.copy(coherence = null) }, SessionHistory.parse(v2))
+    }
+
+    @Test fun aV3SchemaLineIsNotReadAsVersionOne() {
+        val back = SessionHistory.parse(SessionHistory.write(listOf(withCoh)))
+        assertEquals(1, back.size)
+        assertEquals(0.62, back[0].coherence!!, 1e-9)
+    }
+
+    @Test fun aHealthyV2HeaderIsNotACutV3Header() {
+        val v2 = fmts[0]
+        val text = v2.schema + "\n" + v2.hdr + "\n" + v2.row(training) + "\n" + v2.row(sparse) + "\n"
+        assertTrue(SessionHistory.COLUMNS.joinToString(",").startsWith(v2.hdr))
+        assertEquals(rows(listOf(training, sparse)), rows(SessionHistory.parse(text)))
+    }
+
+    @Test fun aRowShorterThanItsOwnHeaderIsSkipped() {
+        for (f in fmts) {
+            val short = f.row(training).split(",").dropLast(1).joinToString(",")
+            assertEquals(f.schema, rows(listOf(sparse)), rows(SessionHistory.parse(f.schema + "\n" + f.hdr + "\n" + short + "\n" + f.row(sparse) + "\n")))
+        }
+    }
 
     @Test fun aCutSchemaLineStillYieldsTheRowsAfterIt() {
-        val back = SessionHistory.parse("# hrv-ses\n" + SessionHistory.row(training) + "\n" + SessionHistory.row(sparse) + "\n")
-        assertEquals(rows(listOf(training, sparse)), rows(back))
+        for (f in fmts) {
+            val back = SessionHistory.parse("# hrv-ses\n" + f.row(withCoh) + "\n" + f.row(sparse) + "\n")   // the row width tells the version
+            assertEquals(f.schema, rows(listOf(f.expected(withCoh), sparse)), rows(back))
+        }
     }
 
     @Test fun aCutHeaderLineStillYieldsTheRowsAfterIt() {
-        val back = SessionHistory.parse("# hrv-sessions v2\n" + hdr.take(20) + "\n" + SessionHistory.row(training) + "\n")
-        assertEquals(rows(listOf(training)), rows(back))
+        for (f in fmts) {
+            val back = SessionHistory.parse(f.schema + "\n" + f.hdr.take(20) + "\n" + f.row(withCoh) + "\n")
+            assertEquals(f.schema, rows(listOf(f.expected(withCoh))), rows(back))
+        }
     }
 
     @Test fun aRowCutShortIsSkipped() {
-        val cut = SessionHistory.row(training).split(",").take(6).joinToString(",")
-        val back = SessionHistory.parse(SessionHistory.header() + cut + "\n" + SessionHistory.row(sparse) + "\n")
-        assertEquals(rows(listOf(sparse)), rows(back))
+        for (f in fmts) {
+            val cut = f.row(training).split(",").take(6).joinToString(",")
+            val back = SessionHistory.parse(f.schema + "\n" + f.hdr + "\n" + cut + "\n" + f.row(sparse) + "\n")
+            assertEquals(f.schema, rows(listOf(sparse)), rows(back))
+        }
     }
 
     @Test fun aMissingHeaderLineStillYieldsTheRowsAfterTheSchema() {
-        val back = SessionHistory.parse("# hrv-sessions v2\n" + SessionHistory.row(training) + "\n" + SessionHistory.row(sparse) + "\n")
+        for (f in fmts) {
+            val back = SessionHistory.parse(f.schema + "\n" + f.row(withCoh) + "\n" + f.row(sparse) + "\n")
+            assertEquals(f.schema, rows(listOf(f.expected(withCoh), sparse)), rows(back))
+        }
+    }
+
+    @Test fun aCutSchemaThenACutFirstRowStillTakesTheVersionFromTheFirstFullRow() {
+        val v2 = fmts[0]
+        val back = SessionHistory.parse("# hrv-sess\n1000,300000,6.0\n" + v2.row(training) + "\n" + v2.row(sparse) + "\n")   // as 2.7 read it
         assertEquals(rows(listOf(training, sparse)), rows(back))
+        val v3 = SessionHistory.parse("# hrv-sess\n1000,300000,6.0\n" + fmts[1].row(withCoh) + "\n")
+        assertEquals(0.62, v3.single().coherence!!, 1e-9)
+    }
+
+    @Test fun toV3CutsALongV2LineToFifteenCellsSoNothingIsMisreadAsCoherence() {
+        val f = fmts[0]
+        val text = f.schema + "\n" + f.hdr + "\n" + f.row(training) + ",0.5,extra\n"
+        val v3 = SessionHistory.toV3(text)!!
+        assertEquals(f.row(training) + ",", v3.lines()[2])
+        assertEquals(listOf(training), SessionHistory.parse(v3))
     }
 
     @Test fun aHeaderCutMidNameStillYieldsTheRows() {
-        val back = SessionHistory.parse("# hrv-sessions v2\nstart_ms,durat\n" + SessionHistory.row(training) + "\n")
-        assertEquals(rows(listOf(training)), rows(back))
+        for (f in fmts) {
+            val back = SessionHistory.parse(f.schema + "\nstart_ms,durat\n" + f.row(withCoh) + "\n")
+            assertEquals(f.schema, rows(listOf(f.expected(withCoh))), rows(back))
+        }
     }
 
     @Test fun aFileOfOnlyACutSchemaLineIsEmpty() {
         assertTrue(SessionHistory.parse("# hrv-sess").isEmpty())
     }
 
+    @Test fun toV3KeepsEveryLineAndOnlyVersionTwoUpgrades() {
+        val f = fmts[0]
+        val text = f.schema + "\n" + f.hdr + "\n" + f.row(training) + "\nnot,a,row\n" + f.row(sparse) + "\n"
+        val v3 = SessionHistory.toV3(text)!!
+        assertEquals(listOf(SessionHistory.SCHEMA, SessionHistory.COLUMNS.joinToString(","), f.row(training) + ",", "not,a,row", f.row(sparse) + ","), v3.lines().filter { it.isNotEmpty() })
+        assertEquals(SessionHistory.parse(text), SessionHistory.parse(v3))
+        assertEquals(null, SessionHistory.toV3(SessionHistory.write(listOf(training))))
+    }
+
     @Test fun rowsWithNonFiniteNumbersOrNegativeCountsAreSkipped() {
+        for (f in fmts) nonFinite(f)
+    }
+
+    private fun nonFinite(f: Fmt) {
         fun withCell(name: String, value: String) =
-            SessionHistory.row(search).split(",").toMutableList().also { it[SessionHistory.COLUMNS.indexOf(name)] = value }.joinToString(",")
-        val bad = listOf("rate_bpm", "mean_p", "mean_shape", "mean_hr", "rejected_pct", "rmssd", "sdnn", "rf_estimate_bpm").flatMap {
+            f.row(search).split(",").toMutableList().also { it[SessionHistory.COLUMNS.indexOf(name)] = value }.joinToString(",")
+        val names = listOf("rate_bpm", "mean_p", "mean_shape", "mean_hr", "rejected_pct", "rmssd", "sdnn", "rf_estimate_bpm") + if (f.v2) emptyList() else listOf("coherence")
+        val head = f.schema + "\n" + f.hdr + "\n"
+        val bad = names.flatMap {
             listOf(withCell(it, "NaN"), withCell(it, "Infinity"))
         } + listOf(withCell("probes", "NaN:8.1"), withCell("probes", "6.2:Infinity"), withCell("stars", "-1"), withCell("duration_ms", "-5"))
-        val back = SessionHistory.parse(SessionHistory.header() + bad.joinToString("") { it + "\n" } + SessionHistory.row(sparse) + "\n")
+        val back = SessionHistory.parse(head + bad.joinToString("") { it + "\n" } + f.row(sparse) + "\n")
         assertEquals(rows(listOf(sparse)), rows(back))
-        bad.forEach { assertTrue(it, SessionHistory.parse(SessionHistory.header() + it + "\n").isEmpty()) }
+        bad.forEach { assertTrue(it, SessionHistory.parse(head + it + "\n").isEmpty()) }
     }
 }
