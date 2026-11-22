@@ -1,6 +1,9 @@
 package com.hrvballoon
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MapPrefs : Prefs {
@@ -16,6 +19,24 @@ class SettingsTest {
         val s = Settings(MapPrefs())
         assertEquals(5.5, s.rateBpm, 1e-9)
         assertEquals(0.5, s.inhaleFraction, 1e-9)
+    }
+
+    @Test fun everyDefaultOfAFreshSettings() {
+        val s = Settings(MapPrefs())
+        assertEquals(55, s.rateTenths)
+        assertTrue(s.inhale5050)
+        assertTrue(s.vibrate)
+        assertEquals(1, s.floorBpm)
+        assertEquals(6, s.ceilingBpm)
+        assertEquals(10, s.responseTenths)
+        assertTrue(s.shapeGate)
+        assertEquals(0, s.lastRfTenths)
+        assertFalse(s.lastRfNoPeak)
+        assertFalse(s.rfSearch)
+        assertFalse(s.saveCsv)
+        assertEquals(0, s.lifetimeStars)
+        assertNull(s.deviceAddress)
+        assertNull(s.deviceName)
     }
 
     @Test fun storedChoicesOverrideTheDefaults() {

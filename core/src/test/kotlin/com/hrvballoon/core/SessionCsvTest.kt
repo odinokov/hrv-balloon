@@ -30,6 +30,21 @@ class SessionCsvTest {
         assertEquals("type,t_ms,arrival_ms,rr_ms,accepted,hr_bpm,rate_bpm,pacer_phase,p2t_bpm,phase_deg,event", l[header.size])
     }
 
+    @Test fun everyHeaderLineForOneSession() {
+        val m = SessionMeta(
+            "0.1", "AA:BB:CC:DD:EE:FF", "Garmin HRM", "2026-10-25T17:00:00+08:00", 5.5, 0.4, "5", 3.0, 20.0, rfEstimateBpm = 4.8,
+        )
+        val header = lines { writeHeader(m) }.takeWhile { it.startsWith("#") }
+        assertEquals(
+            listOf(
+                "# app_version=0.1", "# device_address=AA:BB:CC:DD:EE:FF", "# device_name=Garmin_HRM",
+                "# start=2026-10-25T17:00:00+08:00", "# rate_bpm=5.5", "# inhale_fraction=0.40", "# duration=5",
+                "# floor_bpm=3.0", "# ceiling_bpm=20.0", "# rf_estimate_bpm=4.8",
+            ),
+            header,
+        )
+    }
+
     @Test fun beatRows() {
         val l = lines {
             beat(12345.678, 12900, 1012.345, true, 59.27, 5.5, 0.12345, null, null)

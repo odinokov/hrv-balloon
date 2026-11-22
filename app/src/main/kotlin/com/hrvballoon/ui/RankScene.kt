@@ -16,7 +16,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /** Star rankings and results card: violet night sky with twinkling stars over rolling hills, 4×6 pixel font. */
-class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 11) {
+class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 11, private val zone: ZoneId? = null) {
     private val background = IntArray(w * h)
     private val frame = IntArray(w * h)
     internal val twinkles: List<IntArray>   // x, y, phase; internal for the tests
@@ -77,7 +77,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             if (i == highlight && marker) text(1, y, ">", HIGHLIGHT)
             text(8, y, compactCount(i + 1), color)
             rightText(w - 12, y, "*${r.stars}", color)
-            val at = Instant.ofEpochMilli(r.startMs).atZone(ZoneId.systemDefault())
+            val at = Instant.ofEpochMilli(r.startMs).atZone(zone ?: ZoneId.systemDefault())
             text(30, y, "${dateFmt.format(at)} ${timeFmt.format(at)}", DIM)
         }
         text(centred(t.tapRow), h - 30, t.tapRow, DIM)
@@ -135,7 +135,7 @@ class RankScene(val w: Int, val h: Int, private val t: SceneText, seed: Long = 1
             surface(4, 48, w - 4, if (stats != null) 98 else 82, SURFACE)
             val lifetime = String.format(Locale.ROOT, t.lifetime, lifetimeStars)
             text(centred(lifetime), 54, lifetime, TEXT)
-            val whenAt = fullFmt.format(Instant.ofEpochMilli(r.startMs).atZone(ZoneId.systemDefault()))
+            val whenAt = fullFmt.format(Instant.ofEpochMilli(r.startMs).atZone(zone ?: ZoneId.systemDefault()))
             text(centred(whenAt), 70, whenAt, DIM)
             stats?.let { text(centred(it), 86, it, TEXT) }
             text(centred(t.tapForRanks), h - 20, t.tapForRanks, DIM)
