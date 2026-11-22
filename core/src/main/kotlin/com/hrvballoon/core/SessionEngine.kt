@@ -32,6 +32,8 @@ class UiState(
     val rateBpm: Double, val forecast: HrForecast?,
 )
 
+const val TRACE_MS = 30_000
+
 /**
  * Deterministic session core driven by injected session-clock timestamps (ms since Start).
  * The CSV header is the caller's job; the engine writes rows and events only.
@@ -268,7 +270,6 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     }
 
     private companion object {
-        const val TRACE_MS = 30_000
         const val PROBE_BREATHS = 9   // 1 transient + 2 to refill the two-breath window + 6 scored
         const val SCORE_FROM = 3      // breaths into a probe before scoring starts
         const val MIN_SCORED = 3      // breaths of scores a probe needs to count (of six)

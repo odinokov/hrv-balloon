@@ -1,5 +1,6 @@
 package com.hrvballoon.ui
 
+import com.hrvballoon.core.TRACE_MS
 import java.util.Locale
 import java.util.Random
 import kotlin.math.PI
@@ -639,7 +640,6 @@ class PixelScene(val w: Int, val h: Int, seed: Long = 7) {
         private const val ROPE_H = 5
         private const val BASKET_H = 6
         private const val FALL_MS = 1800
-        private const val TRACE_MS = 30_000
         /** Gaussian σ for the trace line, ms: well above a beat (~1 s), well below a breath (~11 s). */
         private const val SMOOTH_MS = 600.0
         private const val JOIN_MS = 1000.0
