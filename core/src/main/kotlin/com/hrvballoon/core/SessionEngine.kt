@@ -70,6 +70,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         val update = timeline.onNotification(nowMs, packet.rr1024)
         if (update.gapMs > 0) {
             monitor.onGap(update.gapMs, nowMs)?.let { transition(it, nowMs) }
+            freshFromMs = nowMs
+            restartWindow()
         }
         for (beat in update.beats) for (c in filter.push(beat.also { it.paused = paused })) {
             val usable = record(c)
@@ -104,10 +106,15 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         paused = false
         freshFromMs = nowMs
         csv.event(nowMs.toDouble(), CsvEvent.RESUME)
+        restartWindow()
+        probeScores.clear()
+    }
+
+    /** The metric window starts over: warm-up again. */
+    private fun restartWindow() {
         estimator.reset()
         kalman.reset()
         estimate = null
-        probeScores.clear()
     }
 
     fun tick(nowMs: Long): UiState {
@@ -157,7 +164,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
      * periods 2–3 refill the window, periods 4–9 are measured (median of P × rhythm, four two-breath windows of data).
      * When the next rate does not hang on this probe's score (no fit follows it), it is scheduled during the last breath and
      * takes over as breath 9 ends; otherwise it is scheduled at the end and starts at the following inhale, a breath later.
-     * A signal loss or a return to the app discards the probe's scores and withdraws an early change. Once converged the
+     * A signal loss or a return to the app discards the probe's scores and withdraws an early change (a confirmed 1.5–3 s
+     * loss restarts the warm-up but keeps the scores). Once converged the
      * pacer moves to the best rate and the search stops; it also stops when the next probe could not end [FINAL_MS] before
      * the session does; without a peak it then ends near its start.
      */
@@ -244,9 +252,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         } else {
             csv.event(nowMs.toDouble(), CsvEvent.SIGNAL_BACK)
         }
-        estimator.reset()
-        kalman.reset()
-        estimate = null
+        restartWindow()
         summary.breakChain()
         probeScores.clear()
     }

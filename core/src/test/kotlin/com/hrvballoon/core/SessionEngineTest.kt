@@ -196,6 +196,37 @@ class SessionEngineTest {
         assertEquals(0.0, s.rmssd!!, 1e-9)   // every successive difference lies inside a constant stretch; the 100 ms step spans the gap
     }
 
+    /** One-beat packets of [units]/1024 s each, a tick after every one; the state after the packet at each arrival. */
+    private fun statesAfter(arrivals: List<Pair<Long, Int>>): Map<Long, UiState> {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        return arrivals.associate { (t, units) -> engine.onPacket(t, HrsPacket(60, Contact.DETECTED, intArrayOf(units))); t to engine.tick(t) }
+    }
+
+    @Test fun aConfirmedLossOfOneToThreeSecondsRestartsTheWarmup() {
+        // beats of 1000 ms to 30 s, two lost (re-anchored by 2 s: a loss, not LOST), then beats of 1100 ms; the loss is decided at 34.1 s
+        val st = statesAfter((1..30).map { 1000L * it to 1024 } + (0 until 30).map { 33_000L + 1100 * it to 1126 })
+        assertFalse(st.getValue(30_000).warmingUp)
+        assertEquals(Signal.OK, st.getValue(34_100).signal)
+        assertTrue(st.getValue(34_100).warmingUp)
+        assertEquals((120_000 / 5.5).toLong(), st.getValue(34_100).warmupRemainingMs)
+        assertFalse(st.getValue(34_100).traceT.any { it == 29_500.0 })   // beat 30, classified at the deciding packet, arrived before the loss
+        assertNull(st.getValue(34_100).forecast)                      // the Kalman filter starts over too
+    }
+
+    @Test fun aConfirmedShortLossMidProbeKeepsTheProbe() {
+        // Probe 1 at 5.5 /min is scored from 32.7 s to 98.2 s; a 2 s loss at 70 s restarts the warm-up (scoring resumes near 94 s) but not the scores
+        val r = run(clean, durationMs = 900_000, stopAtMs = 110_000, rfSearch = true, suppress = { it in 70_000L..71_900L })
+        assertTrue(r.states.all { it.signal == Signal.OK })
+        assertTrue(r.at(80_000).warmingUp)
+        assertEquals(2, r.at(100_000).rfProbe!!.index)
+    }
+
+    @Test fun aDelayKeepsTheWarmup() {
+        // 50 s of beats, then four queued behind a 2 s stall (true times kept, no loss), then on time
+        val st = statesAfter((1..50).map { 1000L * it + 500 to 1024 } + listOf(53_500L, 53_700L, 54_300L, 54_500L, 55_500L, 56_500L).map { it to 1024 })
+        assertTrue(st.filterKeys { it >= 50_500 }.values.none { it.warmingUp })
+    }
+
     @Test fun beatsArrivedWhilePausedAndClassifiedAfterResumeStayOutOfTheMetricPath() {
         val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
         fun hr(i: Int) = 60000 / (((1000 + i) * 1024 / 1000.0).roundToInt() * 1000.0 / 1024)
