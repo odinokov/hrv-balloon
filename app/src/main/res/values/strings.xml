@@ -88,6 +88,12 @@
     <string name="a11y_not_ranked">not ranked</string>
     <string name="a11y_trend">Coherence, last %1$d days: median %2$s on %3$d of %1$d days%4$s.</string>
     <string name="a11y_trend_prev">; previous %1$d days %2$s</string>
+    <string name="a11y_action_trend">Show trend</string>
+    <string name="a11y_action_best">Show best sessions</string>
+    <string name="a11y_action_7d">Last 7 days</string>
+    <string name="a11y_action_14d">Last 14 days</string>
+    <string name="a11y_action_30d">Last 30 days</string>
+    <string name="a11y_action_1y">Last year</string>
     <string name="a11y_trend_none">Coherence, last %1$d days: no sessions yet.</string>
 
     <!-- Drawn in the pixel font (HUD, ranks, results card): uppercase A-Z, digits, space and # . - % : > / + * ^ only.

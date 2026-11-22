@@ -7,6 +7,8 @@ import android.os.SystemClock
 import android.provider.Settings as SysSettings
 import android.view.Choreographer
 import android.view.MotionEvent
+import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.Trend
 import com.hrvballoon.core.TrendPeriod
@@ -67,6 +69,21 @@ class RankActivity : Activity() {
         }
         // After the assignment: show() reads `view`, which is still unset inside the apply block above.
         if (intent.getBooleanExtra(EXTRA_RESULT, false) && mine != null) show(mine, pos) else describe()
+        view.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                if (view.result == null) for ((id, label) in RankActions.available(view.tab)) info.addAction(AccessibilityNodeInfo.AccessibilityAction(id, getString(label)))
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                val next = if (view.result == null) RankActions.perform(action, view.tab, settings.trendPeriod) else null
+                if (next == null) return super.performAccessibilityAction(host, action, args)
+                settings.trendPeriod = next.second
+                showTab(next.first)
+                view.announceForAccessibility(view.contentDescription)
+                return true
+            }
+        }
         val root = android.widget.FrameLayout(this).apply { addView(view) }   // padded for the system bars; the view keeps its own coordinates
         setContentView(root)
         edgeToEdge(root)
