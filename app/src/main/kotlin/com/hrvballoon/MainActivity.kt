@@ -38,6 +38,7 @@ import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import com.hrvballoon.ble.HrmClient
 import com.hrvballoon.core.Bounce
+import com.hrvballoon.core.HEIGHT_CM
 import com.hrvballoon.core.HrsPacket
 import com.hrvballoon.core.LostReason
 import com.hrvballoon.core.RfEstimate
@@ -51,6 +52,7 @@ import com.hrvballoon.core.SessionRecord
 import com.hrvballoon.core.SessionStatus
 import com.hrvballoon.core.Sex
 import com.hrvballoon.core.Signal
+import com.hrvballoon.core.SignalMonitor
 import com.hrvballoon.core.Smoother
 import com.hrvballoon.core.StarCounter
 import com.hrvballoon.core.Summary
@@ -304,14 +306,14 @@ class MainActivity : Activity(), HrmClient.Listener {
     }
 
     private fun freshHr(now: Long = SystemClock.elapsedRealtime()): Int? = latestHr?.takeIf {
-        link == Link.CONNECTED && lastHrAt >= connectedAt && now - lastHrAt in 0..4000
+        link == Link.CONNECTED && lastHrAt >= connectedAt && now - lastHrAt in 0..SignalMonitor.STALE_MS
     }
 
     /** Connection guidance until ready; then session status, heart rate and breathing pace. */
     private fun renderStatus() {
         val now = SystemClock.elapsedRealtime()
         val connected = link == Link.CONNECTED
-        val rrFresh = connected && lastRrAt >= connectedAt && now - lastRrAt in 0..4000
+        val rrFresh = connected && lastRrAt >= connectedAt && now - lastRrAt in 0..SignalMonitor.STALE_MS
         val neverRr = connected && lastRrAt < connectedAt && now - connectedAt >= 10_000
         val dot = when {
             rrFresh -> PixelScene.DOT_GREEN
@@ -558,7 +560,7 @@ class MainActivity : Activity(), HrmClient.Listener {
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val cm = height.text.toString().replace(',', '.').toDoubleOrNull()
             val chosen = sex
-            if (cm == null || cm !in 130.0..210.0 || chosen == null) {
+            if (cm == null || cm !in HEIGHT_CM || chosen == null) {
                 Toast.makeText(this, R.string.rf_estimate_invalid, Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }

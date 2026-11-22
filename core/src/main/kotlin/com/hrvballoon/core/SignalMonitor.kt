@@ -69,7 +69,7 @@ class SignalMonitor(startMs: Long) {
         return next
     }
 
-    internal companion object {
+    companion object {
         const val STALE_MS = 4000L
         const val GAP_MS = 3000.0
         const val MAX_REJECTS = 5
