@@ -75,7 +75,7 @@ class RfSearchTest {
 
     @Test fun concludingWithoutAPeakAnswersTheStartAndOtherwiseNothing() {
         val flat = RfSearch(6.0, startSd = RfSearch.START_SD_ESTIMATE)
-        for (r in listOf(6.0, 6.5, 5.5, 5.5, 6.5)) flat.report(r, if (r == 6.0) 7.0 else 7.0)
+        for (r in listOf(6.0, 6.5, 5.5, 5.5, 6.5)) flat.report(r, 7.0)
         assertEquals(6.0, flat.conclude()!!, 1e-9)
         assertTrue(flat.finished)
         val few = RfSearch(6.0)
@@ -89,6 +89,7 @@ class RfSearchTest {
         val s = RfSearch(5.5, startSd = RfSearch.START_SD_ESTIMATE)
         for ((r, sc) in listOf(5.5 to 4.0, 6.0 to 9.0, 5.0 to 1.0, 6.0 to 9.5, 6.5 to 9.0)) s.report(r, sc)
         assertFalse(s.noPeak)
-        if (!s.converged) assertNull(s.conclude())
+        assertFalse(s.converged)
+        assertNull(s.conclude())
     }
 }

@@ -230,8 +230,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
 
     /**
      * Beats flushed at loss were classified before it and stay usable for the summary; beats that arrive
-     * while LOST (e.g. no skin contact but RR still flowing) reach the CSV only. The metric window is
-     * cleared on both edges so recovery always warms up again.
+     * while LOST (e.g. no skin contact but RR still flowing) reach the CSV and count as rejected in the summary. The metric
+     * window is cleared on both edges so recovery always warms up again.
      */
     private fun transition(signal: Signal, nowMs: Long) {
         if (signal == Signal.LOST) {

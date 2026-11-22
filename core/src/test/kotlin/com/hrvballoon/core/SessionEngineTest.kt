@@ -2,6 +2,7 @@ package com.hrvballoon.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,12 +25,12 @@ class SessionEngineTest {
         s: SynthBeats, rate: Double = 5.5, durationMs: Long? = 300_000, stopAtMs: Long = Long.MAX_VALUE,
         suppress: (Long) -> Boolean = { false }, link: Map<Long, Boolean> = emptyMap(),
         contact: (Long) -> Contact = { Contact.DETECTED }, shapeGate: Boolean = true, rfSearch: Boolean = false,
-        lagMs: Long = 500, pause: LongRange? = null,
+        lagMs: Long = 500, pause: LongRange? = null, floor: Double = 0.0, ceiling: Double = 15.0,
     ): Run {
         val out = ByteArrayOutputStream()
         val csv = SessionCsvWriter(out)
         csv.writeHeader(SessionMeta("0.1", "AA:BB", "strap", "2026-10-25T17:00:00+08:00", rate, 0.4, "5", 0.0, 15.0))
-        val engine = SessionEngine(SessionConfig(rate, 0.4, durationMs, 0.0, 15.0, shapeGate, rfSearch), csv)
+        val engine = SessionEngine(SessionConfig(rate, 0.4, durationMs, floor, ceiling, shapeGate, rfSearch), csv)
         val beats = s.beats(lagMs).filter { !suppress(it.arrivalMs) }
         var bi = 0
         val states = ArrayList<UiState>()
@@ -71,6 +72,12 @@ class SessionEngineTest {
         assertTrue(r.summary.meanP!! in 8.8..10.2)
     }
 
+    @Test fun theBalloonTargetUsesTheConfiguredFloorAndCeiling() {
+        val s = run(clean, shapeGate = false, floor = 3.0, ceiling = 12.0).at(120_000)
+        assertEquals(balloonTarget(s.p2tBpm, 3.0, 12.0), s.balloonTarget, 1e-9)
+        assertTrue(balloonTarget(s.p2tBpm, 0.0, 15.0) != s.balloonTarget)
+    }
+
     @Test fun traceHoldsTheLastThirtySecondsOfAcceptedBeats() {
         val r = run(clean)
         val s = r.at(120_000)
@@ -97,10 +104,10 @@ class SessionEngineTest {
 
     @Test fun warmupCountdownAndValidTime() {
         val r = run(clean)
-        assertTrue(r.at(5_000).warmupRemainingMs in 15_000..22_000)
+        assertEquals((2 * 60_000 / 5.5).toLong(), r.at(5_000).warmupRemainingMs)   // exact: spanMs is 0 at 5 s (filter lag and the first beat's 500 ms arrival lag)
         assertTrue(r.at(15_000).warmupRemainingMs < r.at(5_000).warmupRemainingMs)
         assertEquals(0L, r.at(40_000).warmupRemainingMs)
-        assertTrue("valid=${r.summary.validMs}", r.summary.validMs in 265_000..285_000)
+        assertTrue("valid=${r.summary.validMs}", r.summary.validMs in 265_000..278_200)
         assertEquals(0L, run(clean, stopAtMs = 3000, suppress = { true }).summary.validMs)
     }
 
@@ -116,6 +123,7 @@ class SessionEngineTest {
         assertTrue("probes=${r.summary.rfProbes.size}", r.summary.rfProbes.size >= 5)
         assertTrue(r.summary.rfProbes.all { it.first in 4.0..7.0 && it.second >= 0 })
         assertEquals(r.summary.rfConverged, probes.last().converged)
+        assertNotNull(r.states.first().rfProbe)
         assertTrue(r.states.any { it.rfProbe?.settlingMs?.let { ms -> ms > 0 } == true })
         val rows = r.rows().filter { it.startsWith("beat,") }.map { it.split(",") }
         var prev = rows.first()[6]
@@ -125,7 +133,6 @@ class SessionEngineTest {
                 prev = row[6]
             }
         }
-        assertTrue(r.states.none { it.rfProbe == null } || r.states.first().rfProbe != null)
     }
 
     @Test fun pausedTimeIsExcludedFromTheStats() {
@@ -215,6 +222,31 @@ class SessionEngineTest {
         assertFalse(r.at(back.tMs + 30_000).warmingUp)
         val rows = r.rows()
         assertTrue(rows.any { it.endsWith(",signal_lost") } && rows.any { it.endsWith(",signal_back") })
+    }
+
+    @Test fun beatsWhileLostCountAsRejectedAndTheBeatEndingTheLossIsBookedLost() {
+        val r = run(clean, contact = { if (it in 100_000L until 140_000L) Contact.NOT_DETECTED else Contact.DETECTED })
+        val rows = r.rows()
+        val lost = rows.indexOfFirst { it.endsWith(",signal_lost") }
+        val back = rows.indexOfFirst { it.endsWith(",signal_back") }
+        assertTrue(lost >= 0 && back > lost)
+        val booked = rows.subList(lost, back).count { it.startsWith("beat,") }   // classified while LOST, the beat that ends the loss last; 40 s at 60 bpm is about 40 beats, less the two the filter holds
+        assertTrue("booked=$booked", booked >= 35 && rows[back - 1].startsWith("beat,"))
+        assertTrue(rows.filter { it.startsWith("beat,") }.all { it.split(",")[4] == "1" })   // the filter accepted every one: only the signal rejects
+        assertEquals(rows.count { it.startsWith("beat,") }, r.summary.beats)
+        assertEquals(100.0 * booked / r.summary.beats, r.summary.rejectedPct!!, 1e-9)
+    }
+
+    @Test fun theBeatThatEndsAStaleLossIsBookedRejected() {
+        val r = run(clean, suppress = { it in 100_000L until 110_000L })
+        val rows = r.rows()
+        val lost = rows.indexOfFirst { it.endsWith(",signal_lost") }
+        val back = rows.indexOfFirst { it.endsWith(",signal_back") }
+        assertTrue(lost >= 0 && back > lost)
+        val booked = rows.subList(lost, back).count { it.startsWith("beat,") }   // no beat arrived during the loss: the only one is the beat that ends it
+        assertEquals(1, booked)
+        assertTrue(rows[back - 1].startsWith("beat,"))
+        assertEquals(100.0 * booked / r.summary.beats, r.summary.rejectedPct!!, 1e-9)
     }
 
     @Test fun zeroRrNeverWritesInfinity() {

@@ -2,7 +2,6 @@ package com.hrvballoon.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.Random
@@ -88,6 +87,5 @@ class SummaryAccumulatorTest {
         assertEquals(sdnn, s.sdnn!!, 1e-9)
         assertEquals(60000 / mean, s.meanHr!!, 1e-9)
         assertEquals(100.0 * ok.count { !it } / ok.size, s.rejectedPct!!, 1e-9)
-        assertNotNull(s.sdnn)
     }
 }
