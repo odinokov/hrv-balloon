@@ -158,6 +158,76 @@ class SessionEngineTest {
         assertTrue(out.toString("UTF-8").lines().count { it.startsWith("beat,") } > 190)   // but reach the CSV
     }
 
+    /** Beats of RR 1000 + i ms (distinct, all accepted) arrive 1 s apart; the engine is paused/resumed between arrivals. */
+    private fun markedRun(pauseAt: Long, resumeAt: Long?, stopAt: Long): Pair<Summary, Double> {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        val booked = ArrayList<Double>()
+        for (i in 0 until (stopAt / 1000).toInt()) {
+            val t = 1000L * (i + 1)
+            if (pauseAt in t - 999 until t) engine.pause(pauseAt)
+            if (resumeAt != null && resumeAt in t - 999 until t) engine.resume(resumeAt)
+            val rr1024 = ((1000 + i) * 1024 / 1000.0).roundToInt()
+            engine.onPacket(t, HrsPacket(60, Contact.DETECTED, intArrayOf(rr1024)))
+            engine.tick(t)
+            if (t < pauseAt || (resumeAt != null && t > resumeAt)) booked += rr1024 * 1000.0 / 1024
+        }
+        return engine.stop(stopAt) to 60000 / booked.average()
+    }
+
+    @Test fun beatsAreBookedByTheirStateAtArrivalAtThePauseEdge() {
+        val (s, meanHr) = markedRun(pauseAt = 20_500, resumeAt = null, stopAt = 30_000)   // beats 0..19 arrived before the pause; 20..29 during
+        assertEquals(20, s.beats)
+        assertEquals(meanHr, s.meanHr!!, 1e-9)
+    }
+
+    @Test fun beatsAreBookedByTheirStateAtArrivalAtTheResumeEdge() {
+        val (s, meanHr) = markedRun(pauseAt = 20_500, resumeAt = 40_500, stopAt = 50_000)   // 20..39 arrived paused, 40..49 after resume
+        assertEquals(30, s.beats)
+        assertEquals(meanHr, s.meanHr!!, 1e-9)
+    }
+
+    @Test fun aGapBetweenOneAndThreeSecondsBreaksTheRmssdChain() {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        // 30 beats of 1000 ms, two beats lost (arrival 3 s apart, re-anchored by 1.9 s: a gap, not LOST), then 30 beats of 1100 ms
+        val arrivals = (1..30).map { 1000L * it to 1000.0 } + (0 until 30).map { 33_000L + 1100L * it to 1100.0 }
+        for ((t, rr) in arrivals) { engine.onPacket(t, packet(rr)); engine.tick(t) }
+        val s = engine.stop(arrivals.last().first)
+        assertEquals(60, s.beats)
+        assertEquals(0.0, s.rmssd!!, 1e-9)   // every successive difference lies inside a constant stretch; the 100 ms step spans the gap
+    }
+
+    @Test fun beatsArrivedWhilePausedAndClassifiedAfterResumeStayOutOfTheMetricPath() {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        fun hr(i: Int) = 60000 / (((1000 + i) * 1024 / 1000.0).roundToInt() * 1000.0 / 1024)
+        var st: UiState? = null
+        for (i in 0 until 26) {   // beats 20 and 21 arrive paused (21 s, 22 s); 20 is classified at 23 s, 21 at 24 s, after the resume at 22.5 s
+            val t = 1000L * (i + 1)
+            if (t == 21_000L) engine.pause(20_500)
+            if (t == 23_000L) engine.resume(22_500)
+            engine.onPacket(t, HrsPacket(60, Contact.DETECTED, intArrayOf(((1000 + i) * 1024 / 1000.0).roundToInt())))
+            st = engine.tick(t)
+        }
+        val trace = st!!.traceHr.toList()   // the trace holds exactly the beats that fed the estimator and the Kalman filter
+        assertTrue(trace.any { Math.abs(it - hr(19)) < 1e-9 } && trace.any { Math.abs(it - hr(22)) < 1e-9 })
+        assertTrue(trace.none { Math.abs(it - hr(20)) < 1e-9 || Math.abs(it - hr(21)) < 1e-9 })
+    }
+
+    @Test fun aPausedBeatBreaksTheRmssdChainEvenWhenItIsTheOnlyOne() {
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(ByteArrayOutputStream()))
+        fun ms(i: Int) = ((1000 + i) * 1024 / 1000.0).roundToInt() * 1000.0 / 1024
+        for (i in 0 until 40) {   // only beat 21 arrives paused (22 s); beat 20 is classified after the resume, beat 22 books next
+            val t = 1000L * (i + 1)
+            if (t == 22_000L) engine.pause(21_500)
+            if (t == 23_000L) engine.resume(22_500)
+            engine.onPacket(t, HrsPacket(60, Contact.DETECTED, intArrayOf(((1000 + i) * 1024 / 1000.0).roundToInt())))
+            engine.tick(t)
+        }
+        val s = engine.stop(41_000)
+        // successive differences only inside 0..19 and 22..39: the resume breaks 19|20, the paused beat 21 breaks 20|22
+        val d = (0 until 19).map { ms(it + 1) - ms(it) } + (22 until 39).map { ms(it + 1) - ms(it) }
+        assertEquals(Math.sqrt(d.sumOf { it * it } / d.size), s.rmssd!!, 1e-9)
+    }
+
     @Test fun csvIntegrity() {
         val r = run(clean)
         val rows = r.rows()

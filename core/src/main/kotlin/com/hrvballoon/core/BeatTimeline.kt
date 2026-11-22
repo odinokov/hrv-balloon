@@ -1,7 +1,11 @@
 package com.hrvballoon.core
 
-/** One heartbeat on the session clock: [tEndMs] is when the RR interval ended, [arrivalMs] when its notification arrived. */
-class Beat(val tEndMs: Double, val rrMs: Double, val arrivalMs: Long)
+/**
+ * One heartbeat on the session clock: [tEndMs] is when the RR interval ended, [arrivalMs] when its notification arrived.
+ * [paused] and [afterGap] are set by the engine at arrival: the filter classifies a beat two beats later, when the app
+ * may have changed side or the gap is already behind the beats it holds.
+ */
+class Beat(val tEndMs: Double, val rrMs: Double, val arrivalMs: Long, var paused: Boolean = false, var afterGap: Boolean = false)
 
 /** [gapMs] > 0 means notifications were lost before this one and the clock was re-anchored. */
 class TimelineUpdate(val beats: List<Beat>, val gapMs: Double)

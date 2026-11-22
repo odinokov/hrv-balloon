@@ -67,8 +67,11 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         hr = packet.hrBpm
         monitor.onNotification(nowMs, packet.contact, packet.rr1024.isNotEmpty())?.let { transition(it, nowMs) }
         val update = timeline.onNotification(nowMs, packet.rr1024)
-        if (update.gapMs > 0) monitor.onGap(update.gapMs, nowMs)?.let { transition(it, nowMs) }
-        for (beat in update.beats) for (c in filter.push(beat)) {
+        if (update.gapMs > 0) {
+            update.beats.firstOrNull()?.afterGap = true   // a 1.5-3 s gap re-anchors the timeline without LOST; record() breaks the RMSSD chain at this beat
+            monitor.onGap(update.gapMs, nowMs)?.let { transition(it, nowMs) }
+        }
+        for (beat in update.beats) for (c in filter.push(beat.also { it.paused = paused })) {
             val usable = record(c)
             if (usable) {
                 val tMid = c.beat.tEndMs - c.beat.rrMs / 2
@@ -252,9 +255,10 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private fun record(c: ClassifiedBeat, usable: Boolean = c.accepted && monitor.state == Signal.OK): Boolean {
         val b = c.beat
         val hrBpm = if (b.rrMs > 0) 60000 / b.rrMs else null
-        if (!paused) summary.addBeat(b.rrMs, usable)
+        if (b.paused || b.afterGap) summary.breakChain()   // a skipped paused beat breaks the chain
+        if (!b.paused) summary.addBeat(b.rrMs, usable)   // by the state at arrival, not at classification
         csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg)
-        return usable
+        return usable && !b.paused
     }
 
     private companion object {
