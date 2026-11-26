@@ -45,6 +45,7 @@ class AppResourcesTest {
         assertTrue(steady in 0 until warm && warm < lift)
         assertTrue("about 6 lower" in help)
         assertTrue("after the warm-up" in help)
+        assertTrue("2 min with a live estimate" in help)
         assertTrue("20-min" in help)
     }
 
