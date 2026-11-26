@@ -33,6 +33,48 @@ class SummaryAccumulatorTest {
         assertEquals(100.0, b.result(1).rmssd!!, 1e-9)
     }
 
+    // Spec 9.4.1: warm-up RR 500 ms, game RR 1000 ms -> mean HR 60, RMSSD 0, SDNN 0, beats include warm-up.
+    @Test fun warmupBeatsStayOutOfTheMetrics() {
+        val a = SummaryAccumulator()
+        repeat(3) { a.addBeat(500.0, true, game = false) }
+        repeat(3) { a.addBeat(1000.0, true, game = true) }
+        val s = a.result(1)
+        assertEquals(60.0, s.meanHr!!, 1e-9)
+        assertEquals(0.0, s.rmssd!!, 1e-9)
+        assertEquals(0.0, s.sdnn!!, 1e-9)
+        assertEquals(6, s.beats)
+    }
+
+    // Spec 6: the difference between the last warm-up RR and the first game RR is not counted.
+    @Test fun firstGameRrStartsTheChain() {
+        val a = SummaryAccumulator()
+        a.addBeat(500.0, true, game = false)
+        a.addBeat(1000.0, true, game = true)
+        assertNull(a.result(1).rmssd)
+        a.addBeat(1100.0, true, game = true)
+        assertEquals(100.0, a.result(1).rmssd!!, 1e-9)
+    }
+
+    // Spec 6: a non-game beat between game beats breaks the chain; the difference across it is not counted.
+    @Test fun nonGameBeatBetweenGameBeatsBreaksTheChain() {
+        val a = SummaryAccumulator()
+        a.addBeat(1000.0, true); a.addBeat(1100.0, true)
+        a.addBeat(500.0, true, game = false)
+        a.addBeat(1300.0, true); a.addBeat(1400.0, true)
+        assertEquals(100.0, a.result(1).rmssd!!, 1e-9)
+    }
+
+    // Spec 9.6.3: no game beat -> null metrics; counts stay whole-record.
+    @Test fun noGameBeatGivesNullMetrics() {
+        val a = SummaryAccumulator()
+        a.addBeat(800.0, true, game = false)
+        a.addBeat(800.0, false, game = false)
+        val s = a.result(1)
+        assertNull(s.meanHr); assertNull(s.rmssd); assertNull(s.sdnn)
+        assertEquals(2, s.beats)
+        assertEquals(50.0, s.rejectedPct!!, 1e-9)
+    }
+
     @Test fun rejectedPct() {
         val a = acc(1000.0, 1000.0, 1000.0, 1000.0)
         a.addBeat(100.0, false)

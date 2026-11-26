@@ -19,8 +19,9 @@ class Summary(
 )
 
 /**
- * Streaming, O(1) memory. RMSSD uses only differences between two consecutive accepted beats:
- * a rejected beat or [breakChain] (signal loss) breaks the chain. SDNN is the sample SD (n−1) over accepted RR.
+ * Streaming, O(1) memory. Beat count and rejected share are whole-record; mean HR, SDNN and RMSSD use accepted game beats only.
+ * RMSSD uses only differences between two consecutive accepted game beats: a rejected beat, a non-game beat or
+ * [breakChain] (signal loss) breaks the chain. SDNN is the sample SD (n−1) over accepted game RR.
  */
 class SummaryAccumulator {
     private var beats = 0
@@ -43,10 +44,11 @@ class SummaryAccumulator {
     var rfProbes: List<Pair<Double, Double>> = emptyList()
     var coherence: Double? = null
 
-    fun addBeat(rrMs: Double, accepted: Boolean) {
+    /** Counts are whole-record; mean HR, SDNN and RMSSD take only accepted game beats (spec 2.10 section 6). */
+    fun addBeat(rrMs: Double, accepted: Boolean, game: Boolean = true) {
         beats++
-        if (!accepted) {
-            rejected++
+        if (!accepted) rejected++
+        if (!accepted || !game) {
             prevNn = null
             return
         }
