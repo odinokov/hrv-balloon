@@ -39,7 +39,10 @@ class SessionEngineCoherenceTest {
         return Out(sum, snap, buf.toString("UTF-8").lines())
     }
 
-    /** The pure function on the beats the engine should have fed: [keep] by beat index and end time, a new segment where [seg] changes. */
+    /**
+     * The pure function on the beats the engine should have fed: [keep] by beat index and end time, a new segment where [seg] changes.
+     * T = the first beat's end + 60 s: the engine's t0 is the end of its first usable RR, here beat 0 (spec 2, 5.1).
+     */
     private fun reference(s: SynthBeats, rate: (Double) -> Double = { 5.5 }, seg: (Double) -> Int = { 0 }, keep: (Int, Double) -> Boolean = { _, _ -> true }): Double? {
         var last = Double.NEGATIVE_INFINITY
         var extra = 0
@@ -50,7 +53,7 @@ class SessionEngineCoherenceTest {
             last = b.tEndMs
             fed += CsBeat(b.tEndMs, 60000 / b.rrMs, rate(b.tEndMs), seg(b.tEndMs) + extra)
         }
-        return sessionCoherence(fed)
+        return sessionCoherence(fed, s.beats()[0].tEndMs + WARMUP_MS)
     }
 
     private val sine = synthBeats(60.0, 10.0, 5.5, 630.0)
@@ -104,22 +107,44 @@ class SessionEngineCoherenceTest {
         assertEquals(ref!!, out.summary.coherence!!, 0.3)
     }
 
-    /** 175 s: about 17 windows whole, under 10 when split near the middle, so a split turns the value into null. */
-    private val short = synthBeats(60.0, 10.0, 5.5, 175.0)
+    /**
+     * 210 s: T is at about 61 s, so about 149 s of game RR, 18 windows whole (the first completes 64 s after T, then every 5 s);
+     * split near the middle (pause at 135 s) 2 + 3, under 10: a split turns the value into null. (The 2.9 clip of 175 s sat at the
+     * new minimum for a median, about 2:53 after t0: spec 9.7.3.)
+     */
+    private val short = synthBeats(60.0, 10.0, 5.5, 210.0)
 
     @Test fun aPauseOfAboutASecondStillSplitsTheSegments() {
-        assertNotNull(run(short, durationMs = 175_000).summary.coherence)
-        val out = run(short, durationMs = 175_000, pause = 100_000L..101_000L)
+        assertNotNull(run(short, durationMs = 210_000).summary.coherence)
+        val out = run(short, durationMs = 210_000, pause = 135_000L..136_000L)
         assertTrue(out.csv.none { it.endsWith(",signal_lost") })
         assertNull(out.summary.coherence)
     }
 
     @Test fun twoLongBeatsLeaveAGapOverThreeSecondsThatSplitsTheSegments() {
         val rr = short.rrMs.copyOf()
-        rr[100] = 2100.0; rr[101] = 2100.0
-        val out = run(SynthBeats(short.t0Ms, rr), durationMs = 180_000)
+        rr[135] = 2100.0; rr[136] = 2100.0   // about 135 s: the same middle of the game data
+        val out = run(SynthBeats(short.t0Ms, rr), durationMs = 215_000)
         assertTrue(out.csv.none { it.endsWith(",signal_lost") })
         assertNull(out.summary.coherence)
+    }
+
+    @Test fun theBeatsBeforeTDoNotChangeTheScore() {   // 9.3.2: same t0, same game RR and rate, different pre-T RR with the same sum
+        val rr = sine.rrMs.copyOf()
+        for (i in 10..40 step 2) { val x = rr[i]; rr[i] = rr[i + 1]; rr[i + 1] = x }
+        val swapped = SynthBeats(sine.t0Ms, rr)
+        assertTrue(abs(sine.rrMs[10] - sine.rrMs[11]) > 1.0)
+        assertEquals(reference(sine)!!, reference(swapped)!!, 1e-9)
+        assertEquals(run(sine).summary.coherence!!, run(swapped).summary.coherence!!, 1e-9)
+    }
+
+    @Test fun nineWindowsGiveNoScoreAndTenGiveOneInTheEngineToo() {   // 9.3.1 with 9.3.4: engine and pure function agree on the window count
+        fun clip(n: Int) = SynthBeats(sine.t0Ms, sine.rrMs.copyOf(n))
+        val n10 = (130..260).first { reference(clip(it)) != null }
+        assertNull(reference(clip(n10 - 1)))
+        // the filter holds the last two beats back: with n + 2 beats delivered the engine has fed exactly the first n
+        assertNotNull(run(clip(n10 + 2), durationMs = 260_000).summary.coherence)
+        assertNull(run(clip(n10 + 1), durationMs = 260_000).summary.coherence)
     }
 
     @Test fun aSnapshotMidSessionCarriesAValueAndChangesNothing() {

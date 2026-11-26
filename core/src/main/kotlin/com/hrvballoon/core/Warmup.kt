@@ -11,12 +11,17 @@ class WarmupClock {
     var t0Ms: Double? = null
         private set
     private var ended = false
+    private var eventMs = Double.NEGATIVE_INFINITY // latest pause, loss or confirmed gap, whether or not it reset the clock
 
     val boundaryMs: Double? get() = t0Ms?.plus(WARMUP_MS)
 
-    /** True when this call set t0 (the caller writes warmup_start). */
-    fun onUsable(tEndMs: Double): Boolean {
-        if (t0Ms != null) return false
+    /**
+     * True when this call set t0 (the caller writes warmup_start). A beat that arrived before the latest event was classified
+     * late by the filter and must not set t0: the guard compares [arrivalMs], not tEndMs, which can precede the arrival
+     * by the delivery latency.
+     */
+    fun onUsable(tEndMs: Double, arrivalMs: Double): Boolean {
+        if (t0Ms != null || arrivalMs < eventMs) return false
         t0Ms = maxOf(0.0, tEndMs)
         return true
     }
@@ -26,6 +31,7 @@ class WarmupClock {
     /** Pause, signal loss or confirmed gap at nowMs. True when it reset the clock.
      *  For a confirmed gap nowMs is the confirmation moment, not the gap start (spec 2, 3.3 item 4). */
     fun onBreak(nowMs: Double): Boolean {
+        eventMs = nowMs
         val t = boundaryMs ?: return false
         if (nowMs >= t) return false
         t0Ms = null

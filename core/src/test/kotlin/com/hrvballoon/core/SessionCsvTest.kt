@@ -58,6 +58,15 @@ class SessionCsvTest {
 
     @Test fun starRow() = assertEquals("event,61250.0,,,,,,,,,star", lines { event(61250.0, CsvEvent.STAR) }[0])
 
+    // spec 8.2: warmup_start (t0), warmup_end (T) and gap (the event moment); 11 fields still, the type is [0], t_ms [1], event [10]
+    @Test fun warmupAndGapEventRows() {
+        val rows = lines { event(44700.0, CsvEvent.WARMUP_START); event(104700.0, CsvEvent.WARMUP_END); event(43000.0, CsvEvent.GAP) }.map { it.split(",") }
+        assertEquals(listOf("warmup_start", "warmup_end", "gap"), rows.map { it[10] })
+        assertEquals(listOf("event", "event", "event"), rows.map { it[0] })
+        assertEquals(listOf("44700.0", "104700.0", "43000.0"), rows.map { it[1] })
+        assertTrue(rows.all { it.size == 11 })
+    }
+
     @Test fun localeIndependent() {
         val a = ByteArrayOutputStream().also { SessionCsvWriter(it).beat(12345.678, 12900, 1012.345, true, 59.27, 5.5, 0.12345, 12.3456, -17.04) }
         val saved = Locale.getDefault()

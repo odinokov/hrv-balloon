@@ -8,7 +8,7 @@ import java.util.Locale
 
 enum class CsvEvent(val csv: String) {
     DISCONNECT("disconnect"), RECONNECT("reconnect"), SIGNAL_LOST("signal_lost"), SIGNAL_BACK("signal_back"), STAR("star"),
-    PAUSE("pause"), RESUME("resume")
+    PAUSE("pause"), RESUME("resume"), WARMUP_START("warmup_start"), WARMUP_END("warmup_end"), GAP("gap")
 }
 
 class SessionMeta(

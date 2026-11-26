@@ -1,5 +1,7 @@
 package com.hrvballoon.core
 
+import kotlin.math.ceil
+
 /** [durationMs] null = open-ended session. */
 class SessionConfig(
     val rateBpm: Double, val inhaleFraction: Double, val durationMs: Long?, val floorBpm: Double, val ceilingBpm: Double,
@@ -23,13 +25,14 @@ class RfProbe(val rateBpm: Double, val index: Int, val bestBpm: Double?, val con
  * The balloon target holds its last value through loss and warm-up — a sensor gap must not read as a failure.
  * [rateBpm] is the pacer's current rate. [forecast] projects HR ahead for the trace panel (display only); null unless the
  * signal is good and a full breath has been seen since the last reset.
+ * [boundaryRemainingMs] is the time to the warm-up boundary T (spec 3.5): 60 000 while t0 is unknown, rounded up, 0 from T on.
  */
 class UiState(
     val tMs: Long, val signal: Signal, val lostReason: LostReason?, val hrBpm: Int?, val p2tBpm: Double?, val phaseDeg: Double?,
     val shape: Double?, val warmingUp: Boolean, val warmupRemainingMs: Long, val balloonTarget: Double, val inhale: Boolean,
     val pacerLevel: Double, val elapsedMs: Long, val remainingMs: Long?, val finished: Boolean,
     val traceT: DoubleArray, val traceHr: DoubleArray, val rfProbe: RfProbe?,
-    val rateBpm: Double, val forecast: HrForecast?,
+    val rateBpm: Double, val forecast: HrForecast?, val boundaryRemainingMs: Long = 0,
 )
 
 const val TRACE_MS = 30_000
@@ -57,6 +60,8 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private val kalman = HrKalman()
     private val summary = SummaryAccumulator()
     private val coherence = CoherenceMeter()
+    private val clock = WarmupClock()
+    private var searchBegun = false   // the first probe is counted from T, so nothing runs before it
     private var csSegment = 0
     private var csLastMs = Double.NEGATIVE_INFINITY
     private var hr: Int? = null
@@ -74,20 +79,30 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         monitor.onNotification(nowMs, packet.contact, packet.rr1024.isNotEmpty())?.let { transition(it, nowMs) }
         val update = timeline.onNotification(nowMs, packet.rr1024)
         if (update.gapMs > 0) {
+            csv.event(nowMs.toDouble(), CsvEvent.GAP)
+            clock.onBreak(nowMs.toDouble())   // the confirmation moment, never the gap start (spec 3.3 item 4)
             monitor.onGap(update.gapMs, nowMs)?.let { transition(it, nowMs) }
             freshFromMs = nowMs
             restartWindow()
         }
         for (beat in update.beats) for (c in filter.push(beat.also { it.paused = paused })) {
-            val usable = record(c)
-            if (usable) {
-                val tMid = c.beat.tEndMs - c.beat.rrMs / 2
-                estimator.add(tMid, 60000 / c.beat.rrMs)
-                kalman.update(tMid, pacer.cycles(tMid), 60000 / c.beat.rrMs)
-                trace.addLast(doubleArrayOf(tMid, 60000 / c.beat.rrMs))
-                feedCoherence(c.beat)
-            }
+            if (record(c)) drive(c.beat)
             monitor.onClassified(c.accepted, nowMs)?.let { transition(it, nowMs) }
+        }
+    }
+
+    /**
+     * A usable beat. The first one after a reset sets t0. Every usable RR feeds the Kalman filter and the trace (spec 3.2);
+     * only game RR feed the estimator and the coherence meter.
+     */
+    private fun drive(b: Beat) {
+        if (clock.onUsable(b.tEndMs, b.arrivalMs.toDouble())) csv.event(clock.t0Ms!!, CsvEvent.WARMUP_START)
+        val tMid = b.tEndMs - b.rrMs / 2
+        kalman.update(tMid, pacer.cycles(tMid), 60000 / b.rrMs)
+        trace.addLast(doubleArrayOf(tMid, 60000 / b.rrMs))
+        if (clock.isGame(b.tEndMs, b.rrMs)) {
+            estimator.add(tMid, 60000 / b.rrMs)
+            feedCoherence(b)
         }
     }
 
@@ -103,6 +118,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     fun pause(nowMs: Long) {
         if (paused) return
         paused = true
+        clock.onBreak(nowMs.toDouble())
         pending?.let { if (nowMs < it) withdraw(nowMs.toDouble()) }
         csv.event(nowMs.toDouble(), CsvEvent.PAUSE)
     }
@@ -135,6 +151,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     fun tick(nowMs: Long): UiState {
         monitor.tick(nowMs)?.let { transition(it, nowMs) }
         val t = nowMs.toDouble()
+        if (clock.takeEnd(t)) csv.event(clock.boundaryMs!!, CsvEvent.WARMUP_END)
         val rate = pacer.rateAt(t)
         if (!paused) rf?.let { probe(it, t) }
         if (monitor.state == Signal.OK && !paused) {
@@ -171,10 +188,14 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             },
             rateBpm = rate,
             forecast = if (monitor.state == Signal.OK && !paused) kalman.forecast() else null,
+            boundaryRemainingMs = ceil(clock.remainingMs(t)).toLong(),
         )
     }
 
     /**
+     * Nothing runs before T. The first probe is counted from T minus one breath period: the last warm-up breath is its transient
+     * breath, so it is scored from T plus two periods and ends eight periods after T (mid-breath possible; a rate change still
+     * waits for the next inhale start). T moves when an event before it restarts the warm-up, so the start is taken only once T is reached.
      * One probe = 9 breath periods at [probeRate]: period 1 is the physiological transient (then the window is cleared),
      * periods 2–3 refill the window, periods 4–9 are measured (median of P × rhythm, four two-breath windows of data).
      * When the next rate does not hang on this probe's score (no fit follows it), it is scheduled during the last breath and
@@ -185,6 +206,13 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
      * the session does; without a peak it then ends near its start.
      */
     private fun probe(search: RfSearch, t: Double) {
+        if (!searchBegun) {
+            val boundary = clock.boundaryMs
+            if (boundary == null || t < boundary) return
+            probeStartMs = boundary - 60_000 / probeRate
+            probeReset = true   // the transient breath came before T: no game RR to clear
+            searchBegun = true
+        }
         val period = 60_000 / probeRate
         val elapsed = t - probeStartMs
         if (!probeReset && elapsed >= period) { estimator.reset(); estimate = null; probeReset = true }
@@ -265,6 +293,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             filter.flush().forEach { record(it, usable = it.accepted) }
             filter.reset()
             csv.event(nowMs.toDouble(), CsvEvent.SIGNAL_LOST)
+            clock.onBreak(nowMs.toDouble())
         } else {
             csv.event(nowMs.toDouble(), CsvEvent.SIGNAL_BACK)
         }
@@ -278,7 +307,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         val b = c.beat
         val hrBpm = if (b.rrMs > 0) 60000 / b.rrMs else null
         if (b.paused || b.afterGap) summary.breakChain()   // a skipped paused beat breaks the chain
-        if (!b.paused) summary.addBeat(b.rrMs, usable)   // by the state at arrival, not at classification
+        if (!b.paused) summary.addBeat(b.rrMs, usable, game = clock.isGame(b.tEndMs, b.rrMs))   // by the state at arrival, not at classification
         csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg)
         return usable && !b.paused && b.arrivalMs >= freshFromMs
     }
