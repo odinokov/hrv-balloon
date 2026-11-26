@@ -29,6 +29,13 @@ class AppResourcesTest {
         }
     }
 
+    /** Spec 9.2.1: the help names the 20-minute search, not the old 18. */
+    @Test fun helpNamesTheTwentyMinuteSearch() {
+        val help = TestText.strings.getValue("help_text")
+        assertTrue("20-min" in help)
+        assertTrue("18-min" !in help)
+    }
+
     @Test fun helpOpensWithTheMedicalNotice() {
         assertTrue(
             TestText.strings.getValue("help_text").startsWith(

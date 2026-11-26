@@ -13,7 +13,18 @@ class SessionConfig(
     val rfStartSd: Double = RfSearch.START_SD_NONE,
     /** Compute the Citi m label of every beat (diagnostic, spec 7.1); false leaves the column empty and does no model work. */
     val citi: Boolean = true,
-)
+) {
+    companion object {
+        /** The app's config: [hasEstimate] sets the search's start spread; Citi runs only when a per-beat CSV is written ([saveCsv]). */
+        fun of(
+            rateBpm: Double, inhaleFraction: Double, durationMs: Long?, floorBpm: Double, ceilingBpm: Double,
+            shapeGate: Boolean, rfSearch: Boolean, hasEstimate: Boolean, saveCsv: Boolean,
+        ) = SessionConfig(
+            rateBpm, inhaleFraction, durationMs, floorBpm, ceilingBpm, shapeGate, rfSearch,
+            if (hasEstimate) RfSearch.START_SD_ESTIMATE else RfSearch.START_SD_NONE, saveCsv,
+        )
+    }
+}
 
 /**
  * Current resonance-search probe: the rate being breathed, its 1-based index, the best rate so far, and

@@ -1,5 +1,7 @@
 package com.hrvballoon.ui
 
+import com.hrvballoon.core.SessionStatus
+import com.hrvballoon.core.statusText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,5 +31,17 @@ class SceneTextTest {
     @Test fun quotedResourcesKeepTheirSpaces() {
         assertEquals("MOST STARS  #1 OF %d", TestText.scene.mostStars)
         assertEquals("ON  ", TestText.strings["switch_on"])
+    }
+
+    /** Spec 3.5: "WARM 42", at most eight characters, charset glyphs only, and the whole HUD line still fits beside the timer. */
+    @Test fun theWarmupStatusDrawsWithinTheCharsetAndFitsTheHudLine() {
+        val allowed = Regex("[A-Z0-9 #.%:>/+*^-]*")
+        for (s in 1..60) {
+            val status = statusText(SessionStatus.WARMUP, TestText.strings.getValue("hud_warm"), s * 1000L, "").drawn.uppercase(Locale.ROOT)
+            assertEquals("WARM $s", status)
+            assertTrue(status.length <= 8 && allowed.matches(status))
+            val line = Hud.session(TestText.scene, Palette.DOT_RED, status, 188, 10.5, "20:00").status.uppercase(Locale.ROOT)
+            assertTrue("HUD line $line", allowed.matches(line) && PixelFont.width(line) <= 160 - PixelFont.width("20:00") - 4 - 6 - 12)
+        }
     }
 }

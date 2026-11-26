@@ -166,6 +166,14 @@ class SessionEngineWarmupTest {
         for (s in ticks(r, t - 1_000, t + 500)) assertEquals("at ${s.tMs}", if (s.tMs >= t) 0L else ceil(t - s.tMs).toLong(), s.boundaryRemainingMs)
     }
 
+    @Test fun `9_1_4 status is WARMUP on every tick before T and never after, also in a search`() {
+        for (search in listOf(false, true)) {
+            val r = play(packets(steady(150)), stopAt = 90_000, rfSearch = search)
+            assertTrue(r.states.filter { it.tMs < 60_000 }.all { sessionStatus(it, false) == SessionStatus.WARMUP })
+            assertTrue(r.states.filter { it.tMs >= 60_000 }.none { sessionStatus(it, false) == SessionStatus.WARMUP })
+        }
+    }
+
     // ---- 9.1.5: pause ----
 
     /** Lag 500 ms on every beat but each tenth (the lowest-latency envelope): tEnd = arrival - 500, arrival = tEnd + 500. */

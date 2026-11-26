@@ -47,10 +47,10 @@ class SettingsTest {
         assertEquals(0.4, s.inhaleFraction, 1e-9)
     }
 
-    @Test fun aSearchSessionLasts18MinutesAndTrainingLasts15() {
+    @Test fun aSearchSessionLasts20MinutesAndTrainingLasts15() {
         val s = Settings(MapPrefs())
-        assertEquals(18 * 60_000L, s.searchDurationMs)
-        assertEquals("18", s.searchDurationLabel)
+        assertEquals(20 * 60_000L, s.searchDurationMs)
+        assertEquals("20", s.searchDurationLabel)
         assertEquals(15 * 60_000L, s.durationMs)
         assertEquals("15", s.durationLabel)
     }
@@ -59,7 +59,7 @@ class SettingsTest {
         val s = Settings(MapPrefs())
         assertEquals(s.searchDurationMs, s.lengthMs(true))
         assertEquals(s.durationMs, s.lengthMs(false))
-        assertEquals("18", s.lengthLabel(true))
+        assertEquals("20", s.lengthLabel(true))
         assertEquals("15", s.lengthLabel(false))
     }
 

@@ -17,8 +17,8 @@ android {
         applicationId = "com.hrvballoon"
         minSdk = 31
         targetSdk = 36
-        versionCode = 18
-        versionName = "2.9"
+        versionCode = 19
+        versionName = "2.10"
     }
 
     signingConfigs {
@@ -43,6 +43,11 @@ android {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+
+    // BuildConfig.DEBUG gates the debug-only onPacket timer: a constant, so R8 removes it from release and sideload.
+    buildFeatures {
+        buildConfig = true
     }
 
     compileOptions {

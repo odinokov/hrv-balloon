@@ -95,9 +95,9 @@ class Settings(private val p: Prefs) {
     val durationMs = 15 * 60_000L
     val durationLabel = "15"
 
-    /** A resonance search gets 18: room to finish its pairs of probes near 4.5 /min, where nine breaths take two minutes. */
-    val searchDurationMs = 18 * 60_000L
-    val searchDurationLabel = "18"
+    /** A resonance search gets 20: the 60 s warm-up comes out of it, and its pairs of probes near 4.5 /min need the rest (spec 3.4). */
+    val searchDurationMs = 20 * 60_000L
+    val searchDurationLabel = "20"
 
     fun lengthMs(search: Boolean) = if (search) searchDurationMs else durationMs
     fun lengthLabel(search: Boolean) = if (search) searchDurationLabel else durationLabel

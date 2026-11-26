@@ -22,6 +22,7 @@ import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.provider.Settings as SysSettings
 import android.text.InputType
+import android.util.Log
 import android.view.Choreographer
 import android.view.Gravity
 import android.view.View
@@ -42,13 +43,13 @@ import com.hrvballoon.core.HEIGHT_CM
 import com.hrvballoon.core.HrsPacket
 import com.hrvballoon.core.LostReason
 import com.hrvballoon.core.RfEstimate
-import com.hrvballoon.core.RfSearch
 import com.hrvballoon.core.SessionConfig
 import com.hrvballoon.core.SessionCsvWriter
 import com.hrvballoon.core.SessionEngine
 import com.hrvballoon.core.SessionMeta
 import com.hrvballoon.core.SessionOutcome
 import com.hrvballoon.core.SessionRecord
+import com.hrvballoon.core.PacketTimer
 import com.hrvballoon.core.SessionStatus
 import com.hrvballoon.core.Sex
 import com.hrvballoon.core.Signal
@@ -59,6 +60,7 @@ import com.hrvballoon.core.Summary
 import com.hrvballoon.core.UiState
 import com.hrvballoon.core.hasuoEstimate
 import com.hrvballoon.core.rhythmLimited
+import com.hrvballoon.core.statusText
 import com.hrvballoon.core.sessionOutcome
 import com.hrvballoon.core.sessionStatus
 import com.hrvballoon.core.starThisFrame
@@ -103,6 +105,8 @@ class MainActivity : Activity(), HrmClient.Listener {
     private var linkClosed = false   // idle in the background: the client is closed (it cannot reopen) and onStart makes a new one
 
     private var engine: SessionEngine? = null
+    /** Debug builds only (spec 7.7); null elsewhere so R8 drops the class from release and sideload. */
+    private val packetTimer: PacketTimer? = if (BuildConfig.DEBUG) PacketTimer() else null
     private var sessionEstimate: Double? = null
     /** Whether this session is a resonance search, fixed at its start (not re-read from [Settings.rfSearch]). */
     private var sessionSearch = false
@@ -366,19 +370,22 @@ class MainActivity : Activity(), HrmClient.Listener {
         }.map { getString(it) }
         steady = settings.shapeGate && !s.warmingUp &&
             rhythmLimited(s.p2tBpm, s.shape, settings.floorBpm.toDouble(), steady)
-        val status = when (sessionStatus(s, steady)) {
+        val kind = sessionStatus(s, steady)
+        val word = when (kind) {
             SessionStatus.DONE -> getString(R.string.hud_done)
             SessionStatus.NO_SIGNAL -> getString(R.string.hud_no_signal)
             SessionStatus.SEARCH -> getString(R.string.hud_search)
+            SessionStatus.WARMUP -> getString(R.string.hud_warm)
             SessionStatus.SETTLING -> getString(R.string.hud_settling)
             SessionStatus.STEADY -> getString(R.string.hud_steady)
             SessionStatus.NONE -> ""
         }
-        balloon.hud = Hud.session(sceneText, hudDot, status, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
+        val status = statusText(kind, word, s.boundaryRemainingMs, getString(R.string.a11y_warmup))
+        balloon.hud = Hud.session(sceneText, hudDot, status.drawn, if (frozen) null else freshHr(), s.rateBpm, mmss(s.remainingMs ?: s.elapsedMs), lost)
         balloon.traceT = s.traceT
         balloon.traceHr = s.traceHr
         balloon.forecast = s.forecast?.let { f -> engine?.pacer?.let { p -> { t: Double -> f.at(p.cycles(t)) } } }
-        describe((listOf(status) + lost).joinToString(". "))
+        describe((listOf(status.spoken) + lost).joinToString(". "))
     }
 
     private val ticker = object : Runnable {
@@ -472,8 +479,9 @@ class MainActivity : Activity(), HrmClient.Listener {
         sessionSearch = settings.rfSearch
         sessionMs = settings.lengthMs(sessionSearch)
         val now = OffsetDateTime.now()
-        csvName = if (settings.saveCsv) "hrv_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv" else ""
-        val csv = if (!settings.saveCsv) SessionCsvWriter(NULL_STREAM) else try {
+        val saveCsv = settings.saveCsv
+        csvName = if (saveCsv) "hrv_" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)) + ".csv" else ""
+        val csv = if (!saveCsv) SessionCsvWriter(NULL_STREAM) else try {
             SessionCsvWriter(MediaStoreCsv.open(this, csvName))
         } catch (e: Exception) {
             AlertDialog.Builder(this).setMessage(R.string.csv_failed)
@@ -494,12 +502,13 @@ class MainActivity : Activity(), HrmClient.Listener {
         startElapsed = SystemClock.elapsedRealtime()
         startWall = System.currentTimeMillis()
         engine = SessionEngine(
-            SessionConfig(
+            SessionConfig.of(
                 startRate, settings.inhaleFraction, sessionMs, settings.floorBpm.toDouble(), settings.ceilingBpm.toDouble(),
-                settings.shapeGate, sessionSearch, if (estimate != null) RfSearch.START_SD_ESTIMATE else RfSearch.START_SD_NONE,
+                settings.shapeGate, sessionSearch, estimate != null, saveCsv,
             ),
             csv,
         )
+        if (BuildConfig.DEBUG) packetTimer?.reset()
         guardBack(true)
         smoother = Smoother(settings.responseMs)
         starCounter = StarCounter()
@@ -570,6 +579,7 @@ class MainActivity : Activity(), HrmClient.Listener {
     /** [cue] = long vibration: Stop button and timer end, not a session cut short by leaving the app. */
     private fun stopSession(cue: Boolean, endAtMs: Long = sessionNow()) {
         val e = engine ?: return
+        if (BuildConfig.DEBUG) packetTimer?.line()?.let { Log.i("HrvBalloon", it) }   // every session end passes here: the 20:00 finish, Stop, the background grace
         val (outcome, saved) = save(e, e.stop(endAtMs), endAtMs)
         engine = null
         guardBack(false)
@@ -740,7 +750,12 @@ class MainActivity : Activity(), HrmClient.Listener {
         latestHr = packet.hrBpm
         lastHrAt = nowMs
         if (packet.rr1024.isNotEmpty()) lastRrAt = nowMs
-        if (nowMs >= startElapsed) engine?.onPacket(nowMs - startElapsed, packet)   // captured while the CSV was opening: before t = 0
+        val t0 = if (BuildConfig.DEBUG) System.nanoTime() else 0L
+        val e = engine
+        if (e != null && nowMs >= startElapsed) {   // captured while the CSV was opening: before t = 0
+            e.onPacket(nowMs - startElapsed, packet)
+            if (BuildConfig.DEBUG) packetTimer?.record(System.nanoTime() - t0)
+        }
     }
 
     private companion object {
