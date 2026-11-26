@@ -578,12 +578,6 @@ class SessionEngineTest {
         assertTrue("6.0 began at ${c.first().first}", c.first().first >= 268_182)
     }
 
-    @Test fun anEighteenMinuteSearchFromFourAndAHalfHasRoomForItsPairs() {
-        val r = runFollower(1_080_000, start = 4.5, amp = { 2 + 3 * (it - 4) })   // swing grows with rate: the estimate keeps moving
-        assertFalse(r.summary.rfConverged)
-        assertTrue("probes=${r.summary.rfProbes.map { it.first }}", r.summary.rfProbes.size >= 7)
-    }
-
     @Test fun noProbeRunsIntoTheLastTwoMinutes() {
         val r = runFollower(900_000)
         val late = r.states.filter { it.tMs > 781_000 }.map { it.rfProbe!!.index }.distinct()
@@ -620,5 +614,68 @@ class SessionEngineTest {
         // Probe 1 at 5.5 /min ends at about 150 s (152.7 s at the inhale); after a 90-112 s dropout the window refills by ~136 s, leaving ~1.2 breaths scored.
         val r = run(clean, durationMs = 900_000, stopAtMs = 160_000, rfSearch = true, suppress = { it in 90_000L..112_000L })
         assertEquals(1, r.at(158_000).rfProbe!!.index)
+    }
+
+    /** A swing that varies with the rate without a clear peak: the fit does not settle (the 4.3 scenario, whose rates stay about the start). */
+    private fun unconverged(durationMs: Long, start: Double, a: Double) = runFollower(durationMs, start = start, amp = { 5.0 + a * sin(it) })
+
+    @Test fun aTwentyMinuteSearchWithoutConvergenceRunsTheProbeCountOfTable43() {
+        // Spec 9.2.4 and the 4.3 table: 9 probes from 5.5 /min, 7 from 4.5 /min (the first, then pairs: always odd).
+        for ((start, count, swing) in listOf(Triple(5.5, 9, 2.0), Triple(4.5, 7, 3.0))) {
+            val r = unconverged(1_200_000, start, swing)
+            assertFalse("start $start", r.summary.rfConverged)
+            assertEquals("start $start: ${r.summary.rfProbes.map { it.first }}", count, r.summary.rfProbes.size)
+        }
+    }
+
+    // Spec 4.2 / 9.2.5, numbers for the runFollower signal: probe 1 begins nominally ending at about 148.75 s, its change takes the inhale at
+    // 152.73 s (5.5 /min, period 10.91 s); probe 2 = 9 periods at 6.0 (90 s), probe 3 = 9 periods at 5.0 (108 s). The limit is the duration minus 120 s.
+    private fun probeTwoStarts(durationMs: Long, start: Double = 5.5) = changes(runFollower(durationMs, start = start)).isNotEmpty()
+
+    @Test fun whenOneProbeFitsButNotAPairNoNewProbeStarts() {
+        // Limit 303 s: probe 2 alone would end by about 254 s, the pair at about 362 s.
+        val r = runFollower(423_000)
+        assertEquals(emptyList<Pair<Long, Double>>(), changes(r))
+        assertEquals(1, r.summary.rfProbes.size)
+        assertTrue(r.states.last().rfProbe!!.finished)
+        assertEquals(5.5, r.states.last().rateBpm, 1e-9)   // 2.9: the pacer keeps the last probed rate
+        assertTrue("a pair that does fit (limit 380 s) starts probe 2", probeTwoStarts(500_000))
+    }
+
+    @Test fun thePairCheckCountsTheWaitForTheInhale() {
+        // Limit 352 s: the pair fits without the wait (148.75 + 90 + 108 = 346.75 s) and not with it (+10.91 = 357.66 s).
+        assertFalse(probeTwoStarts(472_000))
+    }
+
+    @Test fun aPairTheConservativeBoundRefusesStillStartsWhenBothExactRatesFit() {
+        // Limit 365 s: 152.73 + 90 + 135 (closing probe at 4.0) = 377.7 s fails the early check, the exact pair at the probe's end
+        // (148.75 + 10.91 + 90 + 108 = 357.66 s) fits.
+        val r = runFollower(485_000)
+        assertEquals(6.0, changes(r).first().second, 1e-9)
+        assertTrue("probe 2 began at ${changes(r).first().first}", changes(r).first().first in 152_700L..153_000L)
+    }
+
+    @Test fun aPairThatEndsExactlyAtTheLimitFits() {
+        // Start 4.0 /min: probe 1 ends nominally at about 181.5 s, its change takes the inhale at 195 s; probe 2 at 4.5 is 120 s, probe 3 at 4.0 is 135 s:
+        // 195 + 255 = 450 s, so the limit of a 570 s session. One millisecond less does not fit.
+        assertTrue(probeTwoStarts(570_000, start = 4.0))
+        assertFalse(probeTwoStarts(569_999, start = 4.0))
+    }
+
+    @Test fun aRestartedOpeningProbeKeepsTheSingleProbeCheck() {
+        // Limit 400 s. Probe 2 at 6.0 (152.7 s to about 242.7 s) loses its signal late and restarts at its end; the restart needs 10 + 90 s
+        // (ends by about 344 s), the pair would need 108 s more (452 s): 2.9 keeps the restart, so the pair may end incomplete.
+        val r = run(synthBeats(60.0, 10.0, 5.5, 520.0), durationMs = 520_000, rfSearch = true, suppress = { it in 200_000L..232_000L })
+        assertFalse(r.at(300_000).rfProbe!!.finished)
+        assertEquals(2, r.at(300_000).rfProbe!!.index)
+        assertEquals(6.0, r.at(300_000).rateBpm, 1e-9)
+    }
+
+    @Test fun aLaterPairThatEndsExactlyAtTheLimitFits() {
+        // Start 4.0 /min, a flat swing: probes at 4.0, 4.5, 4.0 end at 195 + 120 + 135 = 450 s; the pair (4, 5) is 4.0 and 5.0 /min,
+        // 135 s + 108 s, after the wait of one 4.0 period (15 s): 450 + 15 + 243 = 708 s, the limit of an 828 s session.
+        fun fourthStarts(durationMs: Long) = !runFollower(durationMs, start = 4.0).states.first { it.rfProbe!!.index == 4 }.rfProbe!!.finished
+        assertTrue(fourthStarts(828_000))
+        assertFalse(fourthStarts(827_999))
     }
 }

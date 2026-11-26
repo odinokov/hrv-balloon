@@ -203,7 +203,10 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
      * A signal loss or a return to the app discards the probe's scores and withdraws an early change (a confirmed 1.5–3 s
      * loss restarts the warm-up but keeps the scores). Once converged the
      * pacer moves to the best rate and the search stops; it also stops when the next probe could not end [FINAL_MS] before
-     * the session does; without a peak it then ends near its start.
+     * the session does. After the first probe they run in pairs (2, 3), (4, 5), …: the probe that opens a pair starts only when
+     * both fit, the wait for the inhale included; a closing probe and a restart need room for themselves only. The pair is checked
+     * early (pending) only at the 1 to 2 change, with the closing probe at [SLOWEST_RATE]; if that fails the exact check follows at
+     * probe end. When no pair fits the search ends; without a peak it then ends near its start.
      */
     private fun probe(search: RfSearch, t: Double) {
         if (!searchBegun) {
@@ -227,7 +230,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
                 // Only once the next inhale is the one that ends breath 9: a restart that began mid-breath runs on to the
                 // inhale after its nominal end, as before.
                 val at = t + (1 - pacer.phase(t)) * period
-                if (next != null && next != probeRate && at >= end - 1 && (endBy == null || at + PROBE_BREATHS * 60_000 / next <= endBy)) pending = pacer.changeRate(next, t)
+                if (next != null && next != probeRate && at >= end - 1 && (endBy == null || at + probeMs(next) + (if (probeIndex == 1) probeMs(SLOWEST_RATE) else 0.0) <= endBy)) pending = pacer.changeRate(next, t)
             }
             return
         }
@@ -248,12 +251,16 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             search.converged -> search.best
             else -> search.next()
         }
-        if (!search.converged && endBy != null && t + pacer.periodMs(t) + PROBE_BREATHS * 60_000 / next > endBy) { next = search.conclude() ?: probeRate }
+        // A probe that opens a pair (2, 4, 6, …; not a restart) also needs room for its closing probe.
+        val closing = if (!restart && probeIndex % 2 == 0) search.following() else null
+        if (!search.converged && endBy != null && t + pacer.periodMs(t) + probeMs(next) + (closing?.let { probeMs(it) } ?: 0.0) > endBy) { next = search.conclude() ?: probeRate }
         val current = pacer.rateAt(t)   // differs from probeRate only when a restart follows a change already in effect
         probeStartMs = if (next != current) pacer.changeRate(next, t) else t
         probeReset = search.finished && next == current   // staying at the rate: no transient to clear
         probeRate = next
     }
+
+    private fun probeMs(rate: Double) = PROBE_BREATHS * 60_000 / rate
 
     /** Under [MIN_SCORED] breaths of scores by [end]: the probe would have to restart. */
     private fun short(end: Double, period: Double) = probeScores.isEmpty() || end - firstScoreMs < MIN_SCORED * period
@@ -317,6 +324,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         const val SCORE_FROM = 3      // breaths into a probe before scoring starts
         const val MIN_SCORED = 3      // breaths of scores a probe needs to count (of six)
         const val CS_GAP_MS = 3_000.0
+        const val SLOWEST_RATE = 4.0  // the slowest rate RfSearch gives: a conservative closing probe when its rate is not exposed
         const val FINAL_MS = 120_000L // a probe must end this long before the session does
     }
 }
