@@ -56,17 +56,17 @@ class SessionCsvWriter(out: OutputStream) {
 
     fun beat(
         tMs: Double, arrivalMs: Long, rrMs: Double, accepted: Boolean, hrBpm: Double?, rateBpm: Double,
-        pacerPhase: Double, p2tBpm: Double?, phaseDeg: Double?,
+        pacerPhase: Double, p2tBpm: Double?, phaseDeg: Double?, citiM: Int? = null,
     ) = guarded {
         w.write(
             "beat,${f1(tMs)},$arrivalMs,${f1(rrMs)},${if (accepted) 1 else 0},${hrBpm?.let(::f1) ?: ""},${f1(rateBpm)}," +
-                "${f3(pacerPhase)},${p2tBpm?.let(::f2) ?: ""},${phaseDeg?.let(::f1) ?: ""},\n",
+                "${f3(pacerPhase)},${p2tBpm?.let(::f2) ?: ""},${phaseDeg?.let(::f1) ?: ""},,${citiM ?: ""}\n",
         )
         w.flush()
     }
 
     fun event(tMs: Double, event: CsvEvent) = guarded {
-        w.write("event,${f1(tMs)},,,,,,,,,${event.csv}\n")
+        w.write("event,${f1(tMs)},,,,,,,,,${event.csv},\n")
         w.flush()
     }
 
@@ -77,6 +77,6 @@ class SessionCsvWriter(out: OutputStream) {
     private fun f3(x: Double) = String.format(Locale.ROOT, "%.3f", x)
 
     companion object {
-        const val COLUMNS = "type,t_ms,arrival_ms,rr_ms,accepted,hr_bpm,rate_bpm,pacer_phase,p2t_bpm,phase_deg,event"
+        const val COLUMNS = "type,t_ms,arrival_ms,rr_ms,accepted,hr_bpm,rate_bpm,pacer_phase,p2t_bpm,phase_deg,event,citi_m"
     }
 }

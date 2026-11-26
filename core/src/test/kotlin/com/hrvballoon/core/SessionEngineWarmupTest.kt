@@ -229,7 +229,7 @@ class SessionEngineWarmupTest {
         // 50 s of beats, then four queued behind a 2 s stall (true times kept, no loss), then on time
         val arrivals = (1..50).map { 1000L * it + 500 } + listOf(53_500L, 53_700L, 54_300L, 54_500L, 55_500L, 56_500L) + (57..80).map { 1000L * it + 500 }
         val r = play(arrivals.map { Pkt(it, intArrayOf(1024)) }, stopAt = 100_000)
-        assertTrue(r.csv.none { it.endsWith(",gap") })
+        assertTrue(r.csv.none { it.endsWith(",gap,") })
         assertEquals(1, r.times("warmup_start").size)
         val t0 = r.times("warmup_start")[0]
         assertEquals(listOf(t0 + 60_000), r.times("warmup_end"))
@@ -298,7 +298,7 @@ class SessionEngineWarmupTest {
         val r = play(pk, stopAt = 45_000, durationMs = 900_000)
         assertEquals(1, r.times("warmup_start").size)
         assertTrue(r.times("warmup_end").isEmpty())
-        assertTrue(r.csv.none { it.endsWith(",star") })
+        assertTrue(r.csv.none { it.endsWith(",star,") })
         assertEquals(0L, r.summary.validMs)
         assertNull(r.summary.coherence); assertNull(r.summary.meanHr); assertNull(r.summary.rmssd); assertNull(r.summary.sdnn)
         assertNull(r.summary.meanP)

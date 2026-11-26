@@ -5,7 +5,10 @@ package com.hrvballoon.core
  * [paused] is set by the engine at arrival, [afterGap] by the timeline: the filter classifies a beat two beats later,
  * when the app may have changed side or the gap is already behind the beats it holds.
  */
-class Beat(val tEndMs: Double, val rrMs: Double, val arrivalMs: Long, var paused: Boolean = false, var afterGap: Boolean = false)
+class Beat(val tEndMs: Double, val rrMs: Double, val arrivalMs: Long, var paused: Boolean = false, var afterGap: Boolean = false,
+    /** Session-wide number of the measured RR, +1 per beat in arrival order; set by the engine (spec 8.4). */
+    var index: Long = -1,
+)
 
 /** [gapMs] > 0 means notifications were lost before this one and the clock was re-anchored. */
 class TimelineUpdate(val beats: List<Beat>, val gapMs: Double)

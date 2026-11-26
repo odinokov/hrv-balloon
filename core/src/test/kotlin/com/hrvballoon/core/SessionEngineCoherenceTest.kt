@@ -82,7 +82,7 @@ class SessionEngineCoherenceTest {
     @Test fun aLostSignalSplitsTheSegments() {
         val s = junk(sine, 200_000.0, 202_500.0)
         val out = run(s, contact = { if (it in 200_000L until 202_500L) Contact.NOT_DETECTED else Contact.DETECTED })
-        assertTrue(out.csv.any { it.endsWith(",signal_lost") })
+        assertTrue(out.csv.any { it.endsWith(",signal_lost,") })
         assertEquals(reference(s, seg = { if (it > 202_500) 1 else 0 }, keep = { _, t -> t < 199_500 || t > 203_000 })!!, out.summary.coherence!!, 0.15)
     }
 
@@ -117,7 +117,7 @@ class SessionEngineCoherenceTest {
     @Test fun aPauseOfAboutASecondStillSplitsTheSegments() {
         assertNotNull(run(short, durationMs = 210_000).summary.coherence)
         val out = run(short, durationMs = 210_000, pause = 135_000L..136_000L)
-        assertTrue(out.csv.none { it.endsWith(",signal_lost") })
+        assertTrue(out.csv.none { it.endsWith(",signal_lost,") })
         assertNull(out.summary.coherence)
     }
 
@@ -125,7 +125,7 @@ class SessionEngineCoherenceTest {
         val rr = short.rrMs.copyOf()
         rr[135] = 2100.0; rr[136] = 2100.0   // about 135 s: the same middle of the game data
         val out = run(SynthBeats(short.t0Ms, rr), durationMs = 215_000)
-        assertTrue(out.csv.none { it.endsWith(",signal_lost") })
+        assertTrue(out.csv.none { it.endsWith(",signal_lost,") })
         assertNull(out.summary.coherence)
     }
 

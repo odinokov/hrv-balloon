@@ -166,8 +166,8 @@ class SessionEngineTest {
         val s = engine.stop(260_000)
         // 260 s − ~85 s to the first estimate (T + two periods) − 40 s paused (after T: no new warm-up) − ~24 s re-warm-up after resume (the window is cleared on purpose)
         assertTrue("valid=${s.validMs}", s.validMs in 100_000..120_000)
-        val rows = out.toString("UTF-8").lines().filter { it.endsWith(",pause") || it.endsWith(",resume") }
-        assertEquals(listOf("event,100000.0,,,,,,,,,pause", "event,140000.0,,,,,,,,,resume"), rows)
+        val rows = out.toString("UTF-8").lines().filter { it.endsWith(",pause,") || it.endsWith(",resume,") }
+        assertEquals(listOf("event,100000.0,,,,,,,,,pause,", "event,140000.0,,,,,,,,,resume,"), rows)
         assertTrue("summary beats=${s.beats}", s.beats in 210..230)   // the 40 s away stay out of the summary
         assertTrue(out.toString("UTF-8").lines().count { it.startsWith("beat,") } > 250)   // but reach the CSV
     }
@@ -324,7 +324,7 @@ class SessionEngineTest {
         val r = run(clean)
         val rows = r.rows()
         assertTrue(rows.size > 250)
-        for (row in rows) assertEquals(row, 11, row.split(",").size)
+        for (row in rows) assertEquals(row, 12, row.split(",").size)
     }
 
     @Test fun dropout() {
@@ -345,8 +345,8 @@ class SessionEngineTest {
         assertTrue(back.warmupRemainingMs > 15_000)
         assertFalse(r.at(back.tMs + 30_000).warmingUp)
         val rows = r.rows()
-        val lost = rows.indexOfFirst { it.endsWith(",signal_lost") }
-        val backRow = rows.indexOfFirst { it.endsWith(",signal_back") }
+        val lost = rows.indexOfFirst { it.endsWith(",signal_lost,") }
+        val backRow = rows.indexOfFirst { it.endsWith(",signal_back,") }
         assertTrue(lost in 1 until backRow)
         val firstAfter = rows.drop(lost + 1).first { it.startsWith("beat,") }
         assertTrue(firstAfter, firstAfter.split(",")[1].toDouble() >= 109_000)
@@ -357,8 +357,8 @@ class SessionEngineTest {
         assertEquals(Signal.LOST, r.at(50_000).signal)
         assertEquals(LostReason.LINK, r.at(50_000).lostReason)
         val rows = r.rows()
-        val d = rows.indexOfFirst { it.endsWith(",disconnect") }
-        val c = rows.indexOfFirst { it.endsWith(",reconnect") }
+        val d = rows.indexOfFirst { it.endsWith(",disconnect,") }
+        val c = rows.indexOfFirst { it.endsWith(",reconnect,") }
         assertTrue(d in 1 until c)
         assertEquals(Signal.OK, r.at(70_000).signal)
     }
@@ -383,14 +383,14 @@ class SessionEngineTest {
         assertTrue(r.at(back.tMs + 15_000).warmingUp)
         assertFalse(r.at(back.tMs + 30_000).warmingUp)
         val rows = r.rows()
-        assertTrue(rows.any { it.endsWith(",signal_lost") } && rows.any { it.endsWith(",signal_back") })
+        assertTrue(rows.any { it.endsWith(",signal_lost,") } && rows.any { it.endsWith(",signal_back,") })
     }
 
     @Test fun beatsWhileLostCountAsRejectedAndTheBeatEndingTheLossIsBookedLost() {
         val r = run(clean, contact = { if (it in 100_000L until 140_000L) Contact.NOT_DETECTED else Contact.DETECTED })
         val rows = r.rows()
-        val lost = rows.indexOfFirst { it.endsWith(",signal_lost") }
-        val back = rows.indexOfFirst { it.endsWith(",signal_back") }
+        val lost = rows.indexOfFirst { it.endsWith(",signal_lost,") }
+        val back = rows.indexOfFirst { it.endsWith(",signal_back,") }
         assertTrue(lost >= 0 && back > lost)
         val booked = rows.subList(lost, back).count { it.startsWith("beat,") }   // classified while LOST, the beat that ends the loss last; 40 s at 60 bpm is about 40 beats, less the two the filter holds
         assertTrue("booked=$booked", booked >= 35 && rows[back - 1].startsWith("beat,"))
@@ -402,8 +402,8 @@ class SessionEngineTest {
     @Test fun theBeatThatEndsAStaleLossIsBookedRejected() {
         val r = run(clean, suppress = { it in 100_000L until 110_000L })
         val rows = r.rows()
-        val lost = rows.indexOfFirst { it.endsWith(",signal_lost") }
-        val back = rows.indexOfFirst { it.endsWith(",signal_back") }
+        val lost = rows.indexOfFirst { it.endsWith(",signal_lost,") }
+        val back = rows.indexOfFirst { it.endsWith(",signal_back,") }
         assertTrue(lost >= 0 && back > lost)
         val booked = rows.subList(lost, back).count { it.startsWith("beat,") }   // no beat arrived during the loss: the only one is the beat that ends it
         assertEquals(1, booked)
@@ -432,7 +432,7 @@ class SessionEngineTest {
         val summary = engine.stop(130_000)
         assertEquals(2, summary.stars)
         val rows = out.toString("UTF-8").lines().filter { it.startsWith("event,") }
-        assertEquals(listOf("event,61250.0,,,,,,,,,star", "event,120000.0,,,,,,,,,star"), rows)
+        assertEquals(listOf("event,61250.0,,,,,,,,,star,", "event,120000.0,,,,,,,,,star,"), rows)
     }
 
     @Test fun stopEarlyWithNoBeats() {

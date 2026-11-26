@@ -11,6 +11,8 @@ class SessionConfig(
     val rfSearch: Boolean,
     /** How far the search's start may be off, /min: [RfSearch.START_SD_ESTIMATE] after a height estimate. */
     val rfStartSd: Double = RfSearch.START_SD_NONE,
+    /** Compute the Citi m label of every beat (diagnostic, spec 7.1); false leaves the column empty and does no model work. */
+    val citi: Boolean = true,
 )
 
 /**
@@ -60,6 +62,9 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     private val kalman = HrKalman()
     private val summary = SummaryAccumulator()
     private val coherence = CoherenceMeter()
+    private val citi = if (cfg.citi) CitiModel() else null
+    private var beatIndex = 0L        // +1 per measured RR, never reset: the model restarts on a hole (spec 8.4)
+    private var citiOpen = false      // a model segment is running; closed by a loss or a confirmed gap
     private val clock = WarmupClock()
     private var searchBegun = false   // the first probe is counted from T, so nothing runs before it
     private var csSegment = 0
@@ -84,8 +89,29 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
             monitor.onGap(update.gapMs, nowMs)?.let { transition(it, nowMs) }
             freshFromMs = nowMs
             restartWindow()
+            citiOpen = false
         }
-        for (beat in update.beats) for (c in filter.push(beat.also { it.paused = paused })) {
+        for (beat in update.beats) {
+            beat.index = beatIndex++
+            pushCiti(beat)   // before the filter: decide(i) needs beats i+1 and i+2 in the model
+            classify(beat, nowMs)
+        }
+    }
+
+    /** Spec 7.2: the first segment opens at the first RR wholly after T; a loss or a gap closes it, the next RR after it reopens. */
+    private fun pushCiti(b: Beat) {
+        val m = citi ?: return
+        if (monitor.state == Signal.LOST) return
+        if (!citiOpen) {
+            if (!clock.isGame(b.tEndMs, b.rrMs)) return
+            m.startSegment()
+            citiOpen = true
+        }
+        m.push(b.index, b.rrMs)
+    }
+
+    private fun classify(beat: Beat, nowMs: Long) {
+        for (c in filter.push(beat.also { it.paused = paused })) {
             if (record(c)) drive(c.beat)
             monitor.onClassified(c.accepted, nowMs)?.let { transition(it, nowMs) }
         }
@@ -299,6 +325,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         if (signal == Signal.LOST) {
             filter.flush().forEach { record(it, usable = it.accepted) }
             filter.reset()
+            citiOpen = false
             csv.event(nowMs.toDouble(), CsvEvent.SIGNAL_LOST)
             clock.onBreak(nowMs.toDouble())
         } else {
@@ -315,7 +342,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         val hrBpm = if (b.rrMs > 0) 60000 / b.rrMs else null
         if (b.paused || b.afterGap) summary.breakChain()   // a skipped paused beat breaks the chain
         if (!b.paused) summary.addBeat(b.rrMs, usable, game = clock.isGame(b.tEndMs, b.rrMs))   // by the state at arrival, not at classification
-        csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg)
+        csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg, citi?.decide(b.index, c.accepted))
         return usable && !b.paused && b.arrivalMs >= freshFromMs
     }
 

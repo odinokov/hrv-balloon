@@ -121,6 +121,19 @@ class CitiModelTest {
         assertTrue(r.citi.all { it == null })
     }
 
+    // Option 3 (Denis, 2026-11-26): no model-SD check at fit time, only at the decision at mu_1. A rising series with 0.7 ms noise has a
+    // fit whose SD at the window's mean prediction is under 1 ms but whose mu_1 (the latest, higher level) is not: it must give 0 or 1.
+    // With the fit-time check restored every row of this series is empty.
+    @Test fun aFitWithAnSdUnderOneMsAtTheMeanStillDecidesAtMu1() {
+        val rnd = java.util.Random(1)
+        val f = List(200) { 800.0 + 3.0 * it + 0.7 * rnd.nextGaussian() }
+        val m = CitiModel(); m.startSegment()
+        f.forEachIndexed { i, v -> m.push(i.toLong(), v) }
+        val out = f.indices.map { m.decide(it.toLong(), true) }
+        assertTrue(out.any { it != null })
+        assertTrue(out.all { it == null || it == 0 || it == 1 })
+    }
+
     // Robustness contract of the brief: null, never an exception.
     @Test fun decideOutsideSegmentIsNull() {
         val m = CitiModel()

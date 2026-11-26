@@ -175,11 +175,8 @@ class CitiModel {
             if (small) { converged = true; break }
         }
         if (!converged || !(s > 0)) return null
-        val sw = w.sum()
-        val lam = sw / s
-        val mean = (0 until m).sumOf { w[it] * dot(a, x[it]) } / sw
-        if (!(lam.isFinite() && lam > 0 && a.all { it.isFinite() } && mean > 0)) return null
-        if (sqrt(mean * mean * mean / lam) < MIN_SD_S) return null
+        val lam = w.sum() / s
+        if (!(lam.isFinite() && lam > 0 && a.all { it.isFinite() })) return null
         prevA = a
         return Fit(a, lam)
     }
