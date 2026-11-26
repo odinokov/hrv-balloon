@@ -27,6 +27,8 @@ class CitiModel {
     private var prevA: DoubleArray? = null
     internal var trace: CitiTrace? = null
         private set
+    internal var step1: Double? = null   // p_m - p_N of the last decision that computed it (tests)
+        private set
     internal val fitLambda: Double? get() = fit?.lambda
 
     /** Spec 7.2: a new segment; clears history and fit. */
@@ -47,7 +49,7 @@ class CitiModel {
 
     /** Spec 7.5 and 8.1: 1, 0 or null (empty). Call once per index in index order; it also records normality and refits. */
     fun decide(index: Long, accepted: Boolean): Int? {
-        trace = null
+        trace = null; step1 = null
         val i = index - first
         if (r.isEmpty() || i < 0 || i >= r.size) return null
         val p = i.toInt()
@@ -83,6 +85,7 @@ class CitiModel {
         val ps = logf(ri, mu12, lam12)
         val pr = logf(rj, mu1, lam)
         if (!(pN.isFinite() && pm.isFinite() && pe.isFinite() && ps.isFinite() && pr.isFinite())) return null
+        step1 = pm - pN
         if (pm - pN <= T_M) return 0
         if (pm <= pe || pm <= ps || pr > max(max(pN, pe), max(ps, pm)) + T_R) return 0
         val x = bestSplit(s, lam, mu1, ::mu2)

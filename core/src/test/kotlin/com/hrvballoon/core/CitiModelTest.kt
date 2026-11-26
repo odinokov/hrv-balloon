@@ -203,6 +203,21 @@ class CitiModelTest {
         assertEquals(b.fitLambda!!, a.fitLambda!!, 1e-3 * b.fitLambda!!)
     }
 
+    // Spec 7.5 step 2: p_m - p_N <= 2 gives 0 before any other step; pins the threshold 2 (a mutant with 0 survived).
+    @Test fun step2ThresholdIsTwo() {
+        val m = CitiModel(); m.startSegment()
+        val f = fixture()
+        f.forEachIndexed { i, v -> m.push(i.toLong(), v) }
+        var between = 0
+        for (i in f.indices) {
+            val out = m.decide(i.toLong(), true)
+            val d = m.step1 ?: continue
+            if (m.trace != null) assertTrue("row $i reached step 5 with $d", d > 2.0)
+            if (d > 0.0 && d <= 2.0) { between++; assertEquals("row $i", 0, out); assertNull("row $i", m.trace) }
+        }
+        assertTrue("fixture has no row with 0 < p_m - p_N <= 2", between > 0)
+    }
+
     // Spec 7.7: 50 iterations x window <= 60 s bound the cost; 4 ms is the p99 limit on the phone.
     @Test fun decideIsFast() {
         val f = fixture()
