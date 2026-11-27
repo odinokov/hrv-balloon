@@ -362,7 +362,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         const val SCORE_FROM = 3      // breaths into a probe before scoring starts
         const val MIN_SCORED = 3      // breaths of scores a probe needs to count (of six)
         const val CS_GAP_MS = 3_000.0
-        const val SLOWEST_RATE = 4.0  // the slowest rate RfSearch gives: a conservative closing probe when its rate is not exposed
+        const val SLOWEST_RATE = RfSearch.MIN_RATE  // a conservative closing probe when the next rate is not exposed
         const val FINAL_MS = 120_000L // a probe must end this long before the session does
     }
 }
