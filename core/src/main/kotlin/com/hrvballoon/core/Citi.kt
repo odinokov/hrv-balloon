@@ -18,7 +18,7 @@ class CitiModel {
 
     private val r = ArrayList<Double>()       // raw RR, s
     private val end = ArrayList<Double>()     // cumulative raw RR, s: end of r_k counted from the start of the segment
-    private val h = ArrayList<Double>()       // history value: raw until a confirmed correction replaces it
+    private val h = ArrayList<Double>()       // history value: raw until a confirmed correction replaces it; the check at R_i reads r_i from here
     private val normal = ArrayList<Boolean>()
     private val replaced = ArrayList<Boolean>()
     private var first = 0L
@@ -69,7 +69,7 @@ class CitiModel {
         if (f == null || fitPos != i - 1 || i < ORDER || i + 2 >= r.size) return null
         if ((1..ORDER).any { !normal[i - it] }) return null
         val a = f.a; val lam = f.lambda
-        val ri = r[i]; val rj = r[i + 1]; val rk = r[i + 2]
+        val ri = h[i]; val rj = r[i + 1]; val rk = r[i + 2]
         if (!(ri > 0 && rj > 0 && rk > 0 && ri.isFinite() && rj.isFinite() && rk.isFinite())) return null
         val h1 = h[i - 1]; val h2 = h[i - 2]; val h3 = h[i - 3]; val h4 = h[i - 4]; val h5 = h[i - 5]
         val mu1 = a[0] * h1 + a[1] * h2 + a[2] * h3 + a[3] * h4 + a[4] * h5

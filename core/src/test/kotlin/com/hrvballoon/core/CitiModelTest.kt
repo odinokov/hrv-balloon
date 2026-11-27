@@ -5,7 +5,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Spec 2.10 sections 7, 8.1 and 9.5. Every expectation below is quoted from the spec, not from code output. */
+/**
+ * Spec 2.10 sections 7, 8.1 and 9.5. Every expectation below is quoted from the spec, not from code output,
+ * except aBreathingSeriesGetsOneLabelPerShiftedPeak: its expectation comes from Denis's 2026-11-27 report (his prototype and
+ * Citi 2012 section II.E test the corrected series after a correction). Spec table 7.3's "raw" wording for the checked
+ * interval is superseded on that point.
+ */
 class CitiModelTest {
     /** Spec 9.5.1: LCG with x0 = 2010, 200 RR in ms. */
     private fun fixture(): MutableList<Double> {
@@ -252,5 +257,33 @@ class CitiModelTest {
         val out = f.indices.map { m.decide(1000L + it, true) }
         for (i in 0..66) assertNull(out[i])
         assertEquals(1, out[120])
+    }
+
+    // Denis's report, 2026-11-27: on a 5.5 /min breathing series, a peak shifted +120 or +250 ms got a second label at the next
+    // peak. Parameters chosen here: A = 50 ms, 250 beats, noise = the 9.5.1 LCG with seed 2010 + 31 * case, k = 100 + 11 * case
+    // (10 cases per shift, spread over breath phases). After a confirmed shift at k the check at k + 1 must read the corrected
+    // r_(k+1): k + 1 is never a second shift.
+    private fun breathing(seed: Long, shift: Double, k: Int): List<Double> {
+        var x = seed
+        var t = 0.0
+        val f = MutableList(250) {
+            x = (1103515245L * x + 12345L) % (1L shl 31)
+            val v = 900.0 + 26.0 * (2.0 * x / (1L shl 31) - 1.0) + 50.0 * Math.sin(2 * Math.PI * t * 5.5 / 60.0)
+            t += v / 1000.0
+            v
+        }
+        f[k] += shift; f[k + 1] -= shift
+        return f
+    }
+
+    @Test fun aBreathingSeriesGetsOneLabelPerShiftedPeak() {
+        var detected = 0
+        for (shift in listOf(120.0, 250.0)) for (c in 0 until 10) {
+            val k = 100 + 11 * c
+            val r = run(breathing(2010L + 31 * c, shift, k))
+            assertTrue("shift $shift case $c k=$k ones=${ones(r)} citi[k]=${r.citi[k]} citi[k+1]=${r.citi[k + 1]}", ones(r).all { it == k })
+            if (r.citi[k] == 1) detected++
+        }
+        assertTrue("detected $detected of 20", detected >= 18)
     }
 }
