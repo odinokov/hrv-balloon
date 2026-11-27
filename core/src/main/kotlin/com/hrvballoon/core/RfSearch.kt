@@ -77,7 +77,7 @@ class RfSearch(private val startRate: Double, private val startSd: Double = STAR
         best = snap(startRate + (fit.centre - startRate) * s2 / (s2 + se * se))
         converged = n >= MIN_PROBES && abs(best - previous) <= 0.1 + 1e-9
         previous = best
-        centre = best.coerceIn(MIN_RATE + DELTA, MAX_RATE - DELTA)
+        centre = best.coerceIn(4.0 + DELTA, 7.0 - DELTA)
     }
 
     /** No time for another probe: without a peak the answer is [best], near the start; otherwise there is none (null). */
@@ -86,7 +86,7 @@ class RfSearch(private val startRate: Double, private val startSd: Double = STAR
         return if (noPeak) best else null
     }
 
-    private fun snap(rate: Double) = ((rate * 10).roundToInt() / 10.0).coerceIn(MIN_RATE, MAX_RATE)
+    private fun snap(rate: Double) = ((rate * 10).roundToInt() / 10.0).coerceIn(4.0, 7.0)
 
     companion object {
         /** How far a height-and-sex estimate is off, /min (Hasuo et al. 2023: adjusted R² about 0.5). */
@@ -94,9 +94,6 @@ class RfSearch(private val startRate: Double, private val startSd: Double = STAR
         /** How far a start without an estimate (the user's own rate) may be off, /min. */
         const val START_SD_NONE = 0.6
         const val MIN_PROBES = 5
-        /** The slowest and fastest rate a search gives, /min. */
-        const val MIN_RATE = 4.0
-        const val MAX_RATE = 7.0
         private const val DELTA = 0.5
         /** A score below this fraction of the best one is a failed probe. */
         const val FLOOR = 0.25

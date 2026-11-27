@@ -14,18 +14,17 @@ class CsBeat(val tMs: Double, val hrBpm: Double, val rateBpm: Double, val segmen
  * App-defined coherence score of a session: per 64 s window of the 4 Hz HR series, CS = ln(1 + P^2 / (L * H)), P the
  * power within +-0.015 Hz of the spectral peak (0.04-0.26 Hz), L and H the power below and above it inside 0.0033-0.4 Hz.
  * Only windows whose beats all share one pacer rate count; the value is their median, null under 10 of them.
- * Only game beats count (spec 5.1): [isGameRr] against [boundaryMs], the RR length rebuilt as 60000 / HR.
  */
-fun sessionCoherence(beats: List<CsBeat>, boundaryMs: Double?): Double? =
-    CoherenceMeter().also { m -> beats.forEach { if (isGameRr(it.tMs, 60_000 / it.hrBpm, boundaryMs)) m.add(it) } }.median()
+fun sessionCoherence(beats: List<CsBeat>): Double? = CoherenceMeter().also { m -> beats.forEach { m.add(it) } }.median()
 
 /**
  * Incremental [sessionCoherence]: each window is scored by the add() that first puts a beat past its end, so one add()
- * costs at most about one window. Single-threaded; tMs strictly increasing; the caller offers game beats only (no time
- * cut here) and starts a new [CsBeat.segment] at every gap over 3 s, pause and signal loss.
+ * costs at most about one window. Single-threaded; tMs strictly increasing; the caller starts a new [CsBeat.segment]
+ * at every gap over 3 s, pause and signal loss.
  */
 class CoherenceMeter {
     private val scores = ArrayList<Double>()
+    private var first = Double.NaN
     private var segment = 0
     private var started = false
     private var t = ArrayList<Double>()   // current segment: beat times (s), HR, pacer rate
@@ -41,6 +40,8 @@ class CoherenceMeter {
 
     /** Beats arrive with strictly increasing tMs; a new [CsBeat.segment] value starts a fresh run. */
     fun add(beat: CsBeat) {
+        if (first.isNaN()) first = beat.tMs
+        if (beat.tMs - first < SKIP_MS) return
         if (!started || beat.segment != segment) {
             segment = beat.segment
             started = true
@@ -79,6 +80,7 @@ private const val FS = 4.0
 private const val NW = 256
 private const val STEP = 20
 private const val NFFT = 4096
+private const val SKIP_MS = 30_000.0
 private const val MIN_WINDOWS = 10
 private const val HALF_PEAK_HZ = 0.015
 private const val GRID_HZ = FS / NFFT

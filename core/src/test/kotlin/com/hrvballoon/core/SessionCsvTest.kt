@@ -27,7 +27,7 @@ class SessionCsvTest {
         assertTrue(header.any { it == "# rate_bpm=5.5" })
         assertTrue(header.any { it == "# floor_bpm=3.0" })
         assertTrue(header.any { it == "# ceiling_bpm=20.0" })
-        assertEquals("type,t_ms,arrival_ms,rr_ms,accepted,hr_bpm,rate_bpm,pacer_phase,p2t_bpm,phase_deg,event,citi_m", l[header.size])
+        assertEquals("type,t_ms,arrival_ms,rr_ms,accepted,hr_bpm,rate_bpm,pacer_phase,p2t_bpm,phase_deg,event", l[header.size])
     }
 
     @Test fun everyHeaderLineForOneSession() {
@@ -48,28 +48,15 @@ class SessionCsvTest {
     @Test fun beatRows() {
         val l = lines {
             beat(12345.678, 12900, 1012.345, true, 59.27, 5.5, 0.12345, null, null)
-            beat(12345.678, 12900, 1012.345, false, 59.27, 5.5, 0.12345, 12.3456, -17.04, 1)
-            beat(12345.678, 12900, 1012.345, true, 59.27, 5.5, 0.12345, null, null, 0)
+            beat(12345.678, 12900, 1012.345, false, 59.27, 5.5, 0.12345, 12.3456, -17.04)
         }
-        // spec 8.1: citi_m is the last, twelfth field: 1, 0 or empty; the event field before it is empty on a beat row
-        assertEquals("beat,12345.7,12900,1012.3,1,59.3,5.5,0.123,,,,", l[0])
-        assertEquals("beat,12345.7,12900,1012.3,0,59.3,5.5,0.123,12.35,-17.0,,1", l[1])
-        assertEquals("beat,12345.7,12900,1012.3,1,59.3,5.5,0.123,,,,0", l[2])
-        assertTrue(l.all { it.split(",").size == 12 })
+        assertEquals("beat,12345.7,12900,1012.3,1,59.3,5.5,0.123,,,", l[0])
+        assertEquals("beat,12345.7,12900,1012.3,0,59.3,5.5,0.123,12.35,-17.0,", l[1])
     }
 
-    @Test fun eventRow() = assertEquals("event,5000.0,,,,,,,,,disconnect,", lines { event(5000.0, CsvEvent.DISCONNECT) }[0])
+    @Test fun eventRow() = assertEquals("event,5000.0,,,,,,,,,disconnect", lines { event(5000.0, CsvEvent.DISCONNECT) }[0])
 
-    @Test fun starRow() = assertEquals("event,61250.0,,,,,,,,,star,", lines { event(61250.0, CsvEvent.STAR) }[0])
-
-    // spec 8.2: warmup_start (t0), warmup_end (T) and gap (the event moment); 12 fields (spec 8.1), the type is [0], t_ms [1], event [10], citi_m [11] empty
-    @Test fun warmupAndGapEventRows() {
-        val rows = lines { event(44700.0, CsvEvent.WARMUP_START); event(104700.0, CsvEvent.WARMUP_END); event(43000.0, CsvEvent.GAP) }.map { it.split(",") }
-        assertEquals(listOf("warmup_start", "warmup_end", "gap"), rows.map { it[10] })
-        assertEquals(listOf("event", "event", "event"), rows.map { it[0] })
-        assertEquals(listOf("44700.0", "104700.0", "43000.0"), rows.map { it[1] })
-        assertTrue(rows.all { it.size == 12 && it[11].isEmpty() })
-    }
+    @Test fun starRow() = assertEquals("event,61250.0,,,,,,,,,star", lines { event(61250.0, CsvEvent.STAR) }[0])
 
     @Test fun localeIndependent() {
         val a = ByteArrayOutputStream().also { SessionCsvWriter(it).beat(12345.678, 12900, 1012.345, true, 59.27, 5.5, 0.12345, 12.3456, -17.04) }

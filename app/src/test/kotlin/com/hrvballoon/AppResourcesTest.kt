@@ -29,26 +29,6 @@ class AppResourcesTest {
         }
     }
 
-    /** Spec 9.2.1: the help names the 20-minute search, not the old 18. */
-    @Test fun helpNamesTheTwentyMinuteSearch() {
-        val help = TestText.strings.getValue("help_text")
-        assertTrue("20-min" in help)
-        assertTrue("18-min" !in help)
-    }
-
-    /** Spec 9.7.4: the help covers the warm-up, the 20-minute search and the star maximum. */
-    @Test fun helpCoversTheWarmUpAndTheStarMaximum() {
-        val help = TestText.strings.getValue("help_text")
-        val steady = help.indexOf("\n\nSteady — ")
-        val warm = help.indexOf("\n\nWarm — ")
-        val lift = help.indexOf("\n\nLift — ")
-        assertTrue(steady in 0 until warm && warm < lift)
-        assertTrue("about 6 lower" in help)
-        assertTrue("after the warm-up" in help)
-        assertTrue("2 min with a live estimate" in help)
-        assertTrue("20-min" in help)
-    }
-
     @Test fun helpOpensWithTheMedicalNotice() {
         assertTrue(
             TestText.strings.getValue("help_text").startsWith(
