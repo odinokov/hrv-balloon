@@ -112,6 +112,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
     /** Spec 7.2: the first segment opens at the first RR wholly after T; a loss or a gap closes it, the next RR after it reopens. */
     private fun pushCiti(b: Beat) {
         val m = citi ?: return
+        if (csv.failed) return   // the m label only goes to the per-beat CSV
         if (monitor.state == Signal.LOST) return
         if (!citiOpen) {
             if (!clock.isGame(b.tEndMs, b.rrMs)) return
@@ -353,7 +354,7 @@ class SessionEngine(private val cfg: SessionConfig, private val csv: SessionCsvW
         val hrBpm = if (b.rrMs > 0) 60000 / b.rrMs else null
         if (b.paused || b.afterGap) summary.breakChain()   // a skipped paused beat breaks the chain
         if (!b.paused) summary.addBeat(b.rrMs, usable, game = clock.isGame(b.tEndMs, b.rrMs))   // by the state at arrival, not at classification
-        csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg, citi?.decide(b.index, c.accepted))
+        csv.beat(b.tEndMs, b.arrivalMs, b.rrMs, c.accepted, hrBpm, pacer.rateAt(b.tEndMs), pacer.phase(b.tEndMs), estimate?.p2tBpm, estimate?.phaseDeg, if (csv.failed) null else citi?.decide(b.index, c.accepted))
         return usable && !b.paused && b.arrivalMs >= freshFromMs
     }
 
