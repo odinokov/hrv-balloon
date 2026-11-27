@@ -135,4 +135,11 @@ class WarmupClockTest {
         assertFalse(c.onUsable(4_900.0, 4_950.0))
         assertTrue(c.onUsable(5_100.0, 5_000.0))
     }
+
+    @Test fun `a break stamped before T but handled after the end was taken leaves the clock alone`() {
+        val c = clockAt0()
+        assertTrue(c.takeEnd(60_000.0))
+        assertFalse(c.onBreak(59_990.0))
+        assertEquals(0.0, c.t0Ms!!, 0.0)
+    }
 }

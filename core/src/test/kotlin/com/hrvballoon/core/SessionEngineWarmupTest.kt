@@ -351,4 +351,18 @@ class SessionEngineWarmupTest {
         assertTrue("first change at ${c[0].first}, expected $expected", c[0].first >= expected && c[0].first < expected + 250)
         assertTrue(r.states.filter { it.tMs < t2 }.all { it.rateBpm == 5.5 })
     }
+
+    @Test fun `a contact loss stamped before T but handled after the tick at T does not restart the warm-up`() {
+        // The binder thread stamps the packet at 59 995; the main thread handles it after tick(60 005) has taken warmup_end.
+        val out = ByteArrayOutputStream()
+        val engine = SessionEngine(SessionConfig(5.5, 0.4, null, 0.0, 15.0, true, false), SessionCsvWriter(out))
+        for (j in 0..59) engine.onPacket(j * 1000L, HrsPacket(60, Contact.DETECTED, intArrayOf(1024)))
+        engine.tick(60_005)
+        engine.onPacket(59_995, HrsPacket(60, Contact.NOT_DETECTED, IntArray(0)))
+        val state = engine.tick(60_255)
+        val events = out.toString("UTF-8").lines().filter { it.startsWith("event,") }.map { it.split(",")[10] }
+        assertEquals(1, events.count { it == "warmup_start" })
+        assertEquals(1, events.count { it == "warmup_end" })
+        assertEquals(0L, state.boundaryRemainingMs)
+    }
 }

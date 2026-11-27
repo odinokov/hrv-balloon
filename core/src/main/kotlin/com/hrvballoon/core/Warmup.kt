@@ -33,7 +33,7 @@ class WarmupClock {
     fun onBreak(nowMs: Double): Boolean {
         eventMs = nowMs
         val t = boundaryMs ?: return false
-        if (nowMs >= t) return false
+        if (ended || nowMs >= t) return false   // a packet stamped before T can be handled after the tick that took the end
         t0Ms = null
         return true
     }
