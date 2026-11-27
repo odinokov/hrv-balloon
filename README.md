@@ -131,8 +131,6 @@ Nothing leaves the phone.
 
   `citi_m` labels (experimental) the shifted R peak at the end of that row's interval, after Citi, Brown and Barbieri [20]: 1 when a shift is confirmed, 0 when it was checked and not confirmed. It is empty when no estimate is available: in the warm-up, during a signal loss, in the first minute or two of an unbroken stretch, after a rejected beat among the five before it, on `event` rows and in a few rarer cases. It is diagnostic only and never changes `accepted`, the balloon or the summary.
 
-  Of the hypotheses in [20], only one shifted R peak ("m") gets a label. The likelihoods of an extra peak, a missed peak and an ectopic beat without a compensatory pause are computed only to rule out a false 1. Two shifted peaks in a row are not modelled. The artifact filter accepts an RR within 20% of the centred five-beat median, so a 120 ms shift on a 900 ms beat passes it and only this label can show it. An extra peak leaves an RR of half the usual or less and a missed peak one of about double; the filter already rejects both.
-
 ## Building
 
 Requires a JDK 17 or newer (with `javac`) and an Android SDK with `platforms;android-36` and `build-tools;36.0.0`. With your own SDK, set `ANDROID_HOME` (or `sdk.dir` in `local.properties`) and run `./gradlew`, as CI does:
